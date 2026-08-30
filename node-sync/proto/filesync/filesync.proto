@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package filesync;
+
+option go_package = "upbcientifica/node-sync/proto/filesync;filesyncpb";
+
+// Servicio de sincronizacion de archivos de UPB-CIENTIFICA.
+// Corresponde al nodo "node-sync" (binario syncd) del diagrama de despliegue.
+// Recibe los cambios de fsagent (escritorio) y de la app movil y los escribe
+// en el Home del usuario (/srv/home) montado por NFS.
+service FileSync {
+  // Compara el estado local del cliente con el Home del usuario en el servidor
+  // y devuelve las acciones a realizar (subir / bajar / igual).
+  rpc IniciarSync(SyncRequest) returns (SyncResponse);
+
+  // Sube un archivo al Home del usuario (streaming de fragmentos).
+  rpc SubirArchivo(stream FileChunk) returns (UploadStatus);
+
+  // Descarga un archivo del Home del usuario (streaming de fragmentos).
+  rpc DescargarArchivo(DownloadRequest) returns (stream FileChunk);
+
+  // Devuelve el estado de sincronizacion del usuario/dispositivo.
+  rpc EstadoSync(EstadoRequest) returns (EstadoResponse);
+}
+
+// Metadatos de un archivo (ruta relativa dentro del Home).
+message FileMeta {
+  string ruta  = 1;   // ruta relativa, p. ej. "docs/informe.pdf"
+  string hash  = 2;   // SHA-256 en hexadecimal
+  int64  mtime = 3;   // epoca Unix (segundos)
+  int64  size  = 4;   // tamano en bytes
+}
+
+message SyncRequest {
+  string uid         = 1;   // identificador del usuario (mapea a LDAP uid)
+  string dispositivo = 2;   // nombre del dispositivo cliente (fsagent / movil)
+  repeated FileMeta archivos = 3;  // estado local del cliente
+}
+
+enum Accion {
+  IGUAL  = 0;   // sin cambios
+  SUBIR  = 1;   // el cliente debe subir su version
+  BAJAR  = 2;   // el cliente debe bajar la version del servidor
+  BORRAR = 3;   // (reservado) el archivo debe eliminarse
+}
+
+message AccionArchivo {
+  string ruta          = 1;
+  Accion accion        = 2;
+  string hash_servidor = 3;   // hash en el servidor (si existe)
+}
+
+message SyncResponse {
+  repeated AccionArchivo acciones = 1;
+  int64 version = 2;          // version actual del Home del usuario
+}
+
+// Fragmento de archivo para carga/descarga por streaming.
+// En la carga, el PRIMER mensaje debe traer uid y ruta.
+message FileChunk {
+  string uid       = 1;
+  string ruta      = 2;
+  bytes  contenido = 3;
+}
+
+message UploadStatus {
+  bool   ok      = 1;
+  string ruta    = 2;
+  int64  version = 3;
+  string mensaje = 4;
+}
+
+message DownloadRequest {
+  string uid  = 1;
+  string ruta = 2;
+}
+
+message EstadoRequest {
+  string uid         = 1;
+  string dispositivo = 2;
+}
+
+message EstadoResponse {
+  int64 version     = 1;
+  int64 ultima_sync = 2;   // epoca Unix (segundos)
+  int32 archivos    = 3;   // numero de archivos en el Home
+}
