@@ -1,8 +1,12 @@
-// Script de inicialización: npm run init-db
 const config = require("../config");
-const { abrirConexion, aplicarEsquema } = require("./db");
+const { crearPool, aplicarEsquema } = require("./db");
 
-const db = abrirConexion(config.rutaBd);
-aplicarEsquema(db);
-console.log(`Esquema aplicado en ${config.rutaBd}`);
-db.close();
+(async () => {
+    const pool = crearPool(config.databaseUrl);
+    await aplicarEsquema(pool);
+    console.log("Esquema aplicado en PostgreSQL");
+    await pool.end();
+    })().catch((e) => {
+    console.error("Error aplicando el esquema:", e.message);
+    process.exit(1);
+});

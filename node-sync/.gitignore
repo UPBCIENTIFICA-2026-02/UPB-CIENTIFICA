@@ -1,6 +1,0 @@
-/bin/
-/data/
-/client-data/
-/certs/*.key
-/certs/*.crt
-*.log

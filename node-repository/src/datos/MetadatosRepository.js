@@ -1,92 +1,133 @@
 const { v4: uuid } = require("uuid");
 
 /**
- * Patrón Repository: encapsula el acceso al índice de metadatos.
- * El dominio trabaja con objetos, no con SQL.
+ * Patrón Repository sobre PostgreSQL. Todos los métodos son async.
+ *
+ * Frente a la versión SQLite se ganan dos cosas importantes:
+ *  - SELECT ... FOR UPDATE en el versionado, que evita condiciones de carrera
+ *    cuando dos clientes suben el mismo archivo a la vez (riesgo que el roadmap
+ *    identificó explícitamente para Storage).
+ *  - La comprobación de cuota se hace dentro de una transacción.
  */
 class MetadatosRepository {
-    constructor(db) {
-        this.db = db;
+    constructor(pool) {
+        this.pool = pool;
     }
 
-    buscarPorId(id) {
-        return this.db.prepare("SELECT * FROM nodos WHERE id = ?").get(id) || null;
+    async buscarPorId(id) {
+        const { rows } = await this.pool.query("SELECT * FROM nodos WHERE id = $1", [id]);
+        return rows[0] || null;
     }
 
-    listarHijos(directorioId) {
-        return this.db
-        .prepare(
-            `SELECT * FROM nodos
-            WHERE directorio_contenedor_id IS ?
+    async listarHijos(directorioId) {
+        const sql = directorioId
+        ? `SELECT * FROM nodos WHERE directorio_contenedor_id = $1
             ORDER BY tipo DESC, nombre ASC`
-        )
-        .all(directorioId);
+        : `SELECT * FROM nodos WHERE directorio_contenedor_id IS NULL
+            ORDER BY tipo DESC, nombre ASC`;
+        const params = directorioId ? [directorioId] : [];
+        const { rows } = await this.pool.query(sql, params);
+        return rows;
     }
 
-    buscarPorNombreEnDirectorio(nombre, directorioId, propietario) {
-        return this.db
-        .prepare(
-            `SELECT * FROM nodos
-            WHERE nombre = ? AND directorio_contenedor_id IS ? AND propietario = ?`
-        )
-        .get(nombre, directorioId, propietario) || null;
+    async buscarPorNombreEnDirectorio(nombre, directorioId, propietario) {
+        const sql = directorioId
+        ? `SELECT * FROM nodos
+            WHERE nombre = $1 AND directorio_contenedor_id = $2 AND propietario = $3`
+        : `SELECT * FROM nodos
+            WHERE nombre = $1 AND directorio_contenedor_id IS NULL AND propietario = $2`;
+        const params = directorioId
+        ? [nombre, directorioId, propietario]
+        : [nombre, propietario];
+        const { rows } = await this.pool.query(sql, params);
+        return rows[0] || null;
     }
 
-    crear({ nombre, tipo, propietario, grupo, permisos, tamanoBytes,
-            directorioContenedorId, rutaFisica }) {
+    async crear({ nombre, tipo, propietario, grupo, permisos, tamanoBytes,
+                    directorioContenedorId, rutaFisica }) {
         const id = uuid();
-        const ahora = new Date().toISOString();
-        this.db
-        .prepare(
-            `INSERT INTO nodos
+        const { rows } = await this.pool.query(
+        `INSERT INTO nodos
             (id, nombre, tipo, propietario, grupo, permisos, tamano_bytes,
-            version, directorio_contenedor_id, ruta_fisica, creado_en, modificado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`
-        )
-        .run(id, nombre, tipo, propietario, grupo || "usuarios",
-            permisos || "rw-r-----", tamanoBytes || 0,
-            directorioContenedorId, rutaFisica, ahora, ahora);
-        return this.buscarPorId(id);
+            version, directorio_contenedor_id, ruta_fisica)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8, $9)
+        RETURNING *`,
+        [id, nombre, tipo, propietario, grupo || "usuarios",
+        permisos || "rw-r-----", tamanoBytes || 0,
+        directorioContenedorId, rutaFisica]
+        );
+        return rows[0];
     }
 
-    /** Registra una nueva versión y devuelve el nodo actualizado. */
-    nuevaVersion(nodoId, tamanoBytes, rutaFisica) {
-        const ahora = new Date().toISOString();
-        const tx = this.db.transaction(() => {
-        const nodo = this.buscarPorId(nodoId);
-        const nuevaV = nodo.version + 1;
-
-        this.db
-            .prepare(
-            `INSERT INTO versiones (id, nodo_id, version, tamano_bytes, ruta_fisica, creado_en)
-            VALUES (?, ?, ?, ?, ?, ?)`
-            )
-            .run(uuid(), nodoId, nodo.version, nodo.tamano_bytes, nodo.ruta_fisica, ahora);
-
-        this.db
-            .prepare(
-            `UPDATE nodos SET version = ?, tamano_bytes = ?, ruta_fisica = ?, modificado_en = ?
-            WHERE id = ?`
-            )
-            .run(nuevaV, tamanoBytes, rutaFisica, ahora, nodoId);
-        });
-        tx();
-        return this.buscarPorId(nodoId);
+    /** Fija contenido y ruta de un nodo recién creado (v1), sin tocar el historial. */
+    async fijarContenido(nodoId, tamanoBytes, rutaFisica) {
+        const { rows } = await this.pool.query(
+        `UPDATE nodos SET tamano_bytes = $1, ruta_fisica = $2, modificado_en = now()
+        WHERE id = $3 RETURNING *`,
+        [tamanoBytes, rutaFisica, nodoId]
+        );
+        return rows[0];
     }
 
-    eliminar(id) {
-        return this.db.prepare("DELETE FROM nodos WHERE id = ?").run(id).changes > 0;
+    /**
+     * Archiva la versión actual y registra una nueva.
+     * FOR UPDATE bloquea la fila: si dos subidas llegan a la vez, la segunda espera
+     * en lugar de generar dos veces el mismo número de versión.
+     */
+    async nuevaVersion(nodoId, tamanoBytes, rutaFisica) {
+        const client = await this.pool.connect();
+        try {
+        await client.query("BEGIN");
+
+        const { rows } = await client.query(
+            "SELECT * FROM nodos WHERE id = $1 FOR UPDATE", [nodoId]
+        );
+        const nodo = rows[0];
+        if (!nodo) throw new Error(`Nodo ${nodoId} no existe`);
+
+        await client.query(
+            `INSERT INTO versiones (id, nodo_id, version, tamano_bytes, ruta_fisica)
+            VALUES ($1, $2, $3, $4, $5)`,
+            [uuid(), nodoId, nodo.version, nodo.tamano_bytes, nodo.ruta_fisica]
+        );
+
+        const { rows: actualizado } = await client.query(
+            `UPDATE nodos
+            SET version = version + 1, tamano_bytes = $1, ruta_fisica = $2, modificado_en = now()
+            WHERE id = $3 RETURNING *`,
+            [tamanoBytes, rutaFisica, nodoId]
+        );
+
+        await client.query("COMMIT");
+        return actualizado[0];
+        } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+        } finally {
+        client.release();
+        }
     }
 
-    /** Suma el espacio ocupado por un usuario — base para el control de cuota (RF-04). */
-    espacioUsado(propietario) {
-        const fila = this.db
-        .prepare(
-            `SELECT COALESCE(SUM(tamano_bytes), 0) AS total
-            FROM nodos WHERE propietario = ? AND tipo = 'archivo'`
-        )
-        .get(propietario);
-        return fila.total;
+    async eliminar(id) {
+        const { rowCount } = await this.pool.query("DELETE FROM nodos WHERE id = $1", [id]);
+        return rowCount > 0;
+    }
+
+    async espacioUsado(propietario) {
+        const { rows } = await this.pool.query(
+        `SELECT COALESCE(SUM(tamano_bytes), 0)::BIGINT AS total
+        FROM nodos WHERE propietario = $1 AND tipo = 'archivo'`,
+        [propietario]
+        );
+        return Number(rows[0].total);
+    }
+
+    async listarVersiones(nodoId) {
+        const { rows } = await this.pool.query(
+        "SELECT * FROM versiones WHERE nodo_id = $1 ORDER BY version DESC",
+        [nodoId]
+        );
+        return rows;
     }
 }
 

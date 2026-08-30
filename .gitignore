@@ -1,0 +1,87 @@
+/bin/
+/data/
+/client-data/
+/certs/*.key
+/certs/*.crt
+*.log
+# ============================================================
+#  .gitignore — Monorepo UPB-CIENTIFICA
+#  Cubre todos los servicios (node-repository, node-sync, etc.)
+# ============================================================
+
+# --- Node.js (node-repository, node-media, node-web) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.node_repl_history
+
+# --- Variables de entorno: NUNCA versionar ---
+# Contienen credenciales de base de datos, rutas locales y claves.
+# Los .env.example SÍ se versionan (son plantillas sin secretos).
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- Almacenamiento y datos locales de prueba ---
+almacen-pruebas/
+datos/
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Go (node-sync) ---
+# Binarios compilados; el código fuente y go.mod/go.sum SÍ se versionan.
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+bin/
+
+# --- Java / Gradle (gestor-cluster, job-runner, cliente Android) ---
+*.class
+*.jar
+*.war
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+
+# --- PHP (node-soap) ---
+vendor/
+composer.lock
+
+# --- Certificados, llaves y secretos: NUNCA subir ---
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+*.gpg
+secrets.properties
+keystore.properties
+
+# --- IDEs ---
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs y temporales ---
+*.log
+*.tmp
+tmp/
+temp/
