@@ -178,8 +178,21 @@ func (s *FSStore) Delete(uid, rel string) error {
 }
 
 func (s *FSStore) Count(uid string) (int, error) {
-	l, err := s.List(uid)
-	return len(l), err
+	root, err := s.userRoot(uid)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	err = filepath.WalkDir(root, func(_ string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			n++ 
+		}
+		return nil
+	})
+	return n, err
 }
 
 func (s *FSStore) Version(uid string) int64 {

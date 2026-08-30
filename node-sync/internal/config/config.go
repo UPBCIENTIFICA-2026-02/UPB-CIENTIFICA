@@ -16,7 +16,7 @@ type Config struct {
 
 func Load() Config {
 	c := Config{
-		Addr:    env("SYNC_ADDR", ":50051"),
+		Addr:    env("SYNC_ADDR", ":9090"),
 		DataDir: env("SYNC_DATA_DIR", "/srv/home"),
 		TLSCert: env("SYNC_TLS_CERT", ""),
 		TLSKey:  env("SYNC_TLS_KEY", ""),

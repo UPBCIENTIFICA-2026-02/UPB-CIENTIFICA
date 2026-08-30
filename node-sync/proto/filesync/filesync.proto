@@ -32,10 +32,11 @@ message FileMeta {
 }
 
 message SyncRequest {
-  string uid         = 1;   // identificador del usuario (mapea a LDAP uid)
   string dispositivo = 2;   // nombre del dispositivo cliente (fsagent / movil)
   repeated FileMeta archivos = 3;  // estado local del cliente
+  repeated string borrados = 3;
 }
+
 
 enum Accion {
   IGUAL  = 0;   // sin cambios
@@ -58,7 +59,6 @@ message SyncResponse {
 // Fragmento de archivo para carga/descarga por streaming.
 // En la carga, el PRIMER mensaje debe traer uid y ruta.
 message FileChunk {
-  string uid       = 1;
   string ruta      = 2;
   bytes  contenido = 3;
 }
@@ -71,12 +71,10 @@ message UploadStatus {
 }
 
 message DownloadRequest {
-  string uid  = 1;
   string ruta = 2;
 }
 
 message EstadoRequest {
-  string uid         = 1;
   string dispositivo = 2;
 }
 

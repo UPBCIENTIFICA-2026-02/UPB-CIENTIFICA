@@ -27,10 +27,11 @@ func New(store storage.Store) *Service { return &Service{store: store} }
 //   - en ambos, hash igual   -> IGUAL
 //   - en ambos, hash difiere -> SUBIR (prevalece el cambio del cliente)
 func (s *Service) IniciarSync(ctx context.Context, req *pb.SyncRequest) (*pb.SyncResponse, error) {
-	if req.Uid == "" {
-		return nil, status.Error(codes.InvalidArgument, "uid requerido")
+	uid, ok := auth.UIDFrom(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "sin usuario autenticado")
 	}
-	serverList, err := s.store.List(req.Uid)
+	serverList, err := s.store.List(uid)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "listando Home: %v", err)
 	}
@@ -67,12 +68,16 @@ func (s *Service) IniciarSync(ctx context.Context, req *pb.SyncRequest) (*pb.Syn
 // SubirArchivo recibe un archivo por streaming. El PRIMER mensaje debe traer
 // uid y ruta; los siguientes traen los fragmentos de contenido.
 func (s *Service) SubirArchivo(stream pb.FileSync_SubirArchivoServer) error {
+	uid, ok := auth.UIDFrom(stream.Context())
+	if !ok {
+		return status.Error(codes.Unauthenticated, "sin usuario autenticado")
+	}
 	first, err := stream.Recv()
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "sin datos: %v", err)
 	}
-	if first.Uid == "" || first.Ruta == "" {
-		return status.Error(codes.InvalidArgument, "el primer fragmento debe incluir uid y ruta")
+	if first.Ruta == "" {
+		return status.Error(codes.InvalidArgument, "el primer fragmento debe incluir la ruta")
 	}
 
 	r := &streamReader{buf: first.Contenido, stream: stream}

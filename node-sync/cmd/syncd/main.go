@@ -34,8 +34,8 @@ func main() {
 	}
 
 	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(loggingUnary),
-		grpc.ChainStreamInterceptor(loggingStream),
+		grpc.ChainUnaryInterceptor(auth.UnaryInterceptor(validador), loggingUnary),
+		grpc.ChainStreamInterceptor(auth.StreamInterceptor(validador), loggingStream),
 	}
 	if cfg.TLSEnabled() {
 		creds, err := credentials.NewServerTLSFromFile(cfg.TLSCert, cfg.TLSKey)
