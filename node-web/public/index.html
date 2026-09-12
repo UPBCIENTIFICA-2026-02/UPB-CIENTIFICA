@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UPB-CIENTÍFICA · Portal</title>
+<style>
+  :root {
+    --tinta: #101418;
+    --papel: #f6f7f9;
+    --panel: #ffffff;
+    --linea: #d9dde3;
+    --apagado: #667085;
+    --acento: #A61C64;
+    --ok: #2f7d55;
+    --alerta: #b4534f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--papel); color: var(--tinta);
+    font: 15px/1.55 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    background: var(--tinta); color: #fff; padding: 14px 22px;
+    display: flex; align-items: baseline; gap: 14px;
+  }
+  header .marca { font-weight: 700; letter-spacing: 0.3px; }
+  header .sub { color: #9aa3b0; font-size: 13px; }
+  header .quien { margin-left: auto; font-size: 13px; color: #cfd5dd; }
+  main { max-width: 1040px; margin: 0 auto; padding: 22px; }
+  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--linea); margin-bottom: 20px; flex-wrap: wrap; }
+  nav button {
+    background: none; border: 0; border-bottom: 2px solid transparent;
+    padding: 10px 14px; font: inherit; color: var(--apagado); cursor: pointer;
+  }
+  nav button[aria-selected="true"] { color: var(--acento); border-bottom-color: var(--acento); font-weight: 600; }
+  nav button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+  .panel { background: var(--panel); border: 1px solid var(--linea); border-radius: 6px; padding: 18px; }
+  h2 { margin: 0 0 4px 0; font-size: 17px; }
+  .pista { color: var(--apagado); font-size: 13px; margin: 0 0 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--apagado); font-weight: 600; font-size: 12px;
+       text-transform: uppercase; letter-spacing: 0.4px; padding: 6px 8px; border-bottom: 1px solid var(--linea); }
+  td { padding: 9px 8px; border-bottom: 1px solid #eef0f3; }
+  code { font-family: ui-monospace, monospace; font-size: 13px; color: #3a4250; }
+  .estado { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+  .EJECUTANDO { background: #eaf2fb; color: #2b5f9e; }
+  .TERMINADO { background: #e9f5ee; color: var(--ok); }
+  .FALLIDO { background: #fbeceb; color: var(--alerta); }
+  .EN_COLA { background: #f2f0e8; color: #7a6a34; }
+  .CANCELADO { background: #eef0f3; color: #667085; }
+  .barra { height: 6px; background: #eef0f3; border-radius: 3px; overflow: hidden; width: 120px; }
+  .barra span { display: block; height: 100%; background: var(--acento); }
+  .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+  .foto { border: 1px solid var(--linea); border-radius: 5px; overflow: hidden; }
+  .foto .lienzo { height: 110px; background: linear-gradient(135deg, #e7eaef, #f6f7f9); }
+  .foto .pie { padding: 8px 10px; font-size: 13px; }
+  .foto .fecha { color: var(--apagado); font-size: 12px; }
+  form.acceso { max-width: 320px; margin: 60px auto; }
+  label { display: block; font-size: 13px; color: var(--apagado); margin: 12px 0 4px; }
+  input {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--linea);
+    border-radius: 4px; font: inherit; background: #fff;
+  }
+  input:focus { outline: 2px solid var(--acento); outline-offset: 0; border-color: transparent; }
+  button.principal {
+    margin-top: 18px; width: 100%; padding: 10px; background: var(--acento);
+    color: #fff; border: 0; border-radius: 4px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .aviso { background: #fbeceb; color: var(--alerta); padding: 9px 12px; border-radius: 4px;
+           font-size: 13px; margin-top: 14px; }
+  .vacio { color: var(--apagado); font-size: 14px; padding: 20px 0; }
+  .simulado { background: #fff8e8; border: 1px solid #e6d9ae; color: #7a6a34;
+              padding: 8px 12px; border-radius: 4px; font-size: 13px; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="marca">UPB-CIENTÍFICA</span>
+  <span class="sub">Portal de servicios</span>
+  <span class="quien" id="quien"></span>
+</header>
+
+<main id="app"></main>
+
+<script src="spa-ui.js"></script>
+</body>
+</html>

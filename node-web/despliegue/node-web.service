@@ -1,0 +1,32 @@
+# Unidad systemd para la VM node-web de UPB-CIENTIFICA.
+# Instalar en /etc/systemd/system/node-web.service
+
+[Unit]
+Description=UPB-CIENTIFICA - servidor web (node-web)
+Documentation=https://github.com/UPB-CIENTIFICA/upbc-node-web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=upbcweb
+Group=upbcweb
+WorkingDirectory=/opt/upbc-node-web
+EnvironmentFile=/etc/upbc/node-web.env
+ExecStart=/usr/bin/node servidor-web.js
+Restart=always
+RestartSec=5
+
+# Endurecimiento: el proceso no necesita nada fuera de su directorio.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/upbc
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=node-web
+
+[Install]
+WantedBy=multi-user.target
