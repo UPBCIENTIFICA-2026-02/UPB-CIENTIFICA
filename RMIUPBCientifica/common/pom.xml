@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.cluster</groupId>
+        <artifactId>rmi-system</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>common</artifactId>
+    <packaging>jar</packaging>
+    <name>common</name>
+    <description>Contrato RMI compartido: interfaces remotas, modelo de datos y excepciones de dominio</description>
+
+    <!--
+        Este módulo NO depende de gestor-cluster ni de job-api.
+        Es la única fuente de verdad del contrato RMI: Job, JobStatus, JobService,
+        JobNoEncontradoException, EstadoInvalidoException.
+        Ambos módulos (servidor y cliente) dependen de este para garantizar que
+        compilan exactamente las mismas clases (mismo serialVersionUID), evitando
+        InvalidClassException al deserializar entre JVMs distintas.
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

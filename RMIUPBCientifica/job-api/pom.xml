@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.cluster</groupId>
+        <artifactId>rmi-system</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>job-api</artifactId>
+    <packaging>jar</packaging>
+    <name>job-api</name>
+    <description>Fachada HTTP: expone REST y actúa como cliente RMI de gestor-cluster</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.cluster</groupId>
+            <artifactId>common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            EXCEPCIÓN JUSTIFICADA A LA REGLA "job-api no depende de gestor-cluster":
+            esta dependencia se declara con scope=test ÚNICAMENTE. No forma parte del
+            JAR de producción de job-api (no se empaqueta, no viaja a producción) y
+            existe con el único propósito de permitir un test de integración real
+            (HttpToRmiIntegrationTest) que levanta un gestor-cluster embebido dentro
+            del propio proceso de pruebas, verificando el flujo HTTP -> RMI de punta
+            a punta sin mocks. En producción, job-api y gestor-cluster siguen siendo
+            procesos JVM completamente independientes que solo comparten `common`.
+        -->
+        <dependency>
+            <groupId>com.cluster</groupId>
+            <artifactId>gestor-cluster</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>job-api</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

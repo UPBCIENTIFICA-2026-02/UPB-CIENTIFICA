@@ -1,0 +1,61 @@
+// =============================================================================
+// config/seguridad-rmi.policy
+// =============================================================================
+//
+// PROPÓSITO HISTÓRICO DE ESTE ARCHIVO
+// ------------------------------------------------------------------------
+// Un archivo .policy es consumido por el SecurityManager de Java para decidir,
+// en tiempo de ejecución, qué permisos concretos tiene el código cargado por
+// la JVM (por ejemplo: abrir sockets, leer archivos, cargar clases desde un
+// codebase remoto). En el modelo clásico de RMI (años 2000, antes de Java 9),
+// era común que el STUB de un objeto remoto se descargara dinámicamente desde
+// una URL (java.rmi.server.codebase) y el SecurityManager + .policy evitaban
+// que ese código descargado hiciera algo no autorizado en la JVM cliente.
+//
+// POR QUÉ ESTE ARCHIVO NO APORTA SEGURIDAD REAL EN ESTE PROYECTO
+// ------------------------------------------------------------------------
+// En este sistema, `common` (que contiene JobService, Job, JobStatus y las
+// excepciones) se compila UNA sola vez y se distribuye como dependencia
+// Maven compartida entre gestor-cluster y job-api. NO existe carga dinámica
+// de clases vía codebase HTTP: ambos procesos ya tienen las clases del stub
+// en su classpath local desde el momento de compilar. El escenario que el
+// SecurityManager protegía (código remoto no confiable ejecutándose
+// localmente) simplemente no ocurre en este diseño.
+//
+// SecurityManager EN JAVA 17
+// ------------------------------------------------------------------------
+// El SecurityManager está marcado como deprecado para su eliminación desde
+// Java 17 (JEP 411, "Deprecate the Security Manager for Removal") y fue
+// eliminado por completo en versiones posteriores del JDK. Activarlo en
+// Java 17 mediante -Djava.security.manager genera advertencias explícitas de
+// deprecación en el arranque y no debe considerarse una base de seguridad a
+// futuro.
+//
+// RECOMENDACIÓN REAL PARA ESTE PROYECTO
+// ------------------------------------------------------------------------
+// La protección efectiva de los puertos 1099 (Registry) y 2100 (objeto
+// remoto) en Debian 12 debe hacerse a nivel de RED (firewall), no de
+// política de código:
+//
+//   sudo nft add rule inet filter input tcp dport {1099,2100} accept
+//
+// (o restringir el origen a la subred donde vive job-api).
+//
+// USO DE ESTE ARCHIVO (SOLO SI EL ENUNCIADO ACADÉMICO LO EXIGE COMO EJERCICIO)
+// ------------------------------------------------------------------------
+// Si se requiere demostrar el mecanismo por completitud académica, este
+// archivo puede activarse así (arrancando el gestor-cluster):
+//
+//   java -Djava.security.manager -Djava.security.policy=config/seguridad-rmi.policy \
+//        -jar gestor-cluster/target/gestor-cluster.jar
+//
+// Los permisos mínimos para que RMI funcione (abrir sockets de servidor en
+// 1099/2100 y sockets de cliente hacia job-api) serían:
+
+grant {
+    permission java.net.SocketPermission "*:1024-65535", "connect,accept,listen,resolve";
+};
+
+// NOTA: por las razones expuestas arriba (sin codebase dinámico, sin código
+// no confiable ejecutándose en la JVM), este archivo se entrega documentado
+// pero NO se activa por defecto en los scripts de arranque de este proyecto.
