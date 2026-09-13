@@ -1,0 +1,318 @@
+<!-- Contrato XML WSDL para las operaciones de usuarios y servicios. -->
+<?xml version="1.0" encoding="UTF-8"?>
+
+<definitions
+    name="UsersService"
+    targetNamespace="http://192.168.1.195/soap"
+    xmlns:tns="http://192.168.1.195/soap"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+    <types>
+
+        <xsd:schema
+            targetNamespace="http://192.168.1.195/soap">
+
+            <!-- autenticarUsuario -->
+
+            <xsd:element name="autenticarUsuario">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                        <xsd:element name="password" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="autenticarUsuarioResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+
+            <!-- obtenerUsuario -->
+
+            <xsd:element name="obtenerUsuario">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="obtenerUsuarioResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                        <xsd:element name="usuario" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="nombre" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="apellido" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="correo" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+
+            <!-- obtenerGruposUsuario -->
+
+            <xsd:element name="obtenerGruposUsuario">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="obtenerGruposUsuarioResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+
+                        <xsd:element
+                            name="grupos"
+                            type="xsd:string"
+                            minOccurs="0"
+                            maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+<!-- obtenerperfilusuario-->
+<!-- obtenerPerfilUsuario -->
+
+            <xsd:element name="obtenerPerfilUsuario">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="obtenerPerfilUsuarioResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                        <xsd:element name="usuario" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="perfil" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+<!-- validarAccesoServicio -->
+            <xsd:element name="validarAccesoServicio">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                        <xsd:element name="servicio" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="validarAccesoServicioResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                        <xsd:element name="perfil" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="servicio" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+        </xsd:schema>
+
+    </types>
+
+
+    <!-- MENSAJES -->
+
+    <message name="autenticarUsuarioRequest">
+        <part name="parameters"
+              element="tns:autenticarUsuario"/>
+    </message>
+
+    <message name="autenticarUsuarioResponse">
+        <part name="parameters"
+              element="tns:autenticarUsuarioResponse"/>
+    </message>
+
+
+    <message name="obtenerUsuarioRequest">
+        <part name="parameters"
+              element="tns:obtenerUsuario"/>
+    </message>
+
+    <message name="obtenerUsuarioResponse">
+        <part name="parameters"
+              element="tns:obtenerUsuarioResponse"/>
+    </message>
+
+
+    <message name="obtenerGruposUsuarioRequest">
+        <part name="parameters"
+              element="tns:obtenerGruposUsuario"/>
+    </message>
+
+    <message name="obtenerGruposUsuarioResponse">
+        <part name="parameters"
+              element="tns:obtenerGruposUsuarioResponse"/>
+    </message>
+
+<message name="obtenerPerfilUsuarioRequest">
+        <part name="parameters" element="tns:obtenerPerfilUsuario"/>
+    </message>
+
+    <message name="obtenerPerfilUsuarioResponse">
+        <part name="parameters" element="tns:obtenerPerfilUsuarioResponse"/>
+    </message>
+
+<message name="validarAccesoServicioRequest">
+        <part name="parameters" element="tns:validarAccesoServicio"/>
+    </message>
+    <message name="validarAccesoServicioResponse">
+        <part name="parameters" element="tns:validarAccesoServicioResponse"/>
+    </message>
+
+    <!-- PORT TYPE -->
+
+    <portType name="UsersPortType">
+
+        <operation name="autenticarUsuario">
+            <input message="tns:autenticarUsuarioRequest"/>
+            <output message="tns:autenticarUsuarioResponse"/>
+        </operation>
+
+        <operation name="obtenerUsuario">
+            <input message="tns:obtenerUsuarioRequest"/>
+            <output message="tns:obtenerUsuarioResponse"/>
+        </operation>
+
+        <operation name="obtenerGruposUsuario">
+            <input message="tns:obtenerGruposUsuarioRequest"/>
+            <output message="tns:obtenerGruposUsuarioResponse"/>
+        </operation>
+
+<operation name="obtenerPerfilUsuario">
+            <input message="tns:obtenerPerfilUsuarioRequest"/>
+            <output message="tns:obtenerPerfilUsuarioResponse"/>
+        </operation>
+
+<operation name="validarAccesoServicio">
+            <input message="tns:validarAccesoServicioRequest"/>
+            <output message="tns:validarAccesoServicioResponse"/>
+        </operation>
+
+    </portType>
+
+
+    <!-- BINDING -->
+
+    <binding
+        name="UsersBinding"
+        type="tns:UsersPortType">
+
+        <soap:binding
+            style="document"
+            transport="http://schemas.xmlsoap.org/soap/http"/>
+
+
+        <operation name="autenticarUsuario">
+
+            <soap:operation
+                soapAction="http://192.168.1.195/soap/autenticarUsuario"/>
+
+            <input>
+                <soap:body use="literal"/>
+            </input>
+
+            <output>
+                <soap:body use="literal"/>
+            </output>
+
+        </operation>
+
+
+        <operation name="obtenerUsuario">
+
+            <soap:operation
+                soapAction="http://192.168.1.195/soap/obtenerUsuario"/>
+
+            <input>
+                <soap:body use="literal"/>
+            </input>
+
+            <output>
+                <soap:body use="literal"/>
+            </output>
+
+        </operation>
+
+
+        <operation name="obtenerGruposUsuario">
+
+            <soap:operation
+                soapAction="http://192.168.1.195/soap/obtenerGruposUsuario"/>
+
+            <input>
+                <soap:body use="literal"/>
+            </input>
+
+            <output>
+                <soap:body use="literal"/>
+            </output>
+
+        </operation>
+
+<operation name="obtenerPerfilUsuario">
+
+            <soap:operation soapAction="http://192.168.1.195/soap/obtenerPerfilUsuario"/>
+
+            <input>
+                <soap:body use="literal"/>
+            </input>
+
+            <output>
+                <soap:body use="literal"/>
+            </output>
+
+        </operation>
+
+<operation name="validarAccesoServicio">
+            <soap:operation soapAction="http://192.168.1.195/soap/validarAccesoServicio"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+
+    </binding>
+
+
+    <!-- SERVICE -->
+
+    <service name="UsersService">
+
+        <documentation>
+            Servicio SOAP de usuarios,
+            autenticacion y grupos
+            de UPB-CIENTIFICA
+        </documentation>
+
+        <port
+            name="UsersPort"
+            binding="tns:UsersBinding">
+
+            <soap:address
+                location="https://192.168.1.195:8081/soap/user.php"/>
+
+        </port>
+
+    </service>
+
+</definitions>

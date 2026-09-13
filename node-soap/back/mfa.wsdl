@@ -1,0 +1,101 @@
+<!-- Contrato XML WSDL para el servicio de MFA/Tokens. -->
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="MFAService"
+    targetNamespace="http://192.168.1.195/soap"
+    xmlns:tns="http://192.168.1.195/soap"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+    <types>
+        <xsd:schema targetNamespace="http://192.168.1.195/soap">
+
+            <!-- generarTokenMFA -->
+            <xsd:element name="generarTokenMFA">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="generarTokenMFAResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                        <xsd:element name="usuario" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="token" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- validarTokenMFA -->
+            <xsd:element name="validarTokenMFA">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                        <xsd:element name="token" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="validarTokenMFAResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+        </xsd:schema>
+    </types>
+
+    <message name="generarTokenMFARequest">
+        <part name="parameters" element="tns:generarTokenMFA"/>
+    </message>
+    <message name="generarTokenMFAResponse">
+        <part name="parameters" element="tns:generarTokenMFAResponse"/>
+    </message>
+
+    <message name="validarTokenMFARequest">
+        <part name="parameters" element="tns:validarTokenMFA"/>
+    </message>
+    <message name="validarTokenMFAResponse">
+        <part name="parameters" element="tns:validarTokenMFAResponse"/>
+    </message>
+
+    <portType name="MFAPortType">
+        <operation name="generarTokenMFA">
+            <input message="tns:generarTokenMFARequest"/>
+            <output message="tns:generarTokenMFAResponse"/>
+        </operation>
+        <operation name="validarTokenMFA">
+            <input message="tns:validarTokenMFARequest"/>
+            <output message="tns:validarTokenMFAResponse"/>
+        </operation>
+    </portType>
+
+    <binding name="MFABinding" type="tns:MFAPortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+        <operation name="generarTokenMFA">
+            <soap:operation soapAction="http://192.168.1.195/soap/generarTokenMFA"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+
+        <operation name="validarTokenMFA">
+            <soap:operation soapAction="http://192.168.1.195/soap/validarTokenMFA"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+    </binding>
+
+    <service name="MFAService">
+        <port name="MFAPort" binding="tns:MFABinding">
+            <soap:address location="https://192.168.1.195:8081/soap/mfa.php"/>
+        </port>
+    </service>
+</definitions>
