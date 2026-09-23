@@ -1,0 +1,17 @@
+{
+  "name": "media-service",
+  "version": "0.1.0",
+  "description": "Photo Album + Streaming Service - UPB-CIENTIFICA",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "init-db": "node src/datos/init-db.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "uuid": "^10.0.0"
+  }
+}
