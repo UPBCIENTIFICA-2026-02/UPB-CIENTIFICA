@@ -62,17 +62,17 @@ rmi-system/
 
 **Cambio justificado respecto al árbol original:** no existe
 `scripts/start-registry.sh`. El RMI Registry se levanta embebido dentro del
-propio proceso de `gestor-cluster` (`LocateRegistry.createRegistry(1099)` en
+propio proceso de `gestor-cluster` (`LocateRegistry.createRegistry(2099)` en
 `Main.java`), por lo que no hay un proceso `rmiregistry` independiente que
 arrancar. Ver sección 5.
 
 ## 4. Arquitectura
 
 ```text
-Cliente HTTP → job-api (Spring Boot, :8080)
+Cliente HTTP → job-api (Spring Boot, :8082)
                   │  Controller → Service → RmiClient
                   ▼
-         RMI Registry (:1099)  ──lookup("JobService")──▶ stub
+         RMI Registry (:2099)  ──lookup("JobService")──▶ stub
                   │
                   ▼
    JobService exportado en el puerto fijo :2100 (gestor-cluster)
@@ -88,7 +88,7 @@ módulos.
 
 ## 5. Funcionamiento del RMI
 
-- **Estrategia de Registry:** embebido, vía `LocateRegistry.createRegistry(1099)`
+- **Estrategia de Registry:** embebido, vía `LocateRegistry.createRegistry(2099)`
   dentro del proceso `gestor-cluster`, en lugar del proceso externo
   `rmiregistry`. Ventaja: un solo proceso que gestionar; si `gestor-cluster`
   cae, el registry desaparece con él, evitando registries huérfanos apuntando
@@ -98,7 +98,7 @@ módulos.
   puerto dinámico (`exportObject(obj, 0)`).
 - **Publicación:** `registry.rebind("JobService", stub)`.
 - **Resolución del lado cliente:** `job-api` hace
-  `LocateRegistry.getRegistry(host, 1099).lookup("JobService")` en cada
+  `LocateRegistry.getRegistry(host, 2099).lookup("JobService")` en cada
   invocación (no cachea el stub de forma permanente), para no quedar
   apuntando a una instancia de `gestor-cluster` ya reiniciada.
 
@@ -106,9 +106,9 @@ módulos.
 
 | Puerto | Proceso | Propósito |
 |---|---|---|
-| `1099` | `gestor-cluster` (Registry embebido) | Descubrimiento: resuelve el nombre `"JobService"` a un stub. No ejecuta lógica de negocio. |
+| `2099` | `gestor-cluster` (Registry embebido) | Descubrimiento: resuelve el nombre `"JobService"` a un stub. No ejecuta lógica de negocio. |
 | `2100` | `gestor-cluster` (objeto remoto exportado) | Todas las invocaciones reales de método (`submitJob`, `getJob`, etc.) pasan por aquí. |
-| `8080` | `job-api` | HTTP REST hacia el nodo web / cliente externo. |
+| `8082` | `job-api` | HTTP REST hacia el nodo web / cliente externo. |
 
 ## 7. Cómo compilar
 
@@ -133,10 +133,10 @@ Salida esperada:
 
 ```text
 === gestor-cluster: iniciando servidor RMI ===
-[gestor-cluster] RMI Registry creado en el puerto 1099
+[gestor-cluster] RMI Registry creado en el puerto 2099
 [gestor-cluster] Objeto remoto JobService exportado en el puerto 2100
 [gestor-cluster] Servicio registrado en el Registry como 'JobService'
-[gestor-cluster] Listo. Escuchando en Registry:1099 / Objeto remoto:2100
+[gestor-cluster] Listo. Escuchando en Registry:2099 / Objeto remoto:2100
 ```
 
 En otra terminal:
@@ -153,26 +153,38 @@ Ejecutar toda la batería de pruebas (unitarias + integración HTTP→RMI real):
 mvn test
 ```
 
-Probar manualmente con `curl` (con ambos procesos corriendo):
+Probar manualmente con `curl` (con ambos procesos corriendo).
+
+**Todos los endpoints exigen `Authorization: Bearer <token>`.** En modo de
+desarrollo (`AUTH_MODE=simulado`, el valor por omisión) vale cualquier token con
+la forma `mock-token-<uid>-...`; el `<uid>` es el usuario al que se le atribuyen
+los trabajos. En producción hay que arrancar `gestor-cluster` con
+`AUTH_MODE=soap` y usar un token real emitido por `node-soap`.
 
 ```bash
+TOKEN="mock-token-jperez-demo"
+
 # Crear un trabajo
-curl -X POST http://localhost:8080/jobs \
+curl -X POST http://localhost:8082/jobs \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"nombre":"demo","comando":"echo hola-cluster","prioridad":5}'
-# => {"id":"3f1c...":}
+# => {"id":"3f1c..."}
 
 # Consultar estado
-curl http://localhost:8080/jobs/<ID>/estado
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8082/jobs/<ID>/estado
 
 # Consultar el trabajo completo
-curl http://localhost:8080/jobs/<ID>
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8082/jobs/<ID>
 
-# Listar todos
-curl http://localhost:8080/jobs
+# Listar los trabajos DEL USUARIO del token (ya no los de todos)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8082/jobs
 
-# Cancelar
-curl -X DELETE http://localhost:8080/jobs/<ID>
+# Cancelar (solo si el trabajo es de ese usuario)
+curl -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:8082/jobs/<ID>
+
+# Sin token: 401
+curl -i http://localhost:8082/jobs
 ```
 
 ## 10. Endpoints REST
@@ -193,7 +205,7 @@ disponible) o `500` (error interno inesperado).
 1. El cliente hace `POST /jobs` con `{nombre, comando, prioridad}`.
 2. `JobController` valida el cuerpo (`@Valid`) y delega en `JobFacadeService`.
 3. `JobFacadeService` pide el stub a `RmiClient.obtenerServicio()`.
-4. `RmiClient` hace `LocateRegistry.getRegistry("localhost", 1099).lookup("JobService")`.
+4. `RmiClient` hace `LocateRegistry.getRegistry("localhost", 2099).lookup("JobService")`.
 5. Con el stub obtenido, se invoca `stub.submitJob(nombre, comando, prioridad)`;
    esta llamada abre/usa una conexión hacia el puerto **2100**.
 6. `JobServiceImpl.submitJob` valida, crea el `Job` (estado `QUEUED`), lo
@@ -209,7 +221,7 @@ disponible) o `500` (error interno inesperado).
 | Síntoma | Causa probable | Solución |
 |---|---|---|
 | `job-api` responde `503` en todo | `gestor-cluster` no está corriendo | Ejecuta `./scripts/start-gestor.sh` primero |
-| `java.rmi.ConnectException` al iniciar `job-api` | Puerto 1099 ocupado por otro proceso | `sudo ss -ltnp | grep 1099` y libera el puerto |
+| `java.rmi.ConnectException` al iniciar `job-api` | Puerto 2099 ocupado por otro proceso | `sudo ss -ltnp | grep 2099` y libera el puerto |
 | `BindException: Address already in use` en `gestor-cluster` | Ya hay una instancia corriendo | Detén la instancia previa (`Ctrl+C` o `kill`) |
 | `404` inesperado al consultar un trabajo recién creado | Typo en el `id` copiado del `POST` | Verifica el campo `id` de la respuesta de creación |
 | `409` al cancelar | El trabajo ya terminó (`COMPLETED`/`FAILED`/`CANCELLED`) | Es el comportamiento esperado: no se puede cancelar un trabajo ya finalizado |
@@ -217,8 +229,8 @@ disponible) o `500` (error interno inesperado).
 ## 13. Solución de problemas
 
 ```bash
-# Ver qué proceso ocupa el puerto 1099 o 2100
-sudo ss -ltnp | grep -E '1099|2100'
+# Ver qué proceso ocupa el puerto 2099 o 2100
+sudo ss -ltnp | grep -E '2099|2100'
 
 # Detener un gestor-cluster colgado
 pkill -f gestor-cluster.jar
@@ -237,6 +249,6 @@ posteriores del JDK. Además, en este proyecto no hay carga dinámica de
 clases vía `codebase` (todas las clases del contrato viven en el módulo
 `common`, compartido y compilado una sola vez), por lo que el riesgo que
 el `.policy` mitigaba clásicamente no aplica aquí. La protección real de
-los puertos 1099/2100 debe hacerse a nivel de firewall en Debian
+los puertos 2099/2100 debe hacerse a nivel de firewall en Debian
 (`nftables`/`iptables`). El archivo incluye, comentados, los comandos exactos
 por si el enunciado académico exige activarlo como ejercicio didáctico.

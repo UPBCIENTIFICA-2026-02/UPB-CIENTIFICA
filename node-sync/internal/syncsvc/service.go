@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"upbcientifica/node-sync/internal/auth"
 	"upbcientifica/node-sync/internal/storage"
 	pb "upbcientifica/node-sync/proto/filesync"
 )
@@ -20,6 +21,21 @@ type Service struct {
 
 func New(store storage.Store) *Service { return &Service{store: store} }
 
+// uidAutenticado devuelve el uid del token validado por el interceptor.
+//
+// TODOS los metodos lo usan. Antes DescargarArchivo y EstadoSync tomaban el uid
+// del CUERPO del mensaje (req.Uid), lo que permitia a cualquier usuario
+// autenticado leer el Home de otro con solo poner su uid: bastaba un token
+// propio valido y el uid ajeno. Los campos `uid` siguen en el .proto por
+// compatibilidad de numeros de campo, pero el servidor los ignora.
+func uidAutenticado(ctx context.Context) (string, error) {
+	uid, ok := auth.UIDFrom(ctx)
+	if !ok || uid == "" {
+		return "", status.Error(codes.Unauthenticated, "sin usuario autenticado")
+	}
+	return uid, nil
+}
+
 // IniciarSync compara el estado local del cliente con el Home del servidor.
 // Politica (version inicial, sin resolucion avanzada de conflictos):
 //   - solo en cliente        -> SUBIR
@@ -27,10 +43,11 @@ func New(store storage.Store) *Service { return &Service{store: store} }
 //   - en ambos, hash igual   -> IGUAL
 //   - en ambos, hash difiere -> SUBIR (prevalece el cambio del cliente)
 func (s *Service) IniciarSync(ctx context.Context, req *pb.SyncRequest) (*pb.SyncResponse, error) {
-	uid, ok := auth.UIDFrom(ctx)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "sin usuario autenticado")
+	uid, err := uidAutenticado(ctx)
+	if err != nil {
+		return nil, err
 	}
+
 	serverList, err := s.store.List(uid)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "listando Home: %v", err)
@@ -61,17 +78,18 @@ func (s *Service) IniciarSync(ctx context.Context, req *pb.SyncRequest) (*pb.Syn
 		}
 	}
 
-	s.store.Touch(req.Uid)
-	return &pb.SyncResponse{Acciones: acciones, Version: s.store.Version(req.Uid)}, nil
+	s.store.Touch(uid)
+	return &pb.SyncResponse{Acciones: acciones, Version: s.store.Version(uid)}, nil
 }
 
 // SubirArchivo recibe un archivo por streaming. El PRIMER mensaje debe traer
-// uid y ruta; los siguientes traen los fragmentos de contenido.
+// la ruta; los siguientes traen los fragmentos de contenido.
 func (s *Service) SubirArchivo(stream pb.FileSync_SubirArchivoServer) error {
-	uid, ok := auth.UIDFrom(stream.Context())
-	if !ok {
-		return status.Error(codes.Unauthenticated, "sin usuario autenticado")
+	uid, err := uidAutenticado(stream.Context())
+	if err != nil {
+		return err
 	}
+
 	first, err := stream.Recv()
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "sin datos: %v", err)
@@ -81,15 +99,15 @@ func (s *Service) SubirArchivo(stream pb.FileSync_SubirArchivoServer) error {
 	}
 
 	r := &streamReader{buf: first.Contenido, stream: stream}
-	n, err := s.store.Save(first.Uid, first.Ruta, r)
+	n, err := s.store.Save(uid, first.Ruta, r)
 	if err != nil {
 		if err == storage.ErrBadPath {
 			return status.Error(codes.InvalidArgument, "ruta invalida")
 		}
 		return status.Errorf(codes.Internal, "guardando archivo: %v", err)
 	}
-	ver := s.store.BumpVersion(first.Uid)
-	log.Printf("subida uid=%s ruta=%s bytes=%d version=%d", first.Uid, first.Ruta, n, ver)
+	ver := s.store.BumpVersion(uid)
+	log.Printf("subida uid=%s ruta=%s bytes=%d version=%d", uid, first.Ruta, n, ver)
 	return stream.SendAndClose(&pb.UploadStatus{
 		Ok: true, Ruta: first.Ruta, Version: ver, Mensaje: "archivo almacenado",
 	})
@@ -97,10 +115,15 @@ func (s *Service) SubirArchivo(stream pb.FileSync_SubirArchivoServer) error {
 
 // DescargarArchivo envia un archivo del Home por streaming.
 func (s *Service) DescargarArchivo(req *pb.DownloadRequest, stream pb.FileSync_DescargarArchivoServer) error {
-	if req.Uid == "" || req.Ruta == "" {
-		return status.Error(codes.InvalidArgument, "uid y ruta requeridos")
+	uid, err := uidAutenticado(stream.Context())
+	if err != nil {
+		return err
 	}
-	rc, err := s.store.OpenRead(req.Uid, req.Ruta)
+	if req.Ruta == "" {
+		return status.Error(codes.InvalidArgument, "ruta requerida")
+	}
+
+	rc, err := s.store.OpenRead(uid, req.Ruta)
 	if err != nil {
 		switch err {
 		case storage.ErrNotFound:
@@ -117,7 +140,7 @@ func (s *Service) DescargarArchivo(req *pb.DownloadRequest, stream pb.FileSync_D
 	for {
 		n, err := rc.Read(buf)
 		if n > 0 {
-			if serr := stream.Send(&pb.FileChunk{Uid: req.Uid, Ruta: req.Ruta, Contenido: buf[:n]}); serr != nil {
+			if serr := stream.Send(&pb.FileChunk{Ruta: req.Ruta, Contenido: buf[:n]}); serr != nil {
 				return serr
 			}
 		}
@@ -132,17 +155,19 @@ func (s *Service) DescargarArchivo(req *pb.DownloadRequest, stream pb.FileSync_D
 }
 
 // EstadoSync devuelve version, ultima sincronizacion y numero de archivos.
-func (s *Service) EstadoSync(ctx context.Context, req *pb.EstadoRequest) (*pb.EstadoResponse, error) {
-	if req.Uid == "" {
-		return nil, status.Error(codes.InvalidArgument, "uid requerido")
+func (s *Service) EstadoSync(ctx context.Context, _ *pb.EstadoRequest) (*pb.EstadoResponse, error) {
+	uid, err := uidAutenticado(ctx)
+	if err != nil {
+		return nil, err
 	}
-	n, err := s.store.Count(req.Uid)
+
+	n, err := s.store.Count(uid)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "contando: %v", err)
 	}
 	return &pb.EstadoResponse{
-		Version:    s.store.Version(req.Uid),
-		UltimaSync: s.store.LastSync(req.Uid),
+		Version:    s.store.Version(uid),
+		UltimaSync: s.store.LastSync(uid),
 		Archivos:   int32(n),
 	}, nil
 }

@@ -1,14 +1,22 @@
 const {
     ErrorDominio, NoEncontrado, PermisoDenegado,
-    CuotaExcedida, NoAutenticado, SolicitudInvalida,
+    NoAutenticado, SolicitudInvalida, FuenteNoDisponible,
+    ServicioAuthNoDisponible,
 } = require("../dominio/errores");
 
+/*
+ * ANTES este archivo importaba `CuotaExcedida` (que no existe en el dominio de
+ * node-media, es de Storage) y NO importaba `FuenteNoDisponible`, que sí usaba
+ * más abajo. Como el Map se construye al cargar el módulo, `require` de este
+ * archivo lanzaba un ReferenceError y el servicio NO ARRANCABA en absoluto.
+ */
 const MAPA_HTTP = new Map([
   [NoAutenticado, 401],
   [PermisoDenegado, 403],
   [NoEncontrado, 404],
   [SolicitudInvalida, 400],
-  [FuenteNoDisponible, 503],   // Storage caído → 503, no 500
+  [FuenteNoDisponible, 503],          // Storage caído → 503, no 500
+  [ServicioAuthNoDisponible, 503],    // Auth caído → 503, nunca 401
 ]);
 
 /** Traduce errores de dominio a HTTP. Única capa que conoce códigos de estado. */

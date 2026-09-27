@@ -6,6 +6,11 @@ import com.cluster.common.JobNoEncontradoException;
 import com.cluster.common.JobService;
 import com.cluster.common.JobStatus;
 import com.cluster.common.JobStatusTransition;
+import com.cluster.common.NoAutorizadoException;
+import com.cluster.gestor.auth.AuthNoDisponibleException;
+import com.cluster.gestor.auth.Usuario;
+import com.cluster.gestor.auth.ValidadorSimulado;
+import com.cluster.gestor.auth.ValidadorToken;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -41,6 +46,17 @@ import java.util.concurrent.TimeUnit;
  *       el servicio, permite que operaciones sobre trabajos distintos avancen
  *       en paralelo sin contención.
  *
+ * AUTENTICACIÓN: cada método valida el token antes de hacer nada, y el uid del
+ * usuario sale de ahí. Antes no había validación de ningún tipo: cualquiera con
+ * acceso al puerto podía enviar trabajos, listar los de todos y cancelarlos.
+ *
+ * PENDIENTE CONOCIDO (no se toca en este cambio): {@link #ejecutarComando}
+ * sigue lanzando el comando con {@code bash -c}. Con la autenticación puesta ya
+ * no lo puede hacer cualquiera, pero un usuario autenticado sigue ejecutando
+ * shell arbitrario con los permisos del servicio, en una VM que monta
+ * /srv/home. Restringirlo a invocaciones de mpirun depende del diseño de
+ * job-runner.jar, que todavía no existe, y de que el equipo acuerde qué se
+ * puede enviar: código fuente y datasets según Contrato_HPC, no comandos.
  */
 public class JobServiceImpl implements JobService {
 
@@ -59,16 +75,46 @@ public class JobServiceImpl implements JobService {
             }
     );
     private final ExecutorService workers = Executors.newFixedThreadPool(NUM_WORKERS);
+    private final ValidadorToken validador;
     private volatile boolean detenido = false;
 
-    public JobServiceImpl() {
+    public JobServiceImpl(ValidadorToken validador) {
+        this.validador = validador;
         for (int i = 0; i < NUM_WORKERS; i++) {
             workers.submit(this::bucleWorker);
         }
     }
 
+    /** Constructor de conveniencia para pruebas: usa el validador simulado. */
+    public JobServiceImpl() {
+        this(new ValidadorSimulado());
+    }
+
+    /**
+     * Valida el token y devuelve el usuario.
+     *
+     * Un fallo de Auth se envuelve en RemoteException para no ampliar el
+     * contrato con una excepción más: job-api ya traduce RemoteException a 503,
+     * que es exactamente lo que corresponde cuando Auth no responde.
+     */
+    private Usuario autenticar(String token) throws RemoteException, NoAutorizadoException {
+        Usuario usuario;
+        try {
+            usuario = validador.validar(token);
+        } catch (AuthNoDisponibleException e) {
+            throw new RemoteException(e.getMessage(), e);
+        }
+        if (usuario == null) {
+            throw NoAutorizadoException.tokenInvalido();
+        }
+        return usuario;
+    }
+
     @Override
-    public String submitJob(String nombre, String comando, int prioridad) throws RemoteException {
+    public String submitJob(String token, String nombre, String comando, int prioridad)
+            throws RemoteException, NoAutorizadoException {
+        Usuario usuario = autenticar(token);
+
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("El nombre del trabajo no puede estar vacío");
         }
@@ -80,31 +126,47 @@ public class JobServiceImpl implements JobService {
         }
 
         String id = UUID.randomUUID().toString();
-        Job job = new Job(id, nombre, comando, prioridad);
+        Job job = new Job(id, nombre, comando, prioridad, usuario.uid());
         jobs.put(id, job);
         cola.put(job);
         return id;
     }
 
     @Override
-    public JobStatus getJobStatus(String jobId) throws RemoteException, JobNoEncontradoException {
-        Job job = buscarOFallar(jobId);
-        return job.getEstado();
+    public JobStatus getJobStatus(String token, String jobId)
+            throws RemoteException, JobNoEncontradoException, NoAutorizadoException {
+        return buscarPropioOFallar(autenticar(token), jobId).getEstado();
     }
 
     @Override
-    public Job getJob(String jobId) throws RemoteException, JobNoEncontradoException {
-        return buscarOFallar(jobId);
+    public Job getJob(String token, String jobId)
+            throws RemoteException, JobNoEncontradoException, NoAutorizadoException {
+        return buscarPropioOFallar(autenticar(token), jobId);
+    }
+
+    /**
+     * Trabajos del usuario del token.
+     *
+     * Antes devolvía {@code jobs.values()} completo, es decir los trabajos de
+     * todos los usuarios del sistema.
+     */
+    @Override
+    public List<Job> listJobs(String token) throws RemoteException, NoAutorizadoException {
+        Usuario usuario = autenticar(token);
+        List<Job> propios = new ArrayList<>();
+        for (Job job : jobs.values()) {
+            if (job.esDe(usuario.uid())) {
+                propios.add(job);
+            }
+        }
+        return propios;
     }
 
     @Override
-    public List<Job> listJobs() throws RemoteException {
-        return new ArrayList<>(jobs.values());
-    }
-
-    @Override
-    public boolean cancelJob(String jobId) throws RemoteException, JobNoEncontradoException, EstadoInvalidoException {
-        Job job = buscarOFallar(jobId);
+    public boolean cancelJob(String token, String jobId)
+            throws RemoteException, JobNoEncontradoException, EstadoInvalidoException,
+            NoAutorizadoException {
+        Job job = buscarPropioOFallar(autenticar(token), jobId);
 
         synchronized (job) {
             JobStatus actual = job.getEstado();
@@ -128,12 +190,19 @@ public class JobServiceImpl implements JobService {
         }
     }
 
-    private Job buscarOFallar(String jobId) throws JobNoEncontradoException {
+    /**
+     * Busca un trabajo y comprueba que sea del usuario.
+     *
+     * Se responde 404 (JobNoEncontradoException) y no 403 cuando el trabajo
+     * existe pero es de otro: así no se revela qué identificadores existen.
+     */
+    private Job buscarPropioOFallar(Usuario usuario, String jobId)
+            throws JobNoEncontradoException {
         if (jobId == null || jobId.isBlank()) {
             throw new IllegalArgumentException("El id del trabajo no puede estar vacío");
         }
         Job job = jobs.get(jobId);
-        if (job == null) {
+        if (job == null || !job.esDe(usuario.uid())) {
             throw new JobNoEncontradoException(jobId);
         }
         return job;

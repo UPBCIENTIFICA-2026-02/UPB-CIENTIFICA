@@ -23,6 +23,25 @@ CREATE TABLE IF NOT EXISTS medios (
     UNIQUE (propietario, archivo_storage_id)
 );
 
+-- ---------------------------------------------------------------------------
+-- Permisos replicados desde Storage.
+--
+-- `propietario`, `grupo` y `permisos` son una COPIA de lo que dice Storage en
+-- el momento de indexar, y sirven para decidir qué medios se LISTAN aplicando
+-- el mismo modelo Unix que node-repository (ver src/dominio/permisos.js).
+-- Antes solo existía `propietario`, así que una foto compartida con el grupo
+-- era invisible en el álbum aunque Storage sí la mostrara.
+--
+-- Los BYTES se siguen pidiendo a Storage con el token del usuario: la
+-- autoridad sobre el contenido es Storage, no esta copia.
+--
+-- Se usa ALTER ... IF NOT EXISTS porque aplicarEsquema() ejecuta este archivo
+-- en cada arranque y CREATE TABLE IF NOT EXISTS no añade columnas a una tabla
+-- que ya existía.
+-- ---------------------------------------------------------------------------
+ALTER TABLE medios ADD COLUMN IF NOT EXISTS grupo    TEXT      NOT NULL DEFAULT 'usuarios';
+ALTER TABLE medios ADD COLUMN IF NOT EXISTS permisos CHAR(9)   NOT NULL DEFAULT 'rw-r-----';
+
 CREATE TABLE IF NOT EXISTS albumes (
     id           UUID PRIMARY KEY,
     propietario  TEXT NOT NULL,
@@ -41,4 +60,5 @@ CREATE TABLE IF NOT EXISTS album_medios (
 
 CREATE INDEX IF NOT EXISTS idx_medios_propietario ON medios(propietario, tipo);
 CREATE INDEX IF NOT EXISTS idx_medios_titulo      ON medios(propietario, lower(titulo));
+CREATE INDEX IF NOT EXISTS idx_medios_grupo       ON medios(grupo, tipo);
 CREATE INDEX IF NOT EXISTS idx_album_medios_orden ON album_medios(album_id, orden);

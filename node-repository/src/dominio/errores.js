@@ -43,7 +43,40 @@ class SolicitudInvalida extends ErrorDominio {
     }
 }
 
+/**
+ * La cabecera Range pide un tramo que el archivo no puede satisfacer.
+ * Se traduce a 416, que es lo que espera un reproductor de vídeo para
+ * reintentar pidiendo el archivo completo.
+ */
+class RangoNoSatisfacible extends ErrorDominio {
+    constructor(tamanoTotal) {
+        super(
+        `El rango solicitado no es válido para un archivo de ${tamanoTotal} bytes`,
+        "RANGO_NO_SATISFACIBLE"
+        );
+        this.tamanoTotal = tamanoTotal;
+    }
+}
+
+/**
+ * El Authentication Service no responde.
+ *
+ * Se distingue de NoAutenticado a propósito: "no pude comprobar tu token" (503)
+ * y "tu token no vale" (401) son cosas distintas. Si se devolviera 401 cuando
+ * node-soap está caído, los clientes borrarían sesiones que siguen siendo
+ * válidas y obligarían a los usuarios a entrar de nuevo sin motivo.
+ */
+class ServicioAuthNoDisponible extends ErrorDominio {
+    constructor(detalle) {
+        super(
+        `No se pudo validar el token contra Authentication Service: ${detalle}`,
+        "AUTH_NO_DISPONIBLE"
+        );
+    }
+}
+
 module.exports = {
     ErrorDominio, NoEncontrado, PermisoDenegado,
     CuotaExcedida, NoAutenticado, SolicitudInvalida,
+    RangoNoSatisfacible, ServicioAuthNoDisponible,
 };

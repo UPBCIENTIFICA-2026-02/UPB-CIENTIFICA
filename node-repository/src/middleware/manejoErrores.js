@@ -1,6 +1,7 @@
 const {
     ErrorDominio, NoEncontrado, PermisoDenegado,
     CuotaExcedida, NoAutenticado, SolicitudInvalida,
+    RangoNoSatisfacible, ServicioAuthNoDisponible,
 } = require("../dominio/errores");
 
 const MAPA_HTTP = new Map([
@@ -8,7 +9,9 @@ const MAPA_HTTP = new Map([
     [PermisoDenegado, 403],
     [NoEncontrado, 404],
     [CuotaExcedida, 413],
+    [RangoNoSatisfacible, 416],
     [SolicitudInvalida, 400],
+    [ServicioAuthNoDisponible, 503],   // Auth caído → 503, nunca 401
 ]);
 
 /** Traduce errores de dominio a HTTP. Única capa que conoce códigos de estado. */

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# start-api.sh — Inicia la fachada HTTP job-api (Spring Boot), en el puerto 8080.
+# start-api.sh — Inicia la fachada HTTP job-api (Spring Boot), en el puerto 8082.
 # Requiere que gestor-cluster ya esté corriendo (o toleremos que arranque antes:
 # job-api resuelve el stub RMI de forma perezosa en cada request, así que puede
 # iniciarse en cualquier orden, pero las peticiones fallarán con 503 hasta que
@@ -23,9 +23,9 @@ if [ ! -f "${JAR_PATH}" ]; then
 fi
 
 RMI_HOST="${RMI_GESTOR_HOST:-localhost}"
-RMI_PORT="${RMI_GESTOR_REGISTRY_PORT:-1099}"
+RMI_PORT="${RMI_GESTOR_REGISTRY_PORT:-2099}"
 
-echo "=== Iniciando job-api (HTTP :8080) ==="
+echo "=== Iniciando job-api (HTTP :8082) ==="
 echo "JAR: ${JAR_PATH}"
 echo "Apuntando a gestor-cluster en ${RMI_HOST}:${RMI_PORT}"
 

@@ -1,6 +1,12 @@
 const { NoEncontrado, SolicitudInvalida } = require("./errores");
 
-/** Reglas de negocio del álbum de fotografías (RF-05). */
+/**
+ * Reglas de negocio del álbum de fotografías (RF-05).
+ *
+ * Qué se LISTA lo decide el modelo de permisos Unix replicado desde Storage
+ * (ver datos/CatalogoRepository.js). Qué BYTES se entregan lo sigue decidiendo
+ * Storage, al que se le reenvía el token del usuario en cada descarga.
+ */
 class AlbumService {
   constructor({ catalogo, fuente, indexador }) {
     this.catalogo = catalogo;
@@ -17,13 +23,15 @@ class AlbumService {
       ancho: medio.ancho,
       alto: medio.alto,
       tieneMiniatura: Boolean(medio.miniatura_path),
+      // Fecha de captura si FFmpeg la leyó; si no, cuándo se indexó.
+      fecha: medio.tomada_en || medio.indexado_en,
     };
   }
 
   async listarFotos(usuario, pagina = 0, porPagina = 50) {
     if (pagina < 0) throw new SolicitudInvalida("La página no puede ser negativa");
     const filas = await this.catalogo.listarPorTipo(
-      usuario.id, "foto", porPagina, pagina * porPagina
+      usuario, "foto", porPagina, pagina * porPagina
     );
     return filas.map((f) => this.#aDto(f));
   }
@@ -32,19 +40,19 @@ class AlbumService {
     if (!criterio || criterio.trim().length < 2) {
       throw new SolicitudInvalida("El criterio de búsqueda debe tener al menos 2 caracteres");
     }
-    const filas = await this.catalogo.buscarPorTitulo(usuario.id, "foto", criterio.trim());
+    const filas = await this.catalogo.buscarPorTitulo(usuario, "foto", criterio.trim());
     return filas.map((f) => this.#aDto(f));
   }
 
   async obtenerFoto(medioId, usuario) {
-    const medio = await this.catalogo.buscarPorId(medioId, usuario.id);
+    const medio = await this.catalogo.buscarPorId(medioId, usuario);
     if (!medio) throw new NoEncontrado(`medio ${medioId}`);
     return this.#aDto(medio);
   }
 
   /** Miniatura: se sirve desde la caché local, no desde Storage. */
   async rutaMiniatura(medioId, usuario) {
-    const medio = await this.catalogo.buscarPorId(medioId, usuario.id);
+    const medio = await this.catalogo.buscarPorId(medioId, usuario);
     if (!medio) throw new NoEncontrado(`medio ${medioId}`);
     if (!medio.miniatura_path) throw new NoEncontrado(`miniatura de ${medioId}`);
     return medio.miniatura_path;
@@ -52,7 +60,7 @@ class AlbumService {
 
   /** Contenido original: se pide a Storage con el token del usuario. */
   async abrirContenido(medioId, usuario, token) {
-    const medio = await this.catalogo.buscarPorId(medioId, usuario.id);
+    const medio = await this.catalogo.buscarPorId(medioId, usuario);
     if (!medio) throw new NoEncontrado(`medio ${medioId}`);
     const lectura = await this.fuente.abrirLectura(medio.archivo_storage_id, token);
     return { ...lectura, titulo: medio.titulo };
@@ -81,7 +89,7 @@ class AlbumService {
   async verAlbum(albumId, usuario) {
     const album = await this.catalogo.buscarAlbum(albumId, usuario.id);
     if (!album) throw new NoEncontrado(`álbum ${albumId}`);
-    const medios = await this.catalogo.listarMediosDeAlbum(albumId);
+    const medios = await this.catalogo.listarMediosDeAlbum(albumId, usuario);
     return {
       id: album.id,
       nombre: album.nombre,
@@ -93,7 +101,7 @@ class AlbumService {
   async agregarFoto(albumId, medioId, orden, usuario) {
     const album = await this.catalogo.buscarAlbum(albumId, usuario.id);
     if (!album) throw new NoEncontrado(`álbum ${albumId}`);
-    const medio = await this.catalogo.buscarPorId(medioId, usuario.id);
+    const medio = await this.catalogo.buscarPorId(medioId, usuario);
     if (!medio) throw new NoEncontrado(`medio ${medioId}`);
     await this.catalogo.agregarAAlbum(albumId, medioId, orden ?? 0);
   }

@@ -30,6 +30,24 @@ class MetadatosRepository {
         return rows;
     }
 
+    /**
+     * Nodos en la raíz del Home de UN usuario.
+     *
+     * La raíz es por propietario: el índice único de la tabla ya lo asume
+     * (idx_nombre_unico_en_home es (propietario, nombre)). Usar listarHijos(null)
+     * para la raíz devolvía los nodos de todos los usuarios, que es lo que hacía
+     * que el indexador de node-media registrara archivos ajenos como propios.
+     */
+    async listarHijosRaiz(propietario) {
+        const { rows } = await this.pool.query(
+        `SELECT * FROM nodos
+        WHERE directorio_contenedor_id IS NULL AND propietario = $1
+        ORDER BY tipo DESC, nombre ASC`,
+        [propietario]
+        );
+        return rows;
+    }
+
     async buscarPorNombreEnDirectorio(nombre, directorioId, propietario) {
         const sql = directorioId
         ? `SELECT * FROM nodos

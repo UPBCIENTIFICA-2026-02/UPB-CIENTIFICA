@@ -1,14 +1,15 @@
 {
   "_comentario": "Mapa de servicios de UPB-CIENTIFICA. Artefacto «file» rutas-servicio.json de la VM node-web. Cada entrada es un nodo del diagrama de despliegue con su puerto. Las variables de entorno del mismo nombre en mayúsculas tienen prioridad sobre estos valores.",
+  "_nota_tls": "node-soap sirve HTTPS con un certificado propio del CCA. Si es autofirmado, arrancar node-web con NODE_EXTRA_CA_CERTS=/ruta/ca.crt o fetch rechazará la conexión por certificado desconocido.",
   "servicios": {
     "identidad": {
-      "url": "http://node-soap:8081",
-      "descripcion": "Servicio SOAP de usuarios y autenticacion (node-soap)",
+      "url": "https://node-soap:8081",
+      "descripcion": "Servicio SOAP de usuarios y autenticacion (node-soap). El endpoint es /soap/user.php",
       "protocolo": "SOAP/HTTPS"
     },
     "archivos": {
       "url": "http://node-repository:8084",
-      "descripcion": "Shared File sobre el repositorio NFSv4 (node-repository)",
+      "descripcion": "Distributed Storage sobre el repositorio NFSv4 (node-repository)",
       "protocolo": "HTTP"
     },
     "medios": {
@@ -18,8 +19,8 @@
     },
     "trabajos": {
       "url": "http://node-rmi:8082",
-      "descripcion": "Fachada REST del gestor del cluster (node-rmi)",
-      "protocolo": "HTTPS"
+      "descripcion": "Fachada REST del gestor del cluster (node-rmi). job-api escucha en 8082, igual que el diagrama.",
+      "protocolo": "HTTP"
     },
     "monitoreo": {
       "url": "http://node-monitoreo:3000",

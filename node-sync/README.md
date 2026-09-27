@@ -65,7 +65,7 @@ make run
 make run-tls
 
 # Producción (ejemplo): Home en el montaje NFS y certificado de la CA del CCA
-./bin/syncd -addr :50051 -data /srv/home \
+./bin/syncd -addr :9090 -data /srv/home \
             -tls-cert /etc/ssl/node-sync/server.crt \
             -tls-key  /etc/ssl/node-sync/server.key
 ```
@@ -75,9 +75,9 @@ Probar con el cliente de ejemplo (en otra terminal):
 ```bash
 mkdir -p client-data/docs && echo "hola" > client-data/readme.txt
 # sin TLS:
-SYNC_ADDR=localhost:50051 SYNC_CLIENT_DIR=./client-data SYNC_UID=jperez go run ./examples/client
+SYNC_ADDR=localhost:9090 SYNC_CLIENT_DIR=./client-data SYNC_UID=jperez go run ./examples/client
 # con TLS (usando el certificado del servidor como CA):
-SYNC_ADDR=localhost:50051 SYNC_TLS_CA=certs/server.crt SYNC_TLS_SERVERNAME=localhost \
+SYNC_ADDR=localhost:9090 SYNC_TLS_CA=certs/server.crt SYNC_TLS_SERVERNAME=localhost \
   SYNC_CLIENT_DIR=./client-data SYNC_UID=jperez go run ./examples/client
 ```
 
@@ -85,7 +85,7 @@ SYNC_ADDR=localhost:50051 SYNC_TLS_CA=certs/server.crt SYNC_TLS_SERVERNAME=local
 
 | Bandera / variable | Por defecto | Descripción |
 |---|---|---|
-| `-addr` / `SYNC_ADDR` | `:50051` | Dirección de escucha |
+| `-addr` / `SYNC_ADDR` | `:9090` | Dirección de escucha |
 | `-data` / `SYNC_DATA_DIR` | `/srv/home` | Raíz de los Home (montaje **NFS** en producción; use `./data` en local) |
 | `-tls-cert` / `SYNC_TLS_CERT` | *(vacío)* | Certificado TLS (PEM). Con `-tls-key` habilita TLS |
 | `-tls-key` / `SYNC_TLS_KEY` | *(vacío)* | Llave privada TLS (PEM) |

@@ -20,14 +20,18 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 
 	pb "upbcientifica/node-sync/proto/filesync"
 )
 
 func main() {
-	addr := envDef("SYNC_ADDR", "localhost:50051")
+	addr := envDef("SYNC_ADDR", "localhost:9090")
 	dir := envDef("SYNC_CLIENT_DIR", "./client-data")
+	// El uid ya NO se envia en los mensajes: el servidor lo saca del token.
+	// SYNC_UID solo se usa para construir el token simulado por comodidad.
 	uid := envDef("SYNC_UID", "jperez")
+	token := envDef("SYNC_TOKEN", "mock-token-"+uid+"-demo")
 
 	creds := transportCreds()
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
@@ -46,7 +50,12 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	resp, err := cli.IniciarSync(ctx, &pb.SyncRequest{Uid: uid, Dispositivo: "fsagent-demo", Archivos: metas})
+	// El interceptor del servidor exige la metadata "authorization". Sin esto
+	// todas las llamadas fallan con Unauthenticated: el uid del usuario sale de
+	// aqui, no de los campos uid de los mensajes.
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
+
+	resp, err := cli.IniciarSync(ctx, &pb.SyncRequest{Dispositivo: "fsagent-demo", Archivos: metas})
 	if err != nil {
 		log.Fatalf("IniciarSync: %v", err)
 	}
@@ -57,7 +66,7 @@ func main() {
 
 	for _, a := range resp.Acciones {
 		if a.Accion == pb.Accion_SUBIR {
-			if err := subir(ctx, cli, uid, dir, a.Ruta); err != nil {
+			if err := subir(ctx, cli, dir, a.Ruta); err != nil {
 				log.Fatalf("subir %s: %v", a.Ruta, err)
 			}
 			fmt.Printf("  subido: %s\n", a.Ruta)
@@ -65,14 +74,14 @@ func main() {
 	}
 	for _, a := range resp.Acciones {
 		if a.Accion == pb.Accion_BAJAR {
-			if err := bajar(ctx, cli, uid, dir, a.Ruta); err != nil {
+			if err := bajar(ctx, cli, dir, a.Ruta); err != nil {
 				log.Fatalf("bajar %s: %v", a.Ruta, err)
 			}
 			fmt.Printf("  bajado: %s\n", a.Ruta)
 		}
 	}
 
-	est, err := cli.EstadoSync(ctx, &pb.EstadoRequest{Uid: uid, Dispositivo: "fsagent-demo"})
+	est, err := cli.EstadoSync(ctx, &pb.EstadoRequest{Dispositivo: "fsagent-demo"})
 	if err != nil {
 		log.Fatalf("EstadoSync: %v", err)
 	}
@@ -90,7 +99,7 @@ func transportCreds() credentials.TransportCredentials {
 	return insecure.NewCredentials()
 }
 
-func subir(ctx context.Context, cli pb.FileSyncClient, uid, base, rel string) error {
+func subir(ctx context.Context, cli pb.FileSyncClient, base, rel string) error {
 	f, err := os.Open(filepath.Join(base, rel))
 	if err != nil {
 		return err
@@ -107,7 +116,7 @@ func subir(ctx context.Context, cli pb.FileSyncClient, uid, base, rel string) er
 		if n > 0 {
 			ch := &pb.FileChunk{Contenido: append([]byte(nil), buf[:n]...)}
 			if first {
-				ch.Uid, ch.Ruta, first = uid, rel, false
+				ch.Ruta, first = rel, false
 			}
 			if serr := stream.Send(ch); serr != nil {
 				return serr
@@ -121,7 +130,7 @@ func subir(ctx context.Context, cli pb.FileSyncClient, uid, base, rel string) er
 		}
 	}
 	if first { // archivo vacio: enviar al menos la metadata
-		if serr := stream.Send(&pb.FileChunk{Uid: uid, Ruta: rel}); serr != nil {
+		if serr := stream.Send(&pb.FileChunk{Ruta: rel}); serr != nil {
 			return serr
 		}
 	}
@@ -129,8 +138,8 @@ func subir(ctx context.Context, cli pb.FileSyncClient, uid, base, rel string) er
 	return err
 }
 
-func bajar(ctx context.Context, cli pb.FileSyncClient, uid, base, rel string) error {
-	stream, err := cli.DescargarArchivo(ctx, &pb.DownloadRequest{Uid: uid, Ruta: rel})
+func bajar(ctx context.Context, cli pb.FileSyncClient, base, rel string) error {
+	stream, err := cli.DescargarArchivo(ctx, &pb.DownloadRequest{Ruta: rel})
 	if err != nil {
 		return err
 	}

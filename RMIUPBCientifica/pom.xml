@@ -47,6 +47,25 @@
                     <version>3.13.0</version>
                     <configuration>
                         <release>17</release>
+                        <!--
+                            Conserva los nombres de los parámetros en el
+                            bytecode (javac -parameters).
+
+                            Sin esto, Spring no puede resolver un
+                            @PathVariable / @RequestParam / @RequestHeader que
+                            no lleve el nombre escrito a mano: Spring Framework
+                            6.1 eliminó el mecanismo que lo deducía de la tabla
+                            de variables locales. El resultado era que TODOS los
+                            endpoints con variable de ruta respondían 400:
+                            GET /jobs/{id}, GET /jobs/{id}/estado y
+                            DELETE /jobs/{id} estaban caídos, y las pruebas de
+                            JobControllerTest fallaban ya antes de este cambio.
+
+                            spring-boot-starter-parent lo activa por omisión,
+                            pero este proyecto no hereda de él (su padre es el
+                            pom de rmi-system), así que hay que ponerlo aquí.
+                        -->
+                        <parameters>true</parameters>
                     </configuration>
                 </plugin>
                 <plugin>

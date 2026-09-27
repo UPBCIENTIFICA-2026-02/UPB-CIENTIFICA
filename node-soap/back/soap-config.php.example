@@ -1,0 +1,65 @@
+<?php
+/*
+ * PLANTILLA de /etc/apache2/soap-config.php
+ *
+ * Este archivo NO se despliega tal cual y NO se versiona con valores reales:
+ * lleva credenciales. Es la referencia de qué constantes espera user.php.
+ *
+ * En la VM node-soap:
+ *   1. copiar como /etc/apache2/soap-config.php
+ *   2. rellenar los valores
+ *   3. chown root:www-data  /etc/apache2/soap-config.php
+ *      chmod 640            /etc/apache2/soap-config.php
+ *
+ * Está fuera del árbol web a propósito: si estuviera bajo /var/www/html y
+ * Apache dejara de interpretar PHP por cualquier motivo, se servirían las
+ * credenciales como texto.
+ */
+
+/*
+ * DN de la cuenta de servicio con permiso de lectura sobre el directorio.
+ * Ya existía antes de estos cambios; user.php lo usa igual que siempre.
+ */
+define("LDAP_SERVICE_BIND_DN", "cn=soap,dc=upb-cientifica,dc=local");
+
+/*
+ * NUEVA — contraseña de esa cuenta.
+ *
+ * Antes estaba escrita en user.php (el literal "soap", repetido cuatro veces).
+ * Si no se define esta constante, user.php sigue usando "soap" y deja un aviso
+ * en el log de Apache: el servicio no se rompe, pero conviene definirla.
+ *
+ * La clave vieja está en el historial de Git, así que hay que ROTARLA en el
+ * directorio, no solo moverla de sitio.
+ */
+define("LDAP_SERVICE_BIND_PW", "cambiar-esta-clave");
+
+/*
+ * NUEVA — dirección del servidor LDAP.
+ *
+ * Antes estaba escrita en user.php como "ldaps://192.168.1.195". Si no se
+ * define, se sigue usando esa misma dirección.
+ *
+ * Tenerla aquí evita editar código cuando la VM cambie de IP (por ejemplo al
+ * pasar del laboratorio al CCA).
+ */
+define("LDAP_HOST", "ldaps://192.168.1.195");
+
+/*
+ * NUEVA — secreto para firmar los tokens de sesión (HMAC-SHA256).
+ *
+ * Lo usa sesion.php. Si no se define, se usa un secreto de desarrollo escrito
+ * en el código y se registra un aviso: con él los tokens son falsificables por
+ * cualquiera que pueda leer el archivo.
+ *
+ * Generar uno con:
+ *   openssl rand -base64 48
+ *
+ * Al cambiarlo, todas las sesiones abiertas dejan de ser válidas (los usuarios
+ * tienen que volver a iniciar sesión). Es el comportamiento esperado.
+ *
+ * NO hace falta compartir este secreto con los demás servicios:
+ * node-repository, node-media y node-sync no verifican la firma por su cuenta,
+ * le preguntan a este servicio con validarToken.
+ */
+define("AUTH_TOKEN_SECRET", "generar-con-openssl-rand-base64-48");

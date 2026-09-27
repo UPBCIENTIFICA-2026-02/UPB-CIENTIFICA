@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # NOTA DE ARQUITECTURA: no existe un script `start-registry.sh` separado.
 # El RMI Registry se levanta EMBEBIDO dentro del propio proceso de
-# gestor-cluster (ver Main.java: LocateRegistry.createRegistry(1099)),
+# gestor-cluster (ver Main.java: LocateRegistry.createRegistry(2099)),
 # por lo que un script independiente para el registry sería redundante y
 # podría dejarlo huérfano si gestor-cluster termina. Ver README, sección
 # "Estrategia de Registry", para la justificación completa.
@@ -25,7 +25,7 @@ if [ ! -f "${JAR_PATH}" ]; then
     exit 1
 fi
 
-echo "=== Iniciando gestor-cluster (RMI Registry :1099 + JobService :2100) ==="
+echo "=== Iniciando gestor-cluster (RMI Registry :2099 + JobService :2100) ==="
 echo "JAR: ${JAR_PATH}"
 
 # Para activar el .policy documentado en config/seguridad-rmi.policy (opcional,

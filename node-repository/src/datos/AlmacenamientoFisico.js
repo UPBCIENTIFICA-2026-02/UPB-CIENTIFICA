@@ -31,8 +31,20 @@ class AlmacenamientoFisico {
     return { rutaFisica: rutaRelativa, tamanoBytes: size };
   }
 
-  abrirLectura(rutaRelativa) {
-    return fs.createReadStream(this.rutaSegura(rutaRelativa));
+  /**
+   * Abre el archivo para lectura, entero o por tramos.
+   *
+   * @param rango {{inicio: number, fin: number}|null} ambos inclusive, como en
+   *        la cabecera Range de HTTP. El dominio ya los resolvió contra el
+   *        tamaño real del archivo.
+   */
+  abrirLectura(rutaRelativa, rango = null) {
+    const destino = this.rutaSegura(rutaRelativa);
+    if (!rango) return fs.createReadStream(destino);
+
+    // createReadStream también trata `end` como inclusive, así que los índices
+    // pasan tal cual.
+    return fs.createReadStream(destino, { start: rango.inicio, end: rango.fin });
   }
 
   async existe(rutaRelativa) {

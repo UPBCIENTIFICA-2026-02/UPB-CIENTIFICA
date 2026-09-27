@@ -1,5 +1,25 @@
-<!-- Contrato XML WSDL para el servicio de MFA/Tokens. -->
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Contrato XML WSDL para el servicio de MFA/Tokens.
+
+    ==========================================================================
+     >>> CAMBIO QUE AFECTA A LA VM node-soap <<<
+
+     ANTES: este comentario estaba ANTES de la declaración <?xml ... ?>. La
+            declaración debe ser el primer carácter del archivo, sin nada
+            delante, así que el documento no era XML bien formado y
+            `new SoapServer($wsdl)` fallaba: mfa.php no atendía ninguna
+            petición.
+     AHORA: la declaración va primera. Hay que volver a copiar este archivo a
+            /var/www/html/soap/mfa.wsdl.
+
+     El contrato en sí no cambia: mismas dos operaciones, mismos campos.
+
+     PENDIENTE: este WSDL comparte targetNamespace con users.wsdl aunque
+     define un servicio distinto. Es válido en XML pero confunde a los
+     generadores de stubs. Se deja igual para no romper clientes existentes.
+    ==========================================================================
+-->
 <definitions name="MFAService"
     targetNamespace="http://192.168.1.195/soap"
     xmlns:tns="http://192.168.1.195/soap"

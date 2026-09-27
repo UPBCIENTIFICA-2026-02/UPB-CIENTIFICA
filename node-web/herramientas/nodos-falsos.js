@@ -1,24 +1,30 @@
 // nodos-falsos.js — HERRAMIENTA DE PRUEBAS, no forma parte del servidor.
 //
 // Levanta cinco servidores que imitan a node-soap, node-repository, node-media,
-// node-rmi y node-monitoreo, respondiendo exactamente los formatos acordados en
-// docs/contratos.md. Sirve para probar servidor-web.js de punta a punta mientras
-// los demás frentes del equipo terminan sus servicios.
+// node-rmi y node-monitoreo. Sirve para probar servidor-web.js de punta a punta
+// sin levantar las VMs.
+//
+// IMPORTANTE: estos stubs imitan los contratos REALES de cada servicio, no una
+// propuesta. Antes imitaban un contrato inventado (/identidad.php, /album,
+// /videos) que ningún servicio implementaba, así que node-web "funcionaba"
+// contra los stubs y daba 404 contra los servicios de verdad. Si se cambia un
+// contrato, hay que cambiarlo aquí también o este archivo vuelve a mentir.
 //
 // Uso:  npm run stubs      (en otra terminal)  npm start
-//
-// Cuando un servicio real esté disponible, se apunta node-web hacia él con su
-// variable de entorno y se deja de usar este stub para ese servicio.
 
 import express from 'express';
 
+// El namespace real del WSDL de node-soap (users.wsdl).
+const NS = 'http://192.168.1.195/soap';
+
 const SESION = {
-  token: 'mock-token-apinzon',
-  usuario: 'apinzon',
-  nombre: 'Andrés Pinzón',
-  uid: 1001,
-  gid: 1001,
-  cuotaMb: 5120
+  token: 'upbc1.token-de-prueba.firma-de-prueba',
+  uid: 'apinzon',
+  nombre: 'Andrés',
+  apellido: 'Pinzón',
+  correo: 'apinzon@upb-cientifica.local',
+  roles: ['investigadores'],
+  grupos: ['investigadores', 'usuarios']
 };
 
 function levantar(nombre, puerto, configurar) {
@@ -31,63 +37,107 @@ function levantar(nombre, puerto, configurar) {
 }
 
 // ------------------------------------------------- node-soap (SOAP, 8081)
+// Imita users.wsdl: mismo endpoint, mismo namespace, mismas operaciones.
 levantar('node-soap', 8081, app => {
-  app.post('/identidad.php', (req, res) => {
-    const operacion = req.get('SOAPAction');
+  const sobre = (operacion, cuerpo) => `<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+                   xmlns:ns1="${NS}">
+  <SOAP-ENV:Body>
+    <ns1:${operacion}Response>${cuerpo}</ns1:${operacion}Response>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>`;
+
+  const lista = (etiqueta, valores) =>
+    valores.map(v => `<${etiqueta}>${v}</${etiqueta}>`).join('');
+
+  app.post('/soap/user.php', (req, res) => {
     const xml = String(req.body || '');
     const campo = t => (xml.match(new RegExp(`<${t}>([^<]*)</${t}>`)) || [])[1];
 
+    // El SOAPAction real es "<namespace>/<operacion>"; también se acepta el
+    // nombre suelto por comodidad al depurar con curl.
+    const accion = String(req.get('SOAPAction') || '').replace(NS + '/', '').replace(/"/g, '');
+
     res.type('text/xml');
 
-    if (operacion === 'iniciarSesion') {
-      if (!campo('usuario') || !campo('clave')) return res.send('<respuesta></respuesta>');
-      return res.send(`<respuesta><token>${SESION.token}</token><expiraEn>3600</expiraEn></respuesta>`);
+    if (accion === 'iniciarSesion') {
+      if (!campo('usuario') || !campo('password')) {
+        return res.send(sobre('iniciarSesion',
+          '<success>false</success><message>Usuario o contraseña incorrectos</message>'));
+      }
+      return res.send(sobre('iniciarSesion',
+        `<success>true</success><message>Sesión iniciada</message>` +
+        `<token>${SESION.token}</token><expiraEn>28800</expiraEn>` +
+        `<uid>${SESION.uid}</uid>` +
+        lista('roles', SESION.roles) + lista('grupos', SESION.grupos)));
     }
 
-    if (operacion === 'validarToken') {
-      if (campo('token') !== SESION.token) return res.send('<respuesta><valido>false</valido></respuesta>');
-      return res.send(`<respuesta>
-        <valido>true</valido>
-        <usuario>${SESION.usuario}</usuario>
-        <nombre>${SESION.nombre}</nombre>
-        <uid>${SESION.uid}</uid><gid>${SESION.gid}</gid>
-        <cuotaMb>${SESION.cuotaMb}</cuotaMb>
-      </respuesta>`);
+    if (accion === 'validarToken') {
+      if (campo('token') !== SESION.token) {
+        return res.send(sobre('validarToken', '<valido>false</valido>'));
+      }
+      return res.send(sobre('validarToken',
+        `<valido>true</valido><uid>${SESION.uid}</uid>` +
+        lista('roles', SESION.roles) + lista('grupos', SESION.grupos) +
+        `<expiraEn>28800</expiraEn>`));
     }
 
-    res.status(400).send('<error>operacion desconocida</error>');
+    if (accion === 'obtenerUsuario') {
+      return res.send(sobre('obtenerUsuario',
+        `<success>true</success><message>Usuario encontrado</message>` +
+        `<usuario>${SESION.uid}</usuario><nombre>${SESION.nombre}</nombre>` +
+        `<apellido>${SESION.apellido}</apellido><correo>${SESION.correo}</correo>`));
+    }
+
+    if (accion === 'cerrarSesion') {
+      return res.send(sobre('cerrarSesion',
+        '<success>true</success><message>Sesión cerrada</message>'));
+    }
+
+    res.status(500).send(sobre('Fault', '<message>operacion desconocida</message>'));
   });
 });
 
 // -------------------------------------------- node-repository (HTTP, 8084)
-// Imita el contrato real de node-repository (repositorio UPB-CIENTIFICA):
-// ruta /storage, identificadores de nodo y tamaños en bytes.
+// Imita el contrato real de node-repository: ruta /storage, identificadores de
+// nodo, tamaños en bytes y los campos de permisos que consume node-media.
 levantar('node-repository', 8084, app => {
   app.get('/storage/directorios/:id', (req, res) => res.json([
-    { id: 'd-01', nombre: 'simulacion-flujo', tipo: 'directorio', tamanoBytes: 0, version: 1, directorioContenedorId: null },
-    { id: 'a-01', nombre: 'dataset-2026.csv', tipo: 'archivo', tamanoBytes: 251658240, version: 2, directorioContenedorId: null },
-    { id: 'a-02', nombre: 'resultados.tar.gz', tipo: 'archivo', tamanoBytes: 536870912, version: 1, directorioContenedorId: null }
+    { id: 'd-01', nombre: 'simulacion-flujo', tipo: 'directorio', tamanoBytes: 0, version: 1,
+      directorioContenedorId: null, propietario: 'apinzon', grupo: 'investigadores', permisos: 'rwxr-----' },
+    { id: 'a-01', nombre: 'dataset-2026.csv', tipo: 'archivo', tamanoBytes: 251658240, version: 2,
+      directorioContenedorId: null, propietario: 'apinzon', grupo: 'investigadores', permisos: 'rw-r-----' },
+    { id: 'a-02', nombre: 'resultados.tar.gz', tipo: 'archivo', tamanoBytes: 536870912, version: 1,
+      directorioContenedorId: null, propietario: 'apinzon', grupo: 'investigadores', permisos: 'rw-r-----' }
   ]));
   app.get('/storage/cuota', (req, res) =>
     res.json({ usados: 851443712, cuota: 5368709120, disponibles: 4517265408 }));
+  app.get('/health', (req, res) =>
+    res.json({ estado: 'ok', servicio: 'distributed-storage', bd: 'ok', version: '0.1.0' }));
 });
 
 // ------------------------------------------------- node-media (HTTP, 8083)
+// Endpoints REALES: /album/fotos y /streaming/catalogo, que devuelven ARREGLOS.
 levantar('node-media', 8083, app => {
-  app.get('/album', (req, res) => res.json({
-    orden: req.query.orden || 'fecha',
-    fotos: [
-      { id: 'f-1', titulo: 'Montaje del clúster', fecha: '2026-08-12' },
-      { id: 'f-2', titulo: 'Prueba de red del CCA', fecha: '2026-08-19' },
-      { id: 'f-3', titulo: 'Nodos en rack', fecha: '2026-08-25' }
-    ]
-  }));
-  app.get('/videos', (req, res) => res.json({
-    videos: [
-      { id: 'v-1', titulo: 'Presentación de resultados', duracionSeg: 742, fecha: '2026-08-20' },
-      { id: 'v-2', titulo: 'Demostración de sincronización', duracionSeg: 318, fecha: '2026-08-26' }
-    ]
-  }));
+  app.get('/album/fotos', (req, res) => res.json([
+    { id: 'f-1', titulo: 'Montaje del clúster', tipo: 'foto', tamanoBytes: 2411724,
+      ancho: 4032, alto: 3024, tieneMiniatura: true, fecha: '2026-08-12T10:04:00.000Z' },
+    { id: 'f-2', titulo: 'Prueba de red del CCA', tipo: 'foto', tamanoBytes: 1884160,
+      ancho: 3024, alto: 4032, tieneMiniatura: true, fecha: '2026-08-19T15:22:00.000Z' },
+    { id: 'f-3', titulo: 'Nodos en rack', tipo: 'foto', tamanoBytes: 3355443,
+      ancho: 4032, alto: 3024, tieneMiniatura: false, fecha: '2026-08-25T09:10:00.000Z' }
+  ]));
+
+  app.get('/streaming/catalogo', (req, res) => res.json([
+    { id: 'v-1', titulo: 'Presentación de resultados', duracionSegundos: 742,
+      fecha: '2026-08-20T18:00:00.000Z' },
+    { id: 'v-2', titulo: 'Demostración de sincronización', duracionSegundos: 318,
+      fecha: '2026-08-26T11:30:00.000Z' }
+  ]));
+
+  app.post('/album/indexar', (req, res) => res.json({ indexados: 3, revisados: 5 }));
+  app.get('/health', (req, res) =>
+    res.json({ estado: 'ok', servicio: 'media', bd: 'ok', fuente: 'storage-api', version: '0.1.0' }));
 });
 
 // --------------------------------------------------- node-rmi (HTTP, 8082)
@@ -131,4 +181,5 @@ levantar('node-monitoreo', 3000, app => {
   }));
 });
 
-console.log('\nNodos falsos arriba. En otra terminal: npm start\n');
+console.log('\nNodos falsos arriba. En otra terminal: npm start');
+console.log(`Usuario de prueba: cualquiera + cualquier clave (token ${SESION.token})\n`);

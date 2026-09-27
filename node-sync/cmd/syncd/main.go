@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"upbcientifica/node-sync/internal/auth"
 	"upbcientifica/node-sync/internal/config"
 	"upbcientifica/node-sync/internal/storage"
 	"upbcientifica/node-sync/internal/syncsvc"
@@ -26,6 +27,12 @@ func main() {
 	store, err := storage.NewFSStore(cfg.DataDir)
 	if err != nil {
 		log.Fatalf("almacenamiento (%s): %v", cfg.DataDir, err)
+	}
+
+	// Composition root: unico sitio donde se decide la estrategia de validacion.
+	validador, err := construirValidador(cfg)
+	if err != nil {
+		log.Fatalf("autenticacion: %v", err)
 	}
 
 	lis, err := net.Listen("tcp", cfg.Addr)
@@ -51,7 +58,7 @@ func main() {
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterFileSyncServer(grpcServer, syncsvc.New(store))
 
-	log.Printf("syncd (node-sync) escuchando en %s (data=%s)", cfg.Addr, cfg.DataDir)
+	log.Printf("syncd (node-sync) escuchando en %s (data=%s, auth=%s)", cfg.Addr, cfg.DataDir, cfg.AuthMode)
 
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
@@ -73,9 +80,20 @@ func main() {
 	}
 }
 
-// --- Interceptores ---
-// TODO(backend): interceptor de autenticacion que valide el token (metadata
-// "authorization") contra LDAP/OIDC (node-soap) antes de ejecutar el handler.
+// construirValidador elige la estrategia segun la configuracion.
+//
+// En produccion tiene que ser "soap": el modo simulado acepta cualquier token
+// que empiece por "mock-token-", asi que deja el Home de todos los usuarios
+// abierto a quien conozca el prefijo.
+func construirValidador(cfg config.Config) (auth.Validator, error) {
+	if cfg.AuthMode != "soap" {
+		log.Printf("ADVERTENCIA: autenticacion SIMULADA (solo desarrollo). En produccion use -auth-mode=soap.")
+		return auth.MockValidator{}, nil
+	}
+	return auth.NewSOAPValidator(cfg.AuthURL, cfg.AuthNamespace, cfg.AuthCA, cfg.AuthCacheTTL)
+}
+
+// --- Interceptores de registro ---
 func loggingUnary(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	t := time.Now()
 	resp, err := handler(ctx, req)

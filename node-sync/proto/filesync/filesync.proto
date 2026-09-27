@@ -8,6 +8,12 @@ option go_package = "upbcientifica/node-sync/proto/filesync;filesyncpb";
 // Corresponde al nodo "node-sync" (binario syncd) del diagrama de despliegue.
 // Recibe los cambios de fsagent (escritorio) y de la app movil y los escribe
 // en el Home del usuario (/srv/home) montado por NFS.
+//
+// AUTENTICACION: el uid NO se toma de estos mensajes. Sale del token validado
+// que viaja en la metadata gRPC "authorization: Bearer <token>", como exige la
+// convencion del proyecto. Los campos `uid` siguen declarados para no cambiar
+// los numeros de campo de los clientes ya generados, pero el servidor los
+// IGNORA por completo: rellenarlos no da acceso a nada.
 service FileSync {
   // Compara el estado local del cliente con el Home del usuario en el servidor
   // y devuelve las acciones a realizar (subir / bajar / igual).
@@ -32,9 +38,10 @@ message FileMeta {
 }
 
 message SyncRequest {
+  // IGNORADO por el servidor: el uid sale del token. Ver la nota del servicio.
+  string uid = 1 [deprecated = true];
   string dispositivo = 2;   // nombre del dispositivo cliente (fsagent / movil)
   repeated FileMeta archivos = 3;  // estado local del cliente
-  repeated string borrados = 3;
 }
 
 
@@ -57,8 +64,10 @@ message SyncResponse {
 }
 
 // Fragmento de archivo para carga/descarga por streaming.
-// En la carga, el PRIMER mensaje debe traer uid y ruta.
+// En la carga, el PRIMER mensaje debe traer la ruta.
 message FileChunk {
+  // IGNORADO por el servidor: el uid sale del token.
+  string uid       = 1 [deprecated = true];
   string ruta      = 2;
   bytes  contenido = 3;
 }
@@ -71,10 +80,14 @@ message UploadStatus {
 }
 
 message DownloadRequest {
+  // IGNORADO por el servidor: el uid sale del token.
+  string uid  = 1 [deprecated = true];
   string ruta = 2;
 }
 
 message EstadoRequest {
+  // IGNORADO por el servidor: el uid sale del token.
+  string uid         = 1 [deprecated = true];
   string dispositivo = 2;
 }
 

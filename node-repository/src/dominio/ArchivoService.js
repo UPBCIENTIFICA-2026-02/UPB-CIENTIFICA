@@ -2,11 +2,21 @@ const path = require("path");
 const { puedeLeer, puedeEscribir } = require("./permisos");
 const {
     NoEncontrado, PermisoDenegado, CuotaExcedida, SolicitudInvalida,
+    RangoNoSatisfacible,
 } = require("./errores");
 
 /**
  * Capa de dominio: reglas de negocio puras (cuotas, permisos, versionado).
  * No conoce HTTP, ni SQL, ni el sistema de archivos.
+ *
+ * QUÉ ES "root" (decisión necesaria para que node-media y node-sync encajen):
+ * la raíz es el Home DEL USUARIO que pregunta, no un directorio compartido por
+ * todos. El esquema ya lo daba a entender —el índice único de la raíz es
+ * (propietario, nombre)— y es lo coherente con el resto del sistema:
+ * node-sync escribe en /srv/home/<uid> y node-media indexa "el Home del
+ * usuario". Antes `listarDirectorio("root")` devolvía los nodos raíz de TODOS
+ * los usuarios filtrados por permisos, así que el indexador de node-media
+ * acababa registrando archivos ajenos como propios.
  */
 class ArchivoService {
     constructor({ metadatos, almacenamiento, cuotas }) {
@@ -15,6 +25,14 @@ class ArchivoService {
         this.cuotas = cuotas;
     }
 
+    /**
+     * Forma pública de un nodo.
+     *
+     * `propietario`, `grupo` y `permisos` se exponen porque node-media necesita
+     * los tres para aplicar EL MISMO modelo de permisos Unix que este servicio;
+     * sin ellos tendría que inventarse una regla propia, que es justo el error
+     * que advierte dominio/permisos.js.
+     */
     #aDto(nodo) {
         return {
         id: nodo.id,
@@ -23,6 +41,9 @@ class ArchivoService {
         tamanoBytes: Number(nodo.tamano_bytes),
         version: nodo.version,
         directorioContenedorId: nodo.directorio_contenedor_id,
+        propietario: nodo.propietario,
+        grupo: nodo.grupo,
+        permisos: nodo.permisos,
         };
     }
 
@@ -34,7 +55,8 @@ class ArchivoService {
 
     async listarDirectorio(directorioId, usuario) {
         if (directorioId === "root") {
-        const hijos = await this.metadatos.listarHijos(null);
+        // Solo el Home del usuario: ver la nota de la cabecera de la clase.
+        const hijos = await this.metadatos.listarHijosRaiz(usuario.id);
         return hijos.filter((n) => puedeLeer(n, usuario)).map((n) => this.#aDto(n));
         }
 
@@ -53,8 +75,14 @@ class ArchivoService {
 
         const contenedorId = directorioDestino === "root" ? null : directorioDestino;
 
+        // En la raíz no hay nodo contenedor que consultar: cada usuario escribe
+        // en su propio Home, así que no hace falta comprobar permisos. Dentro de
+        // un directorio sí, porque puede ser de otro usuario.
         if (contenedorId) {
         const contenedor = await this.#obtenerOFallar(contenedorId);
+        if (contenedor.tipo !== "directorio") {
+            throw new SolicitudInvalida("El destino no es un directorio");
+        }
         if (!puedeEscribir(contenedor, usuario)) {
             throw new PermisoDenegado("escribir en el directorio destino");
         }
@@ -103,20 +131,66 @@ class ArchivoService {
         return this.#aDto(definitivo);
     }
 
-    async descargarArchivo(archivoId, usuario) {
+    /**
+     * Abre el contenido de un archivo, entero o por tramos.
+     *
+     * `rango` viene ya parseado de la capa de rutas: { inicio, fin }, donde
+     * cualquiera de los dos puede ser null ("desde aquí hasta el final" o "los
+     * últimos N bytes"). El dominio es quien resuelve esos nulos porque es quien
+     * conoce el tamaño del archivo.
+     */
+    async descargarArchivo(archivoId, usuario, rango = null) {
         const nodo = await this.#obtenerOFallar(archivoId);
         if (nodo.tipo !== "archivo") throw new SolicitudInvalida("El recurso no es un archivo");
         if (!puedeLeer(nodo, usuario)) throw new PermisoDenegado("descargar el archivo");
 
+        const total = Number(nodo.tamano_bytes);
+
+        if (!rango) {
+        return {
+            nombre: nodo.nombre,
+            tamanoBytes: total,
+            flujo: this.almacenamiento.abrirLectura(nodo.ruta_fisica),
+            parcial: false,
+        };
+        }
+
+        let inicio;
+        let fin;
+
+        if (rango.inicio === null) {
+        // Sufijo: "bytes=-500" son los últimos 500 bytes.
+        const solicitados = Math.min(rango.fin, total);
+        inicio = total - solicitados;
+        fin = total - 1;
+        } else {
+        inicio = rango.inicio;
+        fin = rango.fin === null ? total - 1 : Math.min(rango.fin, total - 1);
+        }
+
+        if (total === 0 || inicio > fin || inicio < 0 || inicio >= total) {
+        throw new RangoNoSatisfacible(total);
+        }
+
         return {
         nombre: nodo.nombre,
-        tamanoBytes: Number(nodo.tamano_bytes),
-        flujo: this.almacenamiento.abrirLectura(nodo.ruta_fisica),
+        tamanoBytes: total,
+        flujo: this.almacenamiento.abrirLectura(nodo.ruta_fisica, { inicio, fin }),
+        parcial: true,
+        inicio,
+        fin,
+        longitud: fin - inicio + 1,
         };
     }
 
     async eliminarArchivo(archivoId, usuario) {
         const nodo = await this.#obtenerOFallar(archivoId);
+
+        // La ruta dice "archivos": un directorio se borraría en cascada con todo
+        // su contenido, que no es lo que pide quien llama a este endpoint.
+        if (nodo.tipo !== "archivo") {
+        throw new SolicitudInvalida("El recurso no es un archivo");
+        }
         if (!puedeEscribir(nodo, usuario)) throw new PermisoDenegado("eliminar el archivo");
 
         await this.almacenamiento.eliminar(nodo.ruta_fisica);
@@ -129,6 +203,9 @@ class ArchivoService {
 
         if (contenedorId) {
         const padre = await this.#obtenerOFallar(contenedorId);
+        if (padre.tipo !== "directorio") {
+            throw new SolicitudInvalida("El padre no es un directorio");
+        }
         if (!puedeEscribir(padre, usuario)) {
             throw new PermisoDenegado("crear en el directorio padre");
         }

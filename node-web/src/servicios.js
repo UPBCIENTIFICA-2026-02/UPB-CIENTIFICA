@@ -56,6 +56,12 @@ export async function listarArchivos(ctx, directorio = 'root') {
   };
 }
 
+/** Cuota sola, para la cabecera del portal. */
+export async function consultarCuota(ctx) {
+  const cuota = await pedir(new URL('/storage/cuota', config.nodos.archivos), ctx);
+  return { cuotaMb: aMb(cuota.cuota), usadoMb: aMb(cuota.usados) };
+}
+
 export function urlDescarga(id) {
   return new URL(`/storage/archivos/${id}/descargar`, config.nodos.archivos).toString();
 }
@@ -68,14 +74,64 @@ export async function compartirArchivo() {
 }
 
 // ------------------------------------------------- Álbum y streaming (8083)
-export function listarAlbum(ctx, orden = 'fecha') {
-  const u = new URL('/album', config.nodos.medios);
-  u.searchParams.set('orden', orden);
-  return pedir(u, ctx);
+//
+// ANTES este bloque pedía GET /album y GET /videos, que NO EXISTEN en
+// node-media: las dos daban 404. Eran el contrato de herramientas/nodos-falsos.js,
+// nunca el del servicio real. Los endpoints reales son:
+//     GET /album/fotos?pagina=N       -> arreglo de fotos
+//     GET /streaming/catalogo?pagina=N -> arreglo de videos
+// y devuelven ARREGLOS, no objetos envolventes.
+//
+// La interfaz sigue recibiendo { orden, fotos } y { videos } para no tocar
+// public/spa-ui.js: la traducción es justo el trabajo de este archivo.
+
+export async function listarAlbum(ctx, orden = 'fecha', pagina = 0) {
+  const u = new URL('/album/fotos', config.nodos.medios);
+  u.searchParams.set('pagina', String(pagina));
+
+  const fotos = await pedir(u, ctx);
+
+  return {
+    // node-media ordena por fecha de captura (y si no la hay, de indexación).
+    // El parámetro `orden` se conserva en la respuesta porque la interfaz lo
+    // muestra, pero todavía no hay ordenación alternativa en el servicio.
+    orden,
+    fotos: (fotos || []).map(f => ({
+      id: f.id,
+      titulo: f.titulo,
+      fecha: fecha(f.fecha),
+      tieneMiniatura: f.tieneMiniatura
+    }))
+  };
 }
 
-export function listarVideos(ctx) {
-  return pedir(new URL('/videos', config.nodos.medios), ctx);
+export async function listarVideos(ctx, pagina = 0) {
+  const u = new URL('/streaming/catalogo', config.nodos.medios);
+  u.searchParams.set('pagina', String(pagina));
+
+  const videos = await pedir(u, ctx);
+
+  return {
+    videos: (videos || []).map(v => ({
+      id: v.id,
+      titulo: v.titulo,
+      // node-media lo llama duracionSegundos; la interfaz, duracionSeg.
+      duracionSeg: Number(v.duracionSegundos) || 0,
+      fecha: fecha(v.fecha)
+    }))
+  };
+}
+
+/** Las fechas llegan como TIMESTAMPTZ; la interfaz solo muestra el día. */
+function fecha(valor) {
+  if (!valor) return '—';
+  const d = new Date(valor);
+  return Number.isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
+}
+
+/** Dispara la indexación del Home del usuario en node-media. */
+export function indexarMedios(ctx) {
+  return pedir(new URL('/album/indexar', config.nodos.medios), ctx, { method: 'POST' });
 }
 
 // -------------------------------------------------------- MPI Jobs (8082)

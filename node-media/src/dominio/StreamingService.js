@@ -21,13 +21,14 @@ class StreamingService {
       id: medio.id,
       titulo: medio.titulo,
       duracionSegundos: medio.duracion_segundos ?? 0,
+      fecha: medio.tomada_en || medio.indexado_en,
     };
   }
 
   async catalogoVideos(usuario, pagina = 0, porPagina = 50) {
     if (pagina < 0) throw new SolicitudInvalida("La página no puede ser negativa");
     const filas = await this.catalogo.listarPorTipo(
-      usuario.id, "video", porPagina, pagina * porPagina
+      usuario, "video", porPagina, pagina * porPagina
     );
     return filas.map((v) => this.#aDto(v));
   }
@@ -36,13 +37,13 @@ class StreamingService {
     if (!criterio || criterio.trim().length < 2) {
       throw new SolicitudInvalida("El criterio de búsqueda debe tener al menos 2 caracteres");
     }
-    const filas = await this.catalogo.buscarPorTitulo(usuario.id, "video", criterio.trim());
+    const filas = await this.catalogo.buscarPorTitulo(usuario, "video", criterio.trim());
     return filas.map((v) => this.#aDto(v));
   }
 
   /** Abre una sesión de reproducción y devuelve la URL del contenido. */
   async iniciarSesion(medioId, usuario) {
-    const medio = await this.catalogo.buscarPorId(medioId, usuario.id);
+    const medio = await this.catalogo.buscarPorId(medioId, usuario);
     if (!medio) throw new NoEncontrado(`video ${medioId}`);
     if (medio.tipo !== "video") throw new SolicitudInvalida("El recurso no es un video");
 
@@ -59,7 +60,7 @@ class StreamingService {
    * que el reproductor pueda saltar a cualquier punto sin descargar todo.
    */
   async abrirContenido(medioId, usuario, token, rango) {
-    const medio = await this.catalogo.buscarPorId(medioId, usuario.id);
+    const medio = await this.catalogo.buscarPorId(medioId, usuario);
     if (!medio) throw new NoEncontrado(`video ${medioId}`);
     const lectura = await this.fuente.abrirLectura(medio.archivo_storage_id, token, rango);
     return { ...lectura, titulo: medio.titulo };

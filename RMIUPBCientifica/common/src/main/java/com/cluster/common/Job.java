@@ -28,6 +28,14 @@ public class Job implements Serializable {
     private final String nombre;
     private final String comando;
     private final int prioridad;
+    /**
+     * uid del usuario que envió el trabajo, tomado del token validado.
+     *
+     * Sin este campo no había forma de filtrar {@code listJobs} por usuario ni
+     * de impedir que alguien cancelara el trabajo de otro: el contrato no
+     * registraba de quién era cada trabajo.
+     */
+    private final String propietario;
     private volatile JobStatus estado;
     private final Instant fechaCreacion;
     private volatile Instant fechaInicio;
@@ -35,13 +43,24 @@ public class Job implements Serializable {
     private volatile String resultado;
     private volatile String mensajeError;
 
-    public Job(String id, String nombre, String comando, int prioridad) {
+    public Job(String id, String nombre, String comando, int prioridad, String propietario) {
         this.id = Objects.requireNonNull(id, "id no puede ser nulo");
         this.nombre = Objects.requireNonNull(nombre, "nombre no puede ser nulo");
         this.comando = Objects.requireNonNull(comando, "comando no puede ser nulo");
         this.prioridad = prioridad;
+        this.propietario = Objects.requireNonNull(propietario, "propietario no puede ser nulo");
         this.estado = JobStatus.QUEUED;
         this.fechaCreacion = Instant.now();
+    }
+
+    /**
+     * Constructor sin propietario, solo para pruebas del modelo.
+     *
+     * El servicio SIEMPRE usa el constructor de cinco argumentos: el propietario
+     * sale del token validado, nunca del cuerpo de la petición.
+     */
+    public Job(String id, String nombre, String comando, int prioridad) {
+        this(id, nombre, comando, prioridad, "desconocido");
     }
 
     public String getId() {
@@ -58,6 +77,15 @@ public class Job implements Serializable {
 
     public int getPrioridad() {
         return prioridad;
+    }
+
+    public String getPropietario() {
+        return propietario;
+    }
+
+    /** true si el uid dado es el dueño del trabajo. */
+    public boolean esDe(String uid) {
+        return propietario.equals(uid);
     }
 
     public JobStatus getEstado() {

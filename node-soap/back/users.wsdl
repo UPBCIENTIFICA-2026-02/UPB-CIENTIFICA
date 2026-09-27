@@ -1,5 +1,30 @@
-<!-- Contrato XML WSDL para las operaciones de usuarios y servicios. -->
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Contrato XML WSDL para las operaciones de usuarios y servicios.
+
+    ==========================================================================
+     >>> CAMBIO QUE AFECTA A LA VM node-soap <<<
+
+     ANTES: este comentario estaba ANTES de la declaración <?xml ... ?>, lo que
+            hacía que el documento no fuera XML bien formado (la declaración
+            debe ser el primer carácter del archivo, sin nada delante). Con eso,
+            `new SoapServer($wsdl)` fallaba y el servicio no atendía ninguna
+            petición.
+     AHORA: la declaración va primera y el comentario después. Hay que volver a
+            copiar este archivo a /var/www/html/soap/users.wsdl.
+
+     Se AÑADEN tres operaciones —iniciarSesion, validarToken y cerrarSesion—
+     que son las que esperan node-repository, node-media, node-sync y node-web.
+     Las cinco que ya existían quedan intactas, con los mismos nombres, los
+     mismos parámetros y los mismos campos de respuesta.
+
+     Se MANTIENE a propósito el targetNamespace http://192.168.1.195/soap, para
+     no invalidar ningún cliente de prueba que ya exista contra este contrato.
+     Conviene cambiarlo más adelante a un URN estable (urn:upbcientifica:auth:v1)
+     porque atar el namespace a una IP rompe a todos los clientes si la VM
+     cambia de dirección; eso sí es un cambio coordinado con los demás frentes.
+    ==========================================================================
+-->
 
 <definitions
     name="UsersService"
@@ -50,10 +75,10 @@
                     <xsd:sequence>
                         <xsd:element name="success" type="xsd:boolean"/>
                         <xsd:element name="message" type="xsd:string"/>
-                        <xsd:element name="usuario" type="xsd:string" minOccurs="0"/>
-                        <xsd:element name="nombre" type="xsd:string" minOccurs="0"/>
-                        <xsd:element name="apellido" type="xsd:string" minOccurs="0"/>
-                        <xsd:element name="correo" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="usuario" type="xsd:string" minOccurs="0" nillable="true"/>
+                        <xsd:element name="nombre" type="xsd:string" minOccurs="0" nillable="true"/>
+                        <xsd:element name="apellido" type="xsd:string" minOccurs="0" nillable="true"/>
+                        <xsd:element name="correo" type="xsd:string" minOccurs="0" nillable="true"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>
@@ -84,8 +109,8 @@
                 </xsd:complexType>
             </xsd:element>
 
-<!-- obtenerperfilusuario-->
-<!-- obtenerPerfilUsuario -->
+
+            <!-- obtenerPerfilUsuario -->
 
             <xsd:element name="obtenerPerfilUsuario">
                 <xsd:complexType>
@@ -106,7 +131,7 @@
                 </xsd:complexType>
             </xsd:element>
 
-<!-- validarAccesoServicio -->
+            <!-- validarAccesoServicio -->
             <xsd:element name="validarAccesoServicio">
                 <xsd:complexType>
                     <xsd:sequence>
@@ -123,6 +148,97 @@
                         <xsd:element name="message" type="xsd:string"/>
                         <xsd:element name="perfil" type="xsd:string" minOccurs="0"/>
                         <xsd:element name="servicio" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+
+            <!-- ============================================================
+                 iniciarSesion — NUEVA
+
+                 Primer factor (contraseña contra LDAP) y, si hay un OTP
+                 pendiente para el usuario, también el segundo. Devuelve el
+                 token de sesión firmado que consumen todos los servicios.
+
+                 codigoMfa es opcional: solo se exige cuando generarTokenMFA
+                 creó un código y aún no se ha usado.
+                 ============================================================ -->
+
+            <xsd:element name="iniciarSesion">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                        <xsd:element name="password" type="xsd:string"/>
+                        <xsd:element name="origenCliente" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="codigoMfa" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="iniciarSesionResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                        <xsd:element name="token" type="xsd:string" minOccurs="0"/>
+                        <!-- segundos de vigencia, no fecha absoluta -->
+                        <xsd:element name="expiraEn" type="xsd:int" minOccurs="0"/>
+                        <!-- uid de LDAP: es una CADENA ("jperez"), no un número -->
+                        <xsd:element name="uid" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="roles" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+                        <xsd:element name="grupos" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+
+            <!-- ============================================================
+                 validarToken — NUEVA
+
+                 La operación más llamada del sistema: node-repository,
+                 node-media y node-sync la invocan en cada petición. Devuelve
+                 uid, roles y grupos en una sola llamada.
+
+                 Los GRUPOS son imprescindibles: el modelo de permisos Unix de
+                 node-repository evalúa con ellos el segmento "grupo".
+                 ============================================================ -->
+
+            <xsd:element name="validarToken">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="token" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="validarTokenResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="valido" type="xsd:boolean"/>
+                        <xsd:element name="uid" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="roles" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+                        <xsd:element name="grupos" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+                        <xsd:element name="expiraEn" type="xsd:int" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+
+            <!-- cerrarSesion — NUEVA -->
+
+            <xsd:element name="cerrarSesion">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="token" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="cerrarSesionResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>
@@ -166,7 +282,7 @@
               element="tns:obtenerGruposUsuarioResponse"/>
     </message>
 
-<message name="obtenerPerfilUsuarioRequest">
+    <message name="obtenerPerfilUsuarioRequest">
         <part name="parameters" element="tns:obtenerPerfilUsuario"/>
     </message>
 
@@ -174,12 +290,38 @@
         <part name="parameters" element="tns:obtenerPerfilUsuarioResponse"/>
     </message>
 
-<message name="validarAccesoServicioRequest">
+    <message name="validarAccesoServicioRequest">
         <part name="parameters" element="tns:validarAccesoServicio"/>
     </message>
+
     <message name="validarAccesoServicioResponse">
         <part name="parameters" element="tns:validarAccesoServicioResponse"/>
     </message>
+
+    <message name="iniciarSesionRequest">
+        <part name="parameters" element="tns:iniciarSesion"/>
+    </message>
+
+    <message name="iniciarSesionResponse">
+        <part name="parameters" element="tns:iniciarSesionResponse"/>
+    </message>
+
+    <message name="validarTokenRequest">
+        <part name="parameters" element="tns:validarToken"/>
+    </message>
+
+    <message name="validarTokenResponse">
+        <part name="parameters" element="tns:validarTokenResponse"/>
+    </message>
+
+    <message name="cerrarSesionRequest">
+        <part name="parameters" element="tns:cerrarSesion"/>
+    </message>
+
+    <message name="cerrarSesionResponse">
+        <part name="parameters" element="tns:cerrarSesionResponse"/>
+    </message>
+
 
     <!-- PORT TYPE -->
 
@@ -200,14 +342,29 @@
             <output message="tns:obtenerGruposUsuarioResponse"/>
         </operation>
 
-<operation name="obtenerPerfilUsuario">
+        <operation name="obtenerPerfilUsuario">
             <input message="tns:obtenerPerfilUsuarioRequest"/>
             <output message="tns:obtenerPerfilUsuarioResponse"/>
         </operation>
 
-<operation name="validarAccesoServicio">
+        <operation name="validarAccesoServicio">
             <input message="tns:validarAccesoServicioRequest"/>
             <output message="tns:validarAccesoServicioResponse"/>
+        </operation>
+
+        <operation name="iniciarSesion">
+            <input message="tns:iniciarSesionRequest"/>
+            <output message="tns:iniciarSesionResponse"/>
+        </operation>
+
+        <operation name="validarToken">
+            <input message="tns:validarTokenRequest"/>
+            <output message="tns:validarTokenResponse"/>
+        </operation>
+
+        <operation name="cerrarSesion">
+            <input message="tns:cerrarSesionRequest"/>
+            <output message="tns:cerrarSesionResponse"/>
         </operation>
 
     </portType>
@@ -271,7 +428,7 @@
 
         </operation>
 
-<operation name="obtenerPerfilUsuario">
+        <operation name="obtenerPerfilUsuario">
 
             <soap:operation soapAction="http://192.168.1.195/soap/obtenerPerfilUsuario"/>
 
@@ -285,8 +442,26 @@
 
         </operation>
 
-<operation name="validarAccesoServicio">
+        <operation name="validarAccesoServicio">
             <soap:operation soapAction="http://192.168.1.195/soap/validarAccesoServicio"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+
+        <operation name="iniciarSesion">
+            <soap:operation soapAction="http://192.168.1.195/soap/iniciarSesion"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+
+        <operation name="validarToken">
+            <soap:operation soapAction="http://192.168.1.195/soap/validarToken"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+
+        <operation name="cerrarSesion">
+            <soap:operation soapAction="http://192.168.1.195/soap/cerrarSesion"/>
             <input><soap:body use="literal"/></input>
             <output><soap:body use="literal"/></output>
         </operation>
