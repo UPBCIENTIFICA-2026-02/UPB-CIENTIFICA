@@ -167,12 +167,16 @@ func (v *SOAPValidator) Validate(ctx context.Context, token string) (Usuario, er
 		return e.usuario, nil
 	}
 
+	// El elemento de la operacion va en el namespace del WSDL, pero sus HIJOS
+	// no: el esquema de users.wsdl no declara elementFormDefault, asi que rige
+	// "unqualified". Por eso se usa un prefijo (ns:) y no xmlns= por defecto,
+	// que haria que <token> heredara el namespace y quedara cualificado.
 	cuerpo := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
-    <validarToken xmlns="%s">
+    <ns:validarToken xmlns:ns="%s">
       <token>%s</token>
-    </validarToken>
+    </ns:validarToken>
   </soap:Body>
 </soap:Envelope>`, v.namespace, escaparXML(token))
 

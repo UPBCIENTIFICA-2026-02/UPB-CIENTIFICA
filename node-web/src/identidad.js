@@ -41,6 +41,15 @@ function escapar(v) {
     .replace(/>/g, '&gt;');
 }
 
+/*
+ * El elemento de la operación va en el namespace del WSDL, pero sus HIJOS no.
+ *
+ * El esquema de users.wsdl no declara elementFormDefault, así que rige el valor
+ * por omisión, "unqualified": solo el elemento global lleva namespace. Por eso
+ * se usa un prefijo (ns:) y no xmlns= por defecto, que haría que los hijos
+ * heredaran el namespace y quedaran cualificados. El cliente Android ya lo
+ * construye de esta forma.
+ */
 function sobreSoap(operacion, cuerpo) {
   const campos = Object.entries(cuerpo)
     // Los campos opcionales no se envían si vienen vacíos: node-soap solo exige
@@ -52,7 +61,7 @@ function sobreSoap(operacion, cuerpo) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
-    <${operacion} xmlns="${NS}">${campos}</${operacion}>
+    <ns:${operacion} xmlns:ns="${NS}">${campos}</ns:${operacion}>
   </soap:Body>
 </soap:Envelope>`;
 }

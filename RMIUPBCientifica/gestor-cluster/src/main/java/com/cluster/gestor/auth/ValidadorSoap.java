@@ -87,13 +87,19 @@ public class ValidadorSoap implements ValidadorToken {
     }
 
     private String invocar(String token) throws AuthNoDisponibleException {
+        /*
+         * El elemento de la operación va en el namespace del WSDL, pero sus
+         * HIJOS no: el esquema de users.wsdl no declara elementFormDefault, así
+         * que rige "unqualified". Por eso se usa un prefijo (ns:) y no xmlns=
+         * por defecto, que haría que <token> heredara el namespace.
+         */
         String cuerpo = """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                   <soap:Body>
-                    <validarToken xmlns="%s">
+                    <ns:validarToken xmlns:ns="%s">
                       <token>%s</token>
-                    </validarToken>
+                    </ns:validarToken>
                   </soap:Body>
                 </soap:Envelope>""".formatted(namespace, escapar(token));
 

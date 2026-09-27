@@ -243,6 +243,65 @@
                 </xsd:complexType>
             </xsd:element>
 
+
+            <!-- ============================================================
+                 login / logout — ALIAS PARA EL CLIENTE MÓVIL
+
+                 La app Android se escribió contra el contrato de
+                 TRASPASO §3.4, que difiere de iniciarSesion en dos cosas:
+                   - el parámetro se llama `contrasena`, no `password`;
+                   - `roles` y `mapaServiciosAutorizados` son UNA cadena
+                     separada por comas, no elementos repetidos, porque la app
+                     hace .split(",") sobre el primer elemento que encuentra.
+
+                 Se declaran aparte en vez de cambiar iniciarSesion para no
+                 romper a node-web, node-repository, node-media ni node-sync.
+                 ============================================================ -->
+
+            <xsd:element name="login">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="usuario" type="xsd:string"/>
+                        <xsd:element name="contrasena" type="xsd:string"/>
+                        <xsd:element name="origenCliente" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="codigoMfa" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="loginResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                        <xsd:element name="token" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="expiraEn" type="xsd:int" minOccurs="0"/>
+                        <xsd:element name="uid" type="xsd:string" minOccurs="0"/>
+                        <!-- separados por comas, a diferencia de iniciarSesion -->
+                        <xsd:element name="roles" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="grupos" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="mapaServiciosAutorizados" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="logout">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="token" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="logoutResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="success" type="xsd:boolean"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
         </xsd:schema>
 
     </types>
@@ -322,6 +381,22 @@
         <part name="parameters" element="tns:cerrarSesionResponse"/>
     </message>
 
+    <message name="loginRequest">
+        <part name="parameters" element="tns:login"/>
+    </message>
+
+    <message name="loginResponse">
+        <part name="parameters" element="tns:loginResponse"/>
+    </message>
+
+    <message name="logoutRequest">
+        <part name="parameters" element="tns:logout"/>
+    </message>
+
+    <message name="logoutResponse">
+        <part name="parameters" element="tns:logoutResponse"/>
+    </message>
+
 
     <!-- PORT TYPE -->
 
@@ -365,6 +440,16 @@
         <operation name="cerrarSesion">
             <input message="tns:cerrarSesionRequest"/>
             <output message="tns:cerrarSesionResponse"/>
+        </operation>
+
+        <operation name="login">
+            <input message="tns:loginRequest"/>
+            <output message="tns:loginResponse"/>
+        </operation>
+
+        <operation name="logout">
+            <input message="tns:logoutRequest"/>
+            <output message="tns:logoutResponse"/>
         </operation>
 
     </portType>
@@ -462,6 +547,18 @@
 
         <operation name="cerrarSesion">
             <soap:operation soapAction="http://192.168.1.195/soap/cerrarSesion"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+
+        <operation name="login">
+            <soap:operation soapAction="http://192.168.1.195/soap/login"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+
+        <operation name="logout">
+            <soap:operation soapAction="http://192.168.1.195/soap/logout"/>
             <input><soap:body use="literal"/></input>
             <output><soap:body use="literal"/></output>
         </operation>

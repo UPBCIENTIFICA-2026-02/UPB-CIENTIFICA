@@ -88,15 +88,25 @@ class ValidadorSoap extends ValidadorToken {
     this.cache.set(token, { usuario, vence: Date.now() + this.ttlCacheMs });
   }
 
+  /*
+   * El elemento de la operación va en el namespace del WSDL, pero sus HIJOS no.
+   *
+   * El esquema de users.wsdl no declara elementFormDefault, así que vale el
+   * valor por omisión, "unqualified": solo el elemento global (validarToken)
+   * lleva namespace. Por eso se usa un prefijo (ns:) en vez de xmlns= por
+   * defecto: con xmlns= los hijos heredarían el namespace y quedarían
+   * cualificados, que es justo lo que el esquema no pide. El cliente Android
+   * ya lo hace de esta forma.
+   */
   #sobre(token) {
     // El token va escapado: un token con & o < rompería el XML.
     const seguro = String(token).replace(/&/g, "&amp;").replace(/</g, "&lt;");
     return `<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
-    <validarToken xmlns="${this.namespace}">
+    <ns:validarToken xmlns:ns="${this.namespace}">
       <token>${seguro}</token>
-    </validarToken>
+    </ns:validarToken>
   </soap:Body>
 </soap:Envelope>`;
   }

@@ -748,6 +748,110 @@ if (!function_exists("validarTokenMFA")) {
 }
 
 /*
+ * Servicios a los que tiene acceso un perfil.
+ *
+ * Recorre ou=services buscando las entradas que tengan al perfil como miembro.
+ * Es la consulta que ya hacía validarAccesoServicio, pero devolviendo la lista
+ * completa en vez de responder sí/no sobre un servicio concreto.
+ *
+ * @return string[]|null null si la consulta falla
+ */
+function serviciosDePerfil($ldap, $perfil)
+{
+    $filtro = "(memberUid=" . filtroSeguro($perfil) . ")";
+
+    $busqueda = ldap_search($ldap, "ou=services," . BASE_DN, $filtro);
+    if (!$busqueda) {
+        return null;
+    }
+
+    $resultado = ldap_get_entries($ldap, $busqueda);
+    if (!is_array($resultado)) {
+        return null;
+    }
+
+    $servicios = [];
+    for ($i = 0; $i < $resultado["count"]; $i++) {
+        if (isset($resultado[$i]["cn"][0])) {
+            $servicios[] = $resultado[$i]["cn"][0];
+        }
+    }
+
+    sort($servicios, SORT_STRING);
+    return $servicios;
+}
+
+/*
+ * LOGIN — alias de iniciarSesion para el cliente móvil Android.
+ *
+ * ¿Por qué existe? La app Android se escribió contra el contrato que documenta
+ * TRASPASO §3.4, que no coincide con el de iniciarSesion:
+ *
+ *   la app llama    login(usuario, contrasena, origenCliente)
+ *                   y espera <token>, <roles>, <mapaServiciosAutorizados>
+ *   aquí se expone  iniciarSesion(usuario, password, origenCliente, codigoMfa)
+ *                   y devuelve <token>, <expiraEn>, <uid>, <roles>*, <grupos>*
+ *
+ * Dos diferencias de forma que importan, y por eso esto no es un simple renombre:
+ *   - el parámetro se llama `contrasena`, no `password`;
+ *   - `roles` aquí es UNA cadena separada por comas, porque la app hace
+ *     .split(",") sobre el primer elemento <roles> que encuentra. Si se
+ *     devolvieran elementos repetidos como en iniciarSesion, la app solo vería
+ *     el primero.
+ *
+ * Se añadió como operación aparte en vez de cambiar iniciarSesion para no
+ * romper a node-web, node-repository, node-media ni node-sync, que ya usan la
+ * forma con elementos repetidos. Las dos comparten toda la lógica.
+ */
+function login($datos)
+{
+    $usuario = $datos->usuario ?? "";
+
+    $sesion = iniciarSesion((object) [
+        "usuario"       => $usuario,
+        "password"      => $datos->contrasena ?? "",
+        "origenCliente" => $datos->origenCliente ?? "movil",
+        "codigoMfa"     => $datos->codigoMfa ?? ""
+    ]);
+
+    if (!$sesion["success"]) {
+        return [
+            "success" => false,
+            "message" => $sesion["message"]
+        ];
+    }
+
+    // Mapa de servicios autorizados: lo que la app usa para decidir qué
+    // opciones habilita en su pantalla principal.
+    $servicios = [];
+    $ldap = conectarLDAPAdmin();
+    if ($ldap) {
+        $perfil = $sesion["roles"][0] ?? null;
+        if ($perfil !== null) {
+            $servicios = serviciosDePerfil($ldap, $perfil) ?? [];
+        }
+        ldap_unbind($ldap);
+    }
+
+    return [
+        "success"  => true,
+        "message"  => $sesion["message"],
+        "token"    => $sesion["token"],
+        "expiraEn" => $sesion["expiraEn"],
+        "uid"      => $sesion["uid"],
+        "roles"    => implode(",", $sesion["roles"]),
+        "grupos"   => implode(",", $sesion["grupos"]),
+        "mapaServiciosAutorizados" => implode(",", $servicios)
+    ];
+}
+
+/* LOGOUT — alias de cerrarSesion, por el mismo motivo que login. */
+function logout($datos)
+{
+    return cerrarSesion($datos);
+}
+
+/*
  * VALIDAR TOKEN
  *
  * La operación más llamada del sistema: Storage, node-media y node-sync la
@@ -812,7 +916,10 @@ $server->addFunction([
     "validarAccesoServicio",
     "iniciarSesion",
     "validarToken",
-    "cerrarSesion"
+    "cerrarSesion",
+    // Alias con los nombres que usa el cliente móvil (ver login()).
+    "login",
+    "logout"
 ]);
 
 

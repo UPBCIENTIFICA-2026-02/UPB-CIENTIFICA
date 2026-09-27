@@ -89,9 +89,25 @@ levantar('node-soap', 8081, app => {
         `<apellido>${SESION.apellido}</apellido><correo>${SESION.correo}</correo>`));
     }
 
-    if (accion === 'cerrarSesion') {
-      return res.send(sobre('cerrarSesion',
+    if (accion === 'cerrarSesion' || accion === 'logout') {
+      return res.send(sobre(accion,
         '<success>true</success><message>Sesión cerrada</message>'));
+    }
+
+    // Alias que usa el cliente móvil Android: el parámetro es `contrasena` y
+    // roles / mapaServiciosAutorizados vienen como UNA cadena con comas.
+    if (accion === 'login') {
+      if (!campo('usuario') || !campo('contrasena')) {
+        return res.send(sobre('login',
+          '<success>false</success><message>Usuario o contraseña incorrectos</message>'));
+      }
+      return res.send(sobre('login',
+        `<success>true</success><message>Sesión iniciada</message>` +
+        `<token>${SESION.token}</token><expiraEn>28800</expiraEn>` +
+        `<uid>${SESION.uid}</uid>` +
+        `<roles>${SESION.roles.join(',')}</roles>` +
+        `<grupos>${SESION.grupos.join(',')}</grupos>` +
+        `<mapaServiciosAutorizados>storage,streaming,shared-file</mapaServiciosAutorizados>`));
     }
 
     res.status(500).send(sobre('Fault', '<message>operacion desconocida</message>'));
