@@ -71,7 +71,7 @@ class MetadatosRepository {
         VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8, $9)
         RETURNING *`,
         [id, nombre, tipo, propietario, grupo || "usuarios",
-        permisos || "rw-r-----", tamanoBytes || 0,
+        permisos || "rw-------", tamanoBytes || 0,
         directorioContenedorId, rutaFisica]
         );
         return rows[0];

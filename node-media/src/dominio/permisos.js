@@ -32,4 +32,20 @@ function tienePermiso(nodo, usuario, tipo) {
 const puedeLeer     = (nodo, usuario) => tienePermiso(nodo, usuario, LECTURA);
 const puedeEscribir = (nodo, usuario) => tienePermiso(nodo, usuario, ESCRITURA);
 
-module.exports = { puedeLeer, puedeEscribir, LECTURA, ESCRITURA, EJECUCION };
+/*
+ * Permisos con los que nace todo lo que se sube o se crea: SOLO el propietario.
+ *
+ * Antes eran "rw-r-----" / "rwxr-----" (el grupo podía leer). Como el grupo
+ * de todos es el mismo ("usuarios" en el validador simulado; en LDAP también
+ * suele ser un grupo común), "el grupo puede leer" significaba "cualquiera
+ * puede leer": node-media listaba las fotos y videos de todos los usuarios a
+ * todos, y Storage entregaba un archivo ajeno a quien conociera su id.
+ * Compartir tiene que ser una acción explícita (Shared File Service).
+ */
+const PERMISOS_ARCHIVO_NUEVO    = "rw-------";
+const PERMISOS_DIRECTORIO_NUEVO = "rwx------";
+
+module.exports = {
+    puedeLeer, puedeEscribir, LECTURA, ESCRITURA, EJECUCION,
+    PERMISOS_ARCHIVO_NUEVO, PERMISOS_DIRECTORIO_NUEVO,
+};

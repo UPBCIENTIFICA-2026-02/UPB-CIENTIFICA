@@ -1,4 +1,5 @@
 const { NoEncontrado, SolicitudInvalida } = require("./errores");
+const { eliminarMedio } = require("./eliminarMedio");
 
 /**
  * Reglas de negocio del álbum de fotografías (RF-05).
@@ -64,6 +65,11 @@ class AlbumService {
     if (!medio) throw new NoEncontrado(`medio ${medioId}`);
     const lectura = await this.fuente.abrirLectura(medio.archivo_storage_id, token);
     return { ...lectura, titulo: medio.titulo };
+  }
+
+  /** Borra la foto en Storage y en el catálogo. Ver dominio/eliminarMedio.js. */
+  async eliminarFoto(medioId, usuario, token) {
+    await eliminarMedio(this, medioId, "foto", usuario, token);
   }
 
   async indexar(usuario, token) {

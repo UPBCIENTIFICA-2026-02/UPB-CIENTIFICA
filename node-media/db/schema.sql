@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS medios (
 -- que ya existía.
 -- ---------------------------------------------------------------------------
 ALTER TABLE medios ADD COLUMN IF NOT EXISTS grupo    TEXT      NOT NULL DEFAULT 'usuarios';
-ALTER TABLE medios ADD COLUMN IF NOT EXISTS permisos CHAR(9)   NOT NULL DEFAULT 'rw-r-----';
+ALTER TABLE medios ADD COLUMN IF NOT EXISTS permisos CHAR(9)   NOT NULL DEFAULT 'rw-------';
 
 CREATE TABLE IF NOT EXISTS albumes (
     id           UUID PRIMARY KEY,

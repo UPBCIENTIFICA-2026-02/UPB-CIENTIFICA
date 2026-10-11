@@ -1,5 +1,6 @@
 const { v4: uuid } = require("uuid");
 const { NoEncontrado, SolicitudInvalida } = require("./errores");
+const { eliminarMedio } = require("./eliminarMedio");
 
 /**
  * Reglas de negocio del servicio de streaming (RF-06).
@@ -53,6 +54,11 @@ class StreamingService {
     });
 
     return { sesionId, manifestUrl: `/streaming/${medioId}/contenido` };
+  }
+
+  /** Borra el video en Storage y en el catálogo. Ver dominio/eliminarMedio.js. */
+  async eliminarVideo(medioId, usuario, token) {
+    await eliminarMedio(this, medioId, "video", usuario, token);
   }
 
   /**

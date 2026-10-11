@@ -47,6 +47,14 @@ function crearRutasAlbum(albumService) {
     } catch (e) { siguiente(e); }
   });
 
+  // Borra la foto: el archivo en Storage y su entrada en el catálogo.
+  router.delete("/fotos/:id", async (req, res, siguiente) => {
+    try {
+      await albumService.eliminarFoto(req.params.id, req.usuario, req.token);
+      res.status(204).end();
+    } catch (e) { siguiente(e); }
+  });
+
   // --- indexación ---
 
   router.post("/indexar", async (req, res, siguiente) => {

@@ -1,6 +1,7 @@
 const fsp = require("fs/promises");
 const { v4: uuid } = require("uuid");
 const path = require("path");
+const { PERMISOS_ARCHIVO_NUEVO } = require("./permisos");
 
 const EXT_FOTO = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic"]);
 const EXT_VIDEO = new Set([".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v"]);
@@ -108,7 +109,7 @@ class IndexadorService {
       existente &&
       Number(existente.tamano_bytes) === Number(archivo.tamanoBytes) &&
       existente.grupo === (archivo.grupo || "usuarios") &&
-      existente.permisos === (archivo.permisos || "rw-r-----")
+      existente.permisos === (archivo.permisos || PERMISOS_ARCHIVO_NUEVO)
     ) {
       return existente;
     }
@@ -131,7 +132,7 @@ class IndexadorService {
         archivoStorageId: archivo.id,
         propietario,
         grupo: archivo.grupo || "usuarios",
-        permisos: archivo.permisos || "rw-r-----",
+        permisos: archivo.permisos || PERMISOS_ARCHIVO_NUEVO,
         titulo: path.parse(archivo.nombre).name,
         tipo,
         mime: null,

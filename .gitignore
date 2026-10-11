@@ -28,6 +28,10 @@ CLAUDE.md
 # --- Almacenamiento y datos locales de prueba ---
 almacen-pruebas/
 datos/
+# ...pero NO la capa de datos del código (src/datos/ en cada servicio), que
+# sí se versiona. Sin esta excepción node-media/src/datos/ quedaba fuera de git
+# y el servicio no arrancaba en un clon limpio.
+!**/src/datos/
 *.db
 *.sqlite
 *.sqlite3

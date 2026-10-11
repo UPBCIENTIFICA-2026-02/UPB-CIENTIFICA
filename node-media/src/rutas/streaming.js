@@ -44,6 +44,14 @@ function crearRutasStreaming(streamingService) {
     } catch (e) { siguiente(e); }
   });
 
+  // Borra el video: el archivo en Storage y su entrada en el catálogo.
+  router.delete("/:id", async (req, res, siguiente) => {
+    try {
+      await streamingService.eliminarVideo(req.params.id, req.usuario, req.token);
+      res.status(204).end();
+    } catch (e) { siguiente(e); }
+  });
+
   return router;
 }
 

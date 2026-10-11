@@ -1,5 +1,7 @@
 const path = require("path");
-const { puedeLeer, puedeEscribir } = require("./permisos");
+const {
+    puedeLeer, puedeEscribir, PERMISOS_ARCHIVO_NUEVO, PERMISOS_DIRECTORIO_NUEVO,
+} = require("./permisos");
 const {
     NoEncontrado, PermisoDenegado, CuotaExcedida, SolicitudInvalida,
     RangoNoSatisfacible,
@@ -118,7 +120,7 @@ class ArchivoService {
 
         const nodo = await this.metadatos.crear({
         nombre, tipo: "archivo", propietario: usuario.id,
-        grupo: usuario.grupos?.[0] || "usuarios", permisos: "rw-r-----",
+        grupo: usuario.grupos?.[0] || "usuarios", permisos: PERMISOS_ARCHIVO_NUEVO,
         tamanoBytes: 0, directorioContenedorId: contenedorId, rutaFisica: null,
         });
 
@@ -213,7 +215,7 @@ class ArchivoService {
 
         const nodo = await this.metadatos.crear({
         nombre, tipo: "directorio", propietario: usuario.id,
-        grupo: usuario.grupos?.[0] || "usuarios", permisos: "rwxr-----",
+        grupo: usuario.grupos?.[0] || "usuarios", permisos: PERMISOS_DIRECTORIO_NUEVO,
         tamanoBytes: 0, directorioContenedorId: contenedorId, rutaFisica: null,
         });
         return this.#aDto(nodo);
