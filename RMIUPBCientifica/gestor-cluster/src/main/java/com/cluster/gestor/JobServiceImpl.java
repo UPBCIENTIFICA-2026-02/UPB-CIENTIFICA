@@ -62,6 +62,14 @@ public class JobServiceImpl implements JobService {
 
     private static final int NUM_WORKERS = 3;
 
+    /**
+     * Intérprete con el que se lanza cada comando. En hpc-master es "bash".
+     * En Windows (pruebas locales) "bash" resuelve a C:WindowsSystem32ash.exe,
+     * el de WSL, que sin una distribución Linux instalada deja los trabajos
+     * colgados o fallidos; allí se define SHELL_TRABAJOS con la ruta de Git Bash.
+     */
+    private static final String SHELL = System.getenv().getOrDefault("SHELL_TRABAJOS", "bash");
+
     private final ConcurrentHashMap<String, Job> jobs = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Process> procesosActivos = new ConcurrentHashMap<>();
     private final PriorityBlockingQueue<Job> cola = new PriorityBlockingQueue<>(
@@ -246,7 +254,7 @@ public class JobServiceImpl implements JobService {
     private void ejecutarComando(Job job) {
         Process proceso = null;
         try {
-            ProcessBuilder pb = new ProcessBuilder("bash", "-c", job.getComando());
+            ProcessBuilder pb = new ProcessBuilder(SHELL, "-c", job.getComando());
             pb.redirectErrorStream(true);
             proceso = pb.start();
             procesosActivos.put(job.getId(), proceso);

@@ -1,37 +1,22 @@
 // Cliente del servicio de identidad (node-soap).
 //
-// node-web no valida credenciales por su cuenta: delega en el servicio SOAP,
-// que es la única pieza del sistema que consulta el directorio LDAP.
+// Es lo ÚNICO que node-web traduce en vez de reenviar: el navegador no habla
+// SOAP. Contrato: FrontWebUPBCientifica/docs/PASARELA.md, sección 1.
 //
-// ---------------------------------------------------------------------------
-// ESTE ARCHIVO SE REESCRIBIÓ CONTRA EL CONTRATO REAL DE node-soap.
+// Usa las operaciones `login` y `logout` de users.wsdl, las mismas que el
+// cliente móvil y el agente de escritorio. Antes usaba `iniciarSesion` /
+// `validarToken`, que siguen existiendo en node-soap para quien las necesite,
+// pero así los tres clientes comparten un solo contrato de sesión.
 //
-// Antes hablaba con un contrato que solo existía en herramientas/nodos-falsos.js:
-//   - POST /identidad.php                  -> ahora /soap/user.php
-//   - namespace urn:upbc:identidad          -> ahora http://192.168.1.195/soap
-//   - iniciarSesion(usuario, clave, ...)    -> el parámetro es `password`
-//   - validarToken -> <uid> y <gid> NUMÉRICOS y <cuotaMb>
-//        · el uid de LDAP es una CADENA ("jperez"), no un número: Number("jperez")
-//          daba NaN. Ahora se trata como cadena, igual que en node-repository,
-//          node-media y node-sync.
-//        · no hay un solo gid: LDAP devuelve una LISTA de grupos, que es lo que
-//          necesita el modelo de permisos Unix de Storage.
-//        · cuotaMb no es asunto de Auth: la cuota vive en node-repository
-//          (cuotas.conf). Se pide a Storage, ver rutas.js.
-// ---------------------------------------------------------------------------
-//
-// El token es opaco para node-web: se guarda y se reenvía, nunca se interpreta.
-// Se consulta a Auth en cada petición (con caché corta) para que cerrar sesión
-// surta efecto de verdad.
+// node-web ya no valida el token en cada petición: la pasarela lo reenvía y
+// es cada servicio quien lo valida (y responde 401 si no vale).
 
 import { config } from './config.js';
 
-// Ruta del endpoint dentro de la VM de node-soap, tal como la publica el WSDL
-// (elemento <soap:address> de users.wsdl).
+// Ruta del endpoint en la VM de node-soap (<soap:address> de users.wsdl).
 const RUTA_SOAP = '/soap/user.php';
 
-// targetNamespace del WSDL. Se puede sobreescribir por entorno porque hoy es una
-// IP y cambiará cuando node-soap deje de estar en 192.168.1.195.
+// targetNamespace de users.wsdl. Configurable porque hoy es una IP.
 const NS = process.env.NAMESPACE_IDENTIDAD || 'http://192.168.1.195/soap';
 
 function escapar(v) {
@@ -43,17 +28,12 @@ function escapar(v) {
 
 /*
  * El elemento de la operación va en el namespace del WSDL, pero sus HIJOS no.
- *
- * El esquema de users.wsdl no declara elementFormDefault, así que rige el valor
- * por omisión, "unqualified": solo el elemento global lleva namespace. Por eso
+ * users.wsdl no declara elementFormDefault, así que rige "unqualified". Por eso
  * se usa un prefijo (ns:) y no xmlns= por defecto, que haría que los hijos
- * heredaran el namespace y quedaran cualificados. El cliente Android ya lo
- * construye de esta forma.
+ * heredaran el namespace y PHP los leyera vacíos.
  */
 function sobreSoap(operacion, cuerpo) {
   const campos = Object.entries(cuerpo)
-    // Los campos opcionales no se envían si vienen vacíos: node-soap solo exige
-    // el código MFA cuando hay un OTP pendiente.
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
     .map(([k, v]) => `<${k}>${escapar(v)}</${k}>`)
     .join('');
@@ -66,16 +46,20 @@ function sobreSoap(operacion, cuerpo) {
 </soap:Envelope>`;
 }
 
-// PHP SoapServer devuelve prefijos de namespace que cambian entre peticiones
-// (ns1:, SOAP-ENV:...), así que los patrones los ignoran.
+// PHP SoapServer devuelve prefijos que cambian entre peticiones (ns1:,
+// SOAP-ENV:...), así que el patrón los ignora.
 function extraer(xml, etiqueta) {
   const m = xml.match(new RegExp(`<(?:[\\w.-]+:)?${etiqueta}[^>]*>([^<]*)<`));
   return m ? m[1] : null;
 }
 
-function extraerLista(xml, etiqueta) {
-  const patron = new RegExp(`<(?:[\\w.-]+:)?${etiqueta}[^>]*>([^<]*)<`, 'g');
-  return [...xml.matchAll(patron)].map(m => m[1]).filter(v => v !== '');
+/** `login` devuelve roles y servicios como UNA cadena con comas. */
+function lista(valor) {
+  return (valor || '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function error(codigo, mensaje) {
+  return Object.assign(new Error(mensaje), { codigo });
 }
 
 async function llamarSoap(operacion, cuerpo) {
@@ -91,96 +75,43 @@ async function llamarSoap(operacion, cuerpo) {
       signal: AbortSignal.timeout(config.timeoutMs)
     });
   } catch {
-    const err = new Error('El servicio de identidad no responde');
-    err.codigo = 503;
-    throw err;
+    // 503 y nunca 401: que Auth no responda no es culpa del usuario.
+    throw error(503, 'El servicio de identidad no responde.');
   }
 
   if (!respuesta.ok) {
-    const err = new Error(`El servicio de identidad respondió ${respuesta.status}`);
-    err.codigo = 503;
-    throw err;
+    throw error(503, `El servicio de identidad respondió ${respuesta.status}.`);
   }
-
   return respuesta.text();
 }
 
-export async function iniciarSesion(usuario, clave, codigoMfa) {
-  const xml = await llamarSoap('iniciarSesion', {
-    usuario,
-    password: clave,          // el WSDL lo llama `password`, no `clave`
-    origenCliente: 'web',
-    codigoMfa
-  });
+/**
+ * @returns {{token: string, expiraEn: number, roles: string[], serviciosAutorizados: string[]}}
+ */
+export async function login(usuario, contrasena, origenCliente = 'web', codigoMfa) {
+  const xml = await llamarSoap('login', { usuario, contrasena, origenCliente, codigoMfa });
 
   const token = extraer(xml, 'token');
   if (!token) {
-    // node-soap distingue "credenciales malas" de "falta el código MFA", y esa
-    // diferencia el usuario necesita verla para saber qué hacer.
-    const mensaje = extraer(xml, 'message') || 'Usuario o contraseña incorrectos';
-    const err = new Error(mensaje);
-    err.codigo = 401;
-    throw err;
+    // node-soap explica el motivo en <message> (credenciales, código MFA
+    // pendiente...); se pasa tal cual porque al usuario le sirve saberlo.
+    throw error(401, extraer(xml, 'message') || 'Usuario o contraseña incorrectos');
   }
 
-  return { token, expiraEn: Number(extraer(xml, 'expiraEn') || 3600) };
-}
-
-/**
- * @returns {{usuario: string, roles: string[], grupos: string[]}|null}
- */
-export async function validarToken(token) {
-  if (!token) return null;
-
-  const xml = await llamarSoap('validarToken', { token });
-  if (extraer(xml, 'valido') !== 'true') return null;
-
-  const uid = extraer(xml, 'uid');
-  if (!uid) return null;
-
   return {
-    usuario: uid,                        // cadena, no número
-    roles: extraerLista(xml, 'roles'),
-    grupos: extraerLista(xml, 'grupos')
+    token,
+    expiraEn: Number(extraer(xml, 'expiraEn') || 3600),
+    roles: lista(extraer(xml, 'roles')),
+    serviciosAutorizados: lista(extraer(xml, 'mapaServiciosAutorizados'))
   };
 }
 
-/** Nombre para mostrar. Se pide aparte: validarToken no lo devuelve. */
-export async function obtenerPerfil(usuario) {
-  try {
-    const xml = await llamarSoap('obtenerUsuario', { usuario });
-    if (extraer(xml, 'success') !== 'true') return {};
-    return {
-      nombre: extraer(xml, 'nombre'),
-      apellido: extraer(xml, 'apellido'),
-      correo: extraer(xml, 'correo')
-    };
-  } catch {
-    // El perfil es decorativo: si Auth no lo da, la sesión sigue siendo válida.
-    return {};
-  }
-}
-
-export async function cerrarSesion(token) {
+export async function logout(token) {
   if (!token) return;
   try {
-    await llamarSoap('cerrarSesion', { token });
+    await llamarSoap('logout', { token });
   } catch {
-    // Si Auth no responde, el token caducará por su cuenta. No es un error que
-    // el usuario deba ver al pulsar "salir".
-  }
-}
-
-// Middleware: exige sesión válida y deja el usuario en req.sesion.
-export async function exigirSesion(req, res, siguiente) {
-  const cabecera = req.get('Authorization') || '';
-  const token = cabecera.startsWith('Bearer ') ? cabecera.slice(7) : null;
-  try {
-    const sesion = await validarToken(token);
-    if (!sesion) return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
-    req.sesion = sesion;
-    siguiente();
-  } catch (e) {
-    res.status(e.codigo || 503).json({ error: e.message });
+    // Si Auth no responde, el token caducará por su cuenta. El front cierra la
+    // sesión local igual (PASARELA.md, "Cerrar sesión").
   }
 }

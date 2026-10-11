@@ -1,7 +1,7 @@
 {
   "name": "upbc-node-web",
-  "version": "0.1.0",
-  "description": "Servidor web JavaScript de UPB-CIENTIFICA (VM node-web): sirve la interfaz y expone la API del portal para el navegador.",
+  "version": "0.2.0",
+  "description": "Servidor web de UPB-CIENTIFICA (VM node-web): entrega la interfaz web y es su pasarela hacia los servicios (ver FrontWebUPBCientifica/docs/PASARELA.md).",
   "type": "module",
   "main": "servidor-web.js",
   "engines": {
@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node servidor-web.js",
     "dev": "node --watch servidor-web.js",
-    "stubs": "node herramientas/nodos-falsos.js"
+    "stubs": "node herramientas/nodos-falsos.js",
+    "interfaz": "node herramientas/traer-interfaz.js"
   },
   "dependencies": {
     "express": "^4.19.2",

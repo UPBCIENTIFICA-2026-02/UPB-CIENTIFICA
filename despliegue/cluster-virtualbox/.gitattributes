@@ -1,0 +1,10 @@
+# Los .sh se ejecutan en Debian: tienen que conservar saltos de linea LF.
+# Con core.autocrlf=true (el valor por defecto de Git en Windows), Git los
+# convertiria a CRLF al hacer checkout, y bash fallaria con:
+#     $'\r': command not found
+*.sh   text eol=lf
+*.c    text eol=lf
+*.sql  text eol=lf
+
+# Los .ps1 se ejecutan en Windows.
+*.ps1  text eol=crlf

@@ -1,0 +1,167 @@
+/*
+ * Tema de UPB-CIENTÍFICA para la web.
+ *
+ * Es la MISMA paleta del cliente móvil (FrontMovilUPBCientifica,
+ * ui/theme/Theme.kt) y del cliente de escritorio. Todo color de la interfaz
+ * sale de estas variables: para cambiar la identidad visual se tocan aquí y
+ * en Theme.kt a la vez, y los tres clientes siguen viéndose iguales.
+ *
+ * Nombres: los de Material 3 (primary, surfaceContainerLow...) pasados a
+ * kebab-case, para que quien venga del móvil reconozca cada rol.
+ */
+
+:root {
+  color-scheme: light;
+
+  --primary: #1A5BC0;
+  --on-primary: #FFFFFF;
+  --primary-container: #D9E2FF;
+  --on-primary-container: #001A41;
+
+  --secondary: #006970;
+  --on-secondary: #FFFFFF;
+  --secondary-container: #9AF0F9;
+  --on-secondary-container: #002022;
+
+  --tertiary: #7A4E9C;
+  --tertiary-container: #F2DAFF;
+  --on-tertiary-container: #2F004C;
+
+  --background: #F9F9FF;
+  --surface: #F9F9FF;
+  --on-surface: #191C21;
+  --surface-variant: #E0E2EC;
+  --on-surface-variant: #44474F;
+
+  --surface-container-lowest: #FFFFFF;
+  --surface-container-low: #F2F3FA;
+  --surface-container: #EDEDF4;
+  --surface-container-high: #E7E8EE;
+  --surface-container-highest: #E1E2E9;
+
+  --inverse-surface: #2E3036;
+  --inverse-on-surface: #F0F0F7;
+
+  --outline: #74777F;
+  --outline-variant: #C4C6D0;
+
+  --error: #BA1A1A;
+  --error-container: #FFDAD6;
+  --on-error-container: #410002;
+
+  /* Material 3 no trae un rol "éxito"; el móvil lo deduce del tema (ColorScheme.exito). */
+  --exito: #188038;
+
+  --sombra: 0 1px 2px rgba(0, 0, 0, .12), 0 2px 6px rgba(0, 0, 0, .08);
+  --sombra-alta: 0 4px 12px rgba(0, 0, 0, .14), 0 12px 32px rgba(0, 0, 0, .12);
+  --velo: rgba(0, 0, 0, .32);
+}
+
+/* Modo oscuro: sigue al sistema, salvo que la persona elija claro a mano. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    color-scheme: dark;
+
+    --primary: #AFC6FF;
+    --on-primary: #002E69;
+    --primary-container: #004494;
+    --on-primary-container: #D9E2FF;
+
+    --secondary: #4FD8E3;
+    --on-secondary: #00363A;
+    --secondary-container: #004F54;
+    --on-secondary-container: #9AF0F9;
+
+    --tertiary: #E0B6FF;
+    --tertiary-container: #603681;
+    --on-tertiary-container: #F2DAFF;
+
+    --background: #111318;
+    --surface: #111318;
+    --on-surface: #E1E2E9;
+    --surface-variant: #44474F;
+    --on-surface-variant: #C4C6D0;
+
+    --surface-container-lowest: #0C0E13;
+    --surface-container-low: #191C21;
+    --surface-container: #1D2025;
+    --surface-container-high: #272A2F;
+    --surface-container-highest: #32353A;
+
+    --inverse-surface: #E1E2E9;
+    --inverse-on-surface: #2E3036;
+
+    --outline: #8E9099;
+    --outline-variant: #44474F;
+
+    --error: #FFB4AB;
+    --error-container: #93000A;
+    --on-error-container: #FFDAD6;
+
+    --exito: #81C995;
+
+    --sombra: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .4);
+    --sombra-alta: 0 4px 12px rgba(0, 0, 0, .5), 0 12px 32px rgba(0, 0, 0, .45);
+    --velo: rgba(0, 0, 0, .55);
+  }
+}
+
+/* Elección manual de oscuro (menú de cuenta): mismos valores que arriba. */
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+
+  --primary: #AFC6FF;
+  --on-primary: #002E69;
+  --primary-container: #004494;
+  --on-primary-container: #D9E2FF;
+
+  --secondary: #4FD8E3;
+  --on-secondary: #00363A;
+  --secondary-container: #004F54;
+  --on-secondary-container: #9AF0F9;
+
+  --tertiary: #E0B6FF;
+  --tertiary-container: #603681;
+  --on-tertiary-container: #F2DAFF;
+
+  --background: #111318;
+  --surface: #111318;
+  --on-surface: #E1E2E9;
+  --surface-variant: #44474F;
+  --on-surface-variant: #C4C6D0;
+
+  --surface-container-lowest: #0C0E13;
+  --surface-container-low: #191C21;
+  --surface-container: #1D2025;
+  --surface-container-high: #272A2F;
+  --surface-container-highest: #32353A;
+
+  --inverse-surface: #E1E2E9;
+  --inverse-on-surface: #2E3036;
+
+  --outline: #8E9099;
+  --outline-variant: #44474F;
+
+  --error: #FFB4AB;
+  --error-container: #93000A;
+  --on-error-container: #FFDAD6;
+
+  --exito: #81C995;
+
+  --sombra: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .4);
+  --sombra-alta: 0 4px 12px rgba(0, 0, 0, .5), 0 12px 32px rgba(0, 0, 0, .45);
+  --velo: rgba(0, 0, 0, .55);
+}
+
+/* Formas: las mismas esquinas que Theme.kt (Shapes). */
+:root {
+  --forma-xs: 6px;
+  --forma-s: 10px;
+  --forma-m: 16px;
+  --forma-l: 24px;
+  --forma-xl: 32px;
+  --pildora: 999px;
+
+  --fuente: Roboto, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --fuente-mono: "Roboto Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}

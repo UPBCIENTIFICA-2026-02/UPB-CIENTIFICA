@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mapa = JSON.parse(readFileSync(join(raiz, 'rutas-servicio.json'), 'utf8'));
@@ -26,6 +26,12 @@ export const config = {
   puerto: Number(env.PORT || 8080),
   interfaz: env.BIND || '127.0.0.1',
 
+  // Carpeta con la interfaz web (el repositorio FrontWebUPBCientifica).
+  // Por defecto, public/: ahí la copia `npm run interfaz` y desde ahí la
+  // despliega instalar.sh. En desarrollo conviene apuntar DIR_INTERFAZ
+  // directamente al repositorio del front, para ver los cambios sin copiar.
+  dirInterfaz: env.DIR_INTERFAZ ? resolve(env.DIR_INTERFAZ) : join(raiz, 'public'),
+
   nodos: {
     identidad: url('identidad'),
     archivos: url('archivos'),
@@ -34,9 +40,19 @@ export const config = {
     monitoreo: url('monitoreo')
   },
 
-  timeoutMs: Number(env.TIMEOUT_MS || mapa.timeoutMs || 5000)
+  // Tiempo máximo de las llamadas SOAP de inicio y cierre de sesión.
+  timeoutMs: Number(env.TIMEOUT_MS || mapa.timeoutMs || 5000),
+
+  // Inactividad máxima de un reenvío de la pasarela. No limita la duración
+  // total: una subida de 500 MB tarda lo que tarde mientras siga fluyendo.
+  inactividadPasarelaMs: Number(env.INACTIVIDAD_PASARELA_MS || 120000)
 };
 
 export function resumenConfig() {
-  return { puerto: config.puerto, nodos: config.nodos, timeoutMs: config.timeoutMs };
+  return {
+    puerto: config.puerto,
+    interfaz: config.dirInterfaz,
+    nodos: config.nodos,
+    timeoutMs: config.timeoutMs
+  };
 }

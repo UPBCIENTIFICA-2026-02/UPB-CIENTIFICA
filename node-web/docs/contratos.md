@@ -1,109 +1,41 @@
 # Contratos entre node-web y los demás servicios
 
-Estado a la fecha: dos servicios ya existen y este documento refleja **lo que
-realmente exponen**, no lo que se propuso al principio. Los otros tres siguen
-siendo propuesta.
+node-web es una **pasarela**: no adapta ni traduce los formatos de los servicios,
+los reenvía tal cual (ver `README.md`). Por eso este documento ya no repite los
+DTO de cada servicio — duplicarlos aquí solo sirve para que se desactualicen.
 
-`herramientas/nodos-falsos.js` imita exactamente estos formatos, así que sirve
-como especificación ejecutable: basta comparar la respuesta real contra la falsa.
-
----
-
-## node-rmi · Trabajos MPI — YA EXISTE
-
-Repositorio `RMIUPBCientifica`, módulo `job-api` (Spring Boot + cliente RMI).
-
-| Operación | Endpoint |
+| Qué | Dónde está el contrato |
 |---|---|
-| Listar | `GET /jobs` → **arreglo** de trabajos |
-| Consultar | `GET /jobs/{id}` |
-| Estado | `GET /jobs/{id}/estado` |
-| Crear | `POST /jobs` con `{ nombre, comando, prioridad }` → `{ id }` |
-| Cancelar | `DELETE /jobs/{id}` → `{ id, cancelado }` |
+| Rutas que node-web expone al navegador | `FrontWebUPBCientifica/docs/PASARELA.md` |
+| Storage (`/storage/**`) | `docs/contratos/Contrato Storage.pdf` del monorepo |
+| Photo Album y Streaming (`/album/**`, `/streaming/**`) | `docs/contratos/Contrato Streaming.pdf` (falta el de Photo Album) |
+| HPC (`/jobs/**`, `/cluster/**`) | `docs/contratos/Contrato HPC.pdf` |
+| Shared File (`/shared-file/**`) | `docs/contratos/Contrato SharedFile.pdf` — servicio sin implementar, node-web responde 501 |
+| Authentication (SOAP) | `docs/contratos/Contrato Auth.pdf` y `node-soap/soap/users.wsdl` |
 
-Trabajo completo:
+## Lo único que node-web traduce: la sesión
 
-```json
-{ "id": "uuid", "nombre": "...", "comando": "mpirun -np 4 ./sim",
-  "prioridad": 5, "estado": "RUNNING",
-  "fechaCreacion": "...", "fechaInicio": "...", "fechaFin": "...",
-  "resultado": "...", "mensajeError": "..." }
-```
+`POST /api/sesion` y `DELETE /api/sesion` llaman a las operaciones SOAP `login`
+y `logout` de node-soap (namespace `http://192.168.1.195/soap`, endpoint
+`/soap/user.php`), las mismas que usan la app móvil y el escritorio.
 
-Estados: `QUEUED`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`.
-node-web los traduce a `EN_COLA`, `EJECUTANDO`, `TERMINADO`, `FALLIDO`, `CANCELADO`.
-
-**Pendientes con este servicio:**
-- Escucha en `8080`; el plan de puertos del diagrama le asigna **8082**.
-- No exige token ni filtra por usuario: cualquiera ve y cancela los trabajos de todos.
-- El registro RMI usa `1099`; el diagrama de despliegue dice `2099`.
-
----
-
-## node-repository · Shared File — YA EXISTE
-
-Repositorio `UPB-CIENTIFICA`, módulo `node-repository`. Puerto `8084`. ✔
-
-| Operación | Endpoint |
+| SOAP `loginResponse` | JSON que devuelve node-web |
 |---|---|
-| Listar directorio | `GET /storage/directorios/{id}` (`root` para la raíz) → **arreglo** |
-| Crear directorio | `POST /storage/directorios` con `{ nombre, directorioPadreId }` |
-| Subir | `POST /storage/archivos` multipart, campo `archivo` |
-| Descargar | `GET /storage/archivos/{id}/descargar` |
-| Eliminar | `DELETE /storage/archivos/{id}` |
-| Cuota | `GET /storage/cuota` → `{ usados, cuota, disponibles }` en bytes |
-| Salud | `GET /health` |
+| `token` | `token` |
+| `expiraEn` | `expiraEn` |
+| `roles` (separados por comas) | `roles` (arreglo) |
+| `serviciosAutorizados` (separados por comas) | `serviciosAutorizados` (arreglo) |
+| sin `token` + `message` | 401 `{ error: "CREDENCIALES_INVALIDAS", mensaje }` |
+| node-soap no responde | 503 `{ error: "AUTH_NO_DISPONIBLE", mensaje }` |
 
-Nodo de archivo:
+## Desacuerdos conocidos (no los resuelve node-web)
 
-```json
-{ "id": "...", "nombre": "...", "tipo": "archivo|directorio",
-  "tamanoBytes": 251658240, "version": 2, "directorioContenedorId": null }
-```
-
-Autenticación: `Authorization: Bearer <token>`. En modo simulado acepta
-`mock-token-<usuario>`.
-
-**Pendientes con este servicio:**
-- No expone compartición entre usuarios. node-web responde `501` en esa ruta.
-- El modelo es por identificador de nodo, no por ruta del Home.
-
----
-
-## node-soap · Identidad — PROPUESTA
-
-**`iniciarSesion(usuario, clave, codigoMfa)`** → `<token>`, `<expiraEn>`
-
-**`validarToken(token)`** → `<valido>`, `<usuario>`, `<nombre>`, `<uid>`, `<gid>`, `<cuotaMb>`
-
-node-repository necesita además **roles y grupos** para evaluar los permisos Unix
-del segmento de grupo. Debe incluirse en la respuesta.
-
----
-
-## node-media · Álbum y streaming — PROPUESTA
-
-**`GET /album?orden=<fecha|nombre>`** → `{ orden, fotos: [{ id, titulo, fecha }] }`
-
-**`GET /videos`** → `{ videos: [{ id, titulo, duracionSeg, fecha }] }`
-
-Pendiente de acordar cómo se entrega el flujo de reproducción.
-
----
-
-## node-monitoreo · Estado — PROPUESTA
-
-**`GET /api/estado`** → `{ nodos: [{ nombre, cpu, memoria, disco, arriba }] }`
-
-Porcentajes de 0 a 100 como número.
-
----
-
-## Decisiones que faltan y afectan a todos
-
-1. **Formato del token.** Cada frente inventó su marcador de posición: node-web
-   consulta por SOAP, node-repository acepta `mock-token-<usuario>`, node-rmi no
-   pide nada. Hasta que node-soap defina el formato, no hay integración real.
-2. **Quién aplica los permisos.** node-repository ya los evalúa; node-rmi no.
+1. **HPC.** El front envía `POST /jobs` con `{ nombre, rutaCodigoFuente,
+   rutaDataset, numeroProcesos, prioridad }` y consulta `GET /cluster/estado`,
+   como dice `Contrato_HPC`. El job-api de `RMIUPBCientifica` todavía exige
+   `{ nombre, comando, prioridad }` y no tiene `/cluster/estado` (responde 500
+   en vez de 404 a rutas desconocidas). Se arregla en job-api, no aquí.
+2. **Monitoreo.** node-monitoreo no existe; el front abre `/monitoreo/` y node-web
+   aún no lo publica.
 3. **Puertos.** El plan del diagrama es la referencia: 8081 identidad,
    8082 trabajos, 8083 medios, 8084 archivos, 3000 monitoreo.
