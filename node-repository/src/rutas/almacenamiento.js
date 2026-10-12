@@ -1,3 +1,4 @@
+const path = require("path");
 const express = require("express");
 const multer = require("multer");
 
@@ -89,6 +90,9 @@ function crearRutasAlmacenamiento(archivoService) {
             );
 
         res.setHeader("Content-Disposition", `attachment; filename="${nombre}"`);
+        // Tipo según la extensión (video/mp4, image/jpeg...): sin él, el <video> y
+        // el <img> del portal tienen que adivinarlo, y no siempre aciertan.
+        res.type(path.extname(nombre) || "application/octet-stream");
         res.setHeader("Accept-Ranges", "bytes");
 
         if (parcial) {

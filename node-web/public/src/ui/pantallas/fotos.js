@@ -17,6 +17,8 @@ import { abrirMenu, abrirDialogo, pedirTexto, avisar } from "../componentes/supe
 import { album } from "../../datos/medios.js";
 
 let orden = "fecha";
+/** "fecha"/"titulo" de la interfaz -> ordenPor de node-media. */
+const ORDEN_SERVIDOR = { fecha: "RECIENTES", titulo: "ALFABETICO" };
 
 export function montar(contenedor) {
   let consulta = "";
@@ -86,7 +88,7 @@ export function montar(contenedor) {
     pintar();
     try {
       const [fotos, listaAlbumes] = await Promise.all([
-        seleccion ? album.verAlbum(seleccion.id).then((a) => a.fotos) : album.fotos(0),
+        seleccion ? album.verAlbum(seleccion.id).then((a) => a.fotos) : album.fotos(0, ORDEN_SERVIDOR[orden]),
         album.albumes().catch(() => []),
       ]);
       if (!vivo) return;
@@ -114,7 +116,7 @@ export function montar(contenedor) {
         ? estadoVacio({ icono: "album", titulo: "Este álbum está vacío", mensaje: "Abre una foto y usa “Agregar a álbum” para traerla aquí." })
         : estadoVacio({
             icono: "fotos", titulo: "Aún no hay fotos",
-            mensaje: "Las imágenes que subas a Mis archivos aparecen aquí después de indexarlas.",
+            mensaje: "Las imágenes de Mis archivos y las que te compartan aparecen aquí.",
             accion: `<button type="button" class="boton boton-tonal" data-accion="indexar">${icono("indexar")}Buscar fotos ahora</button>`,
           });
       cuerpo.querySelector("[data-accion=indexar]")?.addEventListener("click", indexar);
@@ -128,7 +130,7 @@ export function montar(contenedor) {
       <button type="button" class="foto" data-foto="${esc(f.id)}" data-i="${i}" aria-label="${esc(f.titulo)}">
         <span class="sin-miniatura">${icono("imagen")}</span>
         <img alt="" hidden>
-        <span class="pie-foto">${esc(f.titulo)}</span>
+        <span class="pie-foto">${esc(f.titulo)}${f.compartido ? `<br><span style="opacity:.85">Compartida por ${esc(f.propietario)}</span>` : ""}</span>
       </button>`).join("")}</div>`;
     cuerpo.querySelectorAll("[data-foto]").forEach((el) => observador.observe(el));
   }
@@ -242,8 +244,9 @@ export function montar(contenedor) {
   $("[data-orden]").addEventListener("click", (e) =>
     abrirMenu(e.currentTarget, [
       { titulo: "Ordenar por" },
-      { texto: "Fecha (recientes primero)", marcado: orden === "fecha", accion: () => { orden = "fecha"; pintarOrden(); pintar(); } },
-      { texto: "Título (A-Z)", marcado: orden === "titulo", accion: () => { orden = "titulo"; pintarOrden(); pintar(); } },
+      // Se vuelve a pedir: el orden lo aplica node-media (y así vale también con paginación).
+      { texto: "Fecha (recientes primero)", marcado: orden === "fecha", accion: () => { orden = "fecha"; pintarOrden(); seleccion ? pintar() : cargar(); } },
+      { texto: "Título (A-Z)", marcado: orden === "titulo", accion: () => { orden = "titulo"; pintarOrden(); seleccion ? pintar() : cargar(); } },
     ])
   );
   $("[data-indexar]").addEventListener("click", indexar);

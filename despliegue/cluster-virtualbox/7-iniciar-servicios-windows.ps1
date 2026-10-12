@@ -10,6 +10,7 @@
       node-repository  8084   Distributed Storage
       node-media       8083   Photo Album + Streaming
       node-shared-file 8085   Shared File (compartir archivos y carpetas)
+      node-sync        9090   File Sync (gRPC; guarda a traves de Storage)
       node-web         8080   Portal web (SPA)
 
   y deja apuntado el portal al job-api del cluster (hpc-master, 192.168.56.10:8082).
@@ -73,6 +74,17 @@ if (Test-Path (Join-Path $dirFront 'index.html')) {
 
 if ($HpcLocal) { $UrlTrabajos = 'http://127.0.0.1:8082' }
 
+# Go para node-sync: el del PATH o el portable de %USERPROFILE%\sdk\go.
+$go = (Get-Command go -ErrorAction SilentlyContinue).Source
+if (-not $go) { $go = Join-Path $env:USERPROFILE 'sdk\go\bin\go.exe' }
+
+# FFmpeg para node-media (miniaturas y duracion de videos): el del PATH o el
+# portable de %USERPROFILE%\sdk\ffmpeg. Sin el, node-media funciona igual pero
+# sin miniaturas ni duracion.
+$ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
+if (-not $ffmpeg) { $ffmpeg = Join-Path $env:USERPROFILE 'sdk\ffmpeg\bin\ffmpeg.exe' }
+$ffprobe = Join-Path (Split-Path $ffmpeg -Parent) 'ffprobe.exe'
+
 $servicios = @(
     @{ Nombre = 'auth-local';      Puerto = 8081; Dir = $raiz;
        Cmd = 'node herramientas\auth-local.js'; Env = @{} },
@@ -83,8 +95,10 @@ $servicios = @(
        Cmd = 'npm start';
        # El .env de node-media apunta a "node-repository:8084", el nombre de la
        # VM de produccion, que en este PC no resuelve.
+       # URL_COMPARTIDOS: lo compartido con el usuario sale en su album y catalogo.
        Env = @{ MODO_AUTENTICACION = $ModoAuth; URL_AUTH_SOAP = $urlAuth; NAMESPACE_AUTH = $nsAuth;
-                URL_STORAGE = 'http://127.0.0.1:8084' } },
+                URL_STORAGE = 'http://127.0.0.1:8084'; URL_COMPARTIDOS = 'http://127.0.0.1:8085';
+                FFMPEG_BIN = $ffmpeg; FFPROBE_BIN = $ffprobe } },
     # Shared File: en produccion va en la VM node-repository (shared-file-svc).
     # MODO_DIRECTORIO=soap: comprueba que el usuario destinatario existe
     # preguntando a auth-local (obtenerUsuario), aunque los tokens se validen
@@ -93,6 +107,14 @@ $servicios = @(
        Cmd = 'npm start';
        Env = @{ MODO_AUTENTICACION = $ModoAuth; URL_AUTH_SOAP = $urlAuth; NAMESPACE_AUTH = $nsAuth;
                 MODO_DIRECTORIO = 'soap'; URL_STORAGE = 'http://127.0.0.1:8084' } },
+    # File Sync (node-sync): "go run" y no el binario compilado porque el
+    # Control inteligente de aplicaciones de Windows bloquea el syncd.exe recien
+    # compilado (no esta firmado). SYNC_ALMACEN=storage: guarda por la API de
+    # Storage con el token del usuario (cuota, permisos y versiones).
+    @{ Nombre = 'node-sync';       Puerto = 9090; Dir = (Join-Path $raiz 'node-sync');
+       Cmd = "& '$go' run ./cmd/syncd";
+       Env = @{ SYNC_ADDR = ':9090'; SYNC_ALMACEN = 'storage'; SYNC_STORAGE_URL = 'http://127.0.0.1:8084/storage';
+                SYNC_AUTH_MODE = $ModoAuth; SYNC_AUTH_URL = $urlAuth; SYNC_AUTH_NS = $nsAuth } },
     @{ Nombre = 'node-web';        Puerto = 8080; Dir = (Join-Path $raiz 'node-web');
        Cmd = 'npm start';
        # node-web no tiene .env: sin estas variables usa rutas-servicio.json,
@@ -132,6 +154,8 @@ if ($HpcLocal) {
 Paso 'Comprobaciones previas'
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'No encuentro Node.js en el PATH.' }
+if (-not (Test-Path $ffmpeg)) { Write-Warning "No encuentro FFmpeg ($ffmpeg): node-media no generara miniaturas ni duracion." }
+if (-not (Test-Path $go)) { throw "No encuentro Go (node-sync). Instala Go 1.22 o descomprimelo en $env:USERPROFILE\sdk\go." }
 Write-Host "Node $(node --version)   |   autenticacion: $ModoAuth"
 Write-Host "Interfaz web servida desde: $dirInterfaz"
 
@@ -245,6 +269,8 @@ Write-Host @"
      USAR_MOCK_AUTH = false     (asi usa auth-local en el 8081)
 
  HPC (job-api):               $(if ($HpcLocal) { "http://${ipWifi}:8082  (local)" } else { $UrlTrabajos })
+ File Sync (gRPC):            ${ipWifi}:9090  (movil y escritorio)
+     Si el celular no conecta: permite el puerto 9090 en el Firewall de Windows.
 
  Usuarios:  user1 / 1234    investigador / test    estudiante / test
 =================================================================

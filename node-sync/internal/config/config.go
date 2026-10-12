@@ -10,9 +10,18 @@ import (
 
 type Config struct {
 	Addr    string // direccion de escucha, host:port
-	DataDir string // raiz de los Home (montaje NFS /srv/home en produccion)
-	TLSCert string // ruta al certificado TLS (PEM)
-	TLSKey  string // ruta a la llave privada TLS (PEM)
+	DataDir string // raiz de los Home; solo con Almacen = "fs"
+
+	// --- Donde se guardan los archivos ---
+	// "storage" (por defecto): por la API REST de Distributed Storage, que
+	// aplica cuota, permisos y versionado. "fs": directo al disco, solo para
+	// pruebas aisladas (se salta a Storage, ver internal/storage/fsstore.go).
+	Almacen    string
+	StorageURL string // raiz de la API de Storage, p. ej. http://127.0.0.1:8084/storage
+	StorageCA  string // CA que firma el HTTPS de node-repository (opcional)
+	Registro   string // JSON con version por usuario y cache de hashes
+	TLSCert    string // ruta al certificado TLS (PEM)
+	TLSKey     string // ruta a la llave privada TLS (PEM)
 
 	// --- Autenticacion contra node-soap ---
 	AuthMode      string        // "simulado" | "soap"
@@ -26,8 +35,13 @@ func Load() Config {
 	c := Config{
 		Addr:    env("SYNC_ADDR", ":9090"),
 		DataDir: env("SYNC_DATA_DIR", "/srv/home"),
-		TLSCert: env("SYNC_TLS_CERT", ""),
-		TLSKey:  env("SYNC_TLS_KEY", ""),
+
+		Almacen:    env("SYNC_ALMACEN", "storage"),
+		StorageURL: env("SYNC_STORAGE_URL", "http://127.0.0.1:8084/storage"),
+		StorageCA:  env("SYNC_STORAGE_CA", ""),
+		Registro:   env("SYNC_REGISTRO", "./estado/registro-sync.json"),
+		TLSCert:    env("SYNC_TLS_CERT", ""),
+		TLSKey:     env("SYNC_TLS_KEY", ""),
 
 		AuthMode: env("SYNC_AUTH_MODE", "simulado"),
 		// Endpoint y namespace REALES del WSDL de node-soap.
@@ -39,6 +53,10 @@ func Load() Config {
 
 	flag.StringVar(&c.Addr, "addr", c.Addr, "direccion de escucha host:port")
 	flag.StringVar(&c.DataDir, "data", c.DataDir, "raiz de los Home (NFS /srv/home en produccion; use ./data en local)")
+	flag.StringVar(&c.Almacen, "almacen", c.Almacen, `donde guardar: "storage" (API de node-repository) o "fs" (disco, solo pruebas)`)
+	flag.StringVar(&c.StorageURL, "storage-url", c.StorageURL, "raiz de la API REST de Distributed Storage")
+	flag.StringVar(&c.StorageCA, "storage-ca", c.StorageCA, "CA que firma el HTTPS de node-repository (PEM); vacio = raices del sistema")
+	flag.StringVar(&c.Registro, "registro", c.Registro, "JSON de estado de sync (version y cache de hashes)")
 	flag.StringVar(&c.TLSCert, "tls-cert", c.TLSCert, "ruta al certificado TLS (PEM)")
 	flag.StringVar(&c.TLSKey, "tls-key", c.TLSKey, "ruta a la llave privada TLS (PEM)")
 	flag.StringVar(&c.AuthMode, "auth-mode", c.AuthMode, `validacion de token: "simulado" o "soap"`)

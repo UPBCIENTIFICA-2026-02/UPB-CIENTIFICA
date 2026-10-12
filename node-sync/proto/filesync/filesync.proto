@@ -3,11 +3,20 @@ syntax = "proto3";
 package filesync;
 
 option go_package = "upbcientifica/node-sync/proto/filesync;filesyncpb";
+// Para los clientes Android/Java (app movil). No afecta a Go ni a Python.
+option java_package = "com.upbcientifica.filesync";
+option java_multiple_files = true;
 
 // Servicio de sincronizacion de archivos de UPB-CIENTIFICA.
 // Corresponde al nodo "node-sync" (binario syncd) del diagrama de despliegue.
-// Recibe los cambios de fsagent (escritorio) y de la app movil y los escribe
-// en el Home del usuario (/srv/home) montado por NFS.
+// Recibe los cambios de fsagent (escritorio) y de la app movil y los guarda en
+// el Home del usuario A TRAVES de Distributed Storage (REST), que es quien
+// aplica cuotas, permisos y versionado (Contrato_FileSync: "delegando en
+// Storage toda la persistencia real").
+//
+// RUTAS: todas son relativas al Home del usuario, con "/" como separador. La
+// carpeta sincronizada de un dispositivo es una carpeta del Home (p. ej.
+// "Respaldo celular"); el cliente antepone ese nombre a sus rutas.
 //
 // AUTENTICACION: el uid NO se toma de estos mensajes. Sale del token validado
 // que viaja en la metadata gRPC "authorization: Bearer <token>", como exige la
@@ -16,7 +25,7 @@ option go_package = "upbcientifica/node-sync/proto/filesync;filesyncpb";
 // IGNORA por completo: rellenarlos no da acceso a nada.
 service FileSync {
   // Compara el estado local del cliente con el Home del usuario en el servidor
-  // y devuelve las acciones a realizar (subir / bajar / igual).
+  // y devuelve las acciones a realizar (subir / bajar / borrar / conflicto).
   rpc IniciarSync(SyncRequest) returns (SyncResponse);
 
   // Sube un archivo al Home del usuario (streaming de fragmentos).
@@ -27,6 +36,10 @@ service FileSync {
 
   // Devuelve el estado de sincronizacion del usuario/dispositivo.
   rpc EstadoSync(EstadoRequest) returns (EstadoResponse);
+
+  // Elimina un archivo del Home (el cliente lo borro localmente: accion
+  // BORRAR_SERVIDOR). Storage exige permiso de escritura.
+  rpc EliminarArchivo(EliminarRequest) returns (UploadStatus);
 }
 
 // Metadatos de un archivo (ruta relativa dentro del Home).
@@ -35,6 +48,14 @@ message FileMeta {
   string hash  = 2;   // SHA-256 en hexadecimal
   int64  mtime = 3;   // epoca Unix (segundos)
   int64  size  = 4;   // tamano en bytes
+
+  // Hash que tenia el archivo en la ULTIMA sincronizacion correcta de este
+  // dispositivo (vacio si nunca se sincronizo). Es la "base" que permite
+  // distinguir quien cambio: el cliente, el servidor o ambos (conflicto).
+  string hash_base = 5;
+  // true = estaba en la ultima sincronizacion y ya no existe en el
+  // dispositivo (se borro localmente). `hash` va vacio.
+  bool eliminado = 6;
 }
 
 message SyncRequest {
@@ -42,6 +63,12 @@ message SyncRequest {
   string uid = 1 [deprecated = true];
   string dispositivo = 2;   // nombre del dispositivo cliente (fsagent / movil)
   repeated FileMeta archivos = 3;  // estado local del cliente
+  // Carpeta del Home que sincroniza este dispositivo (p. ej. "Respaldo
+  // celular"). Solo se compara lo que hay dentro; vacio = todo el Home.
+  string carpeta = 4;
+  // MANUAL | AUTOMATICO_AL_CONECTAR | PROGRAMADO (Contrato_FileSync,
+  // IniciarSincronizacion). Informativo: queda en el registro del servidor.
+  string modo_disparo = 5;
 }
 
 
@@ -49,13 +76,20 @@ enum Accion {
   IGUAL  = 0;   // sin cambios
   SUBIR  = 1;   // el cliente debe subir su version
   BAJAR  = 2;   // el cliente debe bajar la version del servidor
-  BORRAR = 3;   // (reservado) el archivo debe eliminarse
+  BORRAR = 3;   // se borro en el servidor: el cliente borra su copia local
+  // Cambio en ambos lados. Resolucion por defecto del contrato, MANTENER_AMBOS:
+  // el cliente renombra su copia a `ruta_conflicto`, la sube, y baja la
+  // version del servidor a `ruta`. No se pierde ninguna de las dos.
+  CONFLICTO = 4;
+  // Se borro en el cliente: el cliente llama a EliminarArchivo.
+  BORRAR_SERVIDOR = 5;
 }
 
 message AccionArchivo {
-  string ruta          = 1;
-  Accion accion        = 2;
-  string hash_servidor = 3;   // hash en el servidor (si existe)
+  string ruta           = 1;
+  Accion accion         = 2;
+  string hash_servidor  = 3;   // hash en el servidor (si existe)
+  string ruta_conflicto = 4;   // solo en CONFLICTO
 }
 
 message SyncResponse {
@@ -83,6 +117,10 @@ message DownloadRequest {
   // IGNORADO por el servidor: el uid sale del token.
   string uid  = 1 [deprecated = true];
   string ruta = 2;
+}
+
+message EliminarRequest {
+  string ruta = 1;
 }
 
 message EstadoRequest {

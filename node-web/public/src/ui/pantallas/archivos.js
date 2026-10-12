@@ -16,6 +16,7 @@ import {
   abrirMenu, abrirHoja, cuerpoDetalles, conectarHoja, confirmar, pedirTexto, avisar,
 } from "../componentes/superpuestos.js";
 import { abrirCompartir } from "../componentes/compartir.js";
+import { abrirArchivo, esVisible } from "../componentes/visorArchivo.js";
 import { almacenamiento } from "../../datos/almacenamiento.js";
 
 const ORDENES = {
@@ -199,9 +200,10 @@ export function montar(contenedor, { intencion }) {
   const porId = (id) => estado.lista?.find((a) => a.id === id);
 
   // -------------------------------------------------------------- acciones
+  /** Carpeta -> se abre; imagen o video -> visor; lo demás -> detalles. */
   function abrir(elemento) {
     if (esCarpeta(elemento)) abrirCarpeta(elemento);
-    else mostrarDetalles(elemento);
+    else if (!abrirArchivo(elemento)) mostrarDetalles(elemento);
   }
 
   function mostrarDetalles(a) {
@@ -212,7 +214,8 @@ export function montar(contenedor, { intencion }) {
           { texto: "Compartir", icono: "compartir", accion: (h) => { h.close(); abrirCompartir(a); } },
         ]
       : [
-          { texto: "Descargar", icono: "descargar", clase: "boton-relleno", accion: () => descargar(a) },
+          ...(esVisible(a.nombre) ? [{ texto: "Abrir", icono: "ver", clase: "boton-relleno", accion: (h) => { h.close(); abrirArchivo(a); } }] : []),
+          { texto: "Descargar", icono: "descargar", clase: esVisible(a.nombre) ? "boton-contorno" : "boton-relleno", accion: () => descargar(a) },
           { texto: "Compartir", icono: "compartir", accion: (h) => { h.close(); abrirCompartir(a); } },
           { texto: "Eliminar", icono: "eliminar", peligro: true, accion: (h) => { h.close(); eliminar(a); } },
         ];
@@ -238,6 +241,7 @@ export function montar(contenedor, { intencion }) {
           { texto: "Detalles", icono: "info", accion: () => mostrarDetalles(a) },
         ]
       : [
+          ...(esVisible(a.nombre) ? [{ texto: "Abrir", icono: "ver", accion: () => abrirArchivo(a) }] : []),
           { texto: "Descargar", icono: "descargar", accion: () => descargar(a) },
           { texto: "Compartir", icono: "compartir", accion: () => abrirCompartir(a) },
           { texto: "Detalles", icono: "info", accion: () => mostrarDetalles(a) },

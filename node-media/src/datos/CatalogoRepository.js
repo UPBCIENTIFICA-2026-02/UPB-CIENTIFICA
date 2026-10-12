@@ -24,6 +24,31 @@ function sqlPuedeLeer(pUid, pGrupos) {
            END) <> '-'`;
 }
 
+/**
+ * Lo que el usuario puede VER: lo que permiten los bits Unix replicados, o lo
+ * que le compartieron (tabla medios_compartidos, ver db/schema.sql).
+ *
+ * ANTES solo contaban los bits, así que un video compartido con Shared File
+ * (que no toca los bits) no aparecía en el catálogo de quien lo recibía,
+ * aunque Storage sí le dejaba descargarlo.
+ */
+function sqlVisible(pUid, pGrupos) {
+  return `(${sqlPuedeLeer(pUid, pGrupos)}
+           OR EXISTS (SELECT 1 FROM medios_compartidos mc
+                      WHERE mc.medio_id = medios.id AND mc.usuario = $${pUid}))`;
+}
+
+/**
+ * ordenPor del Contrato_Streaming (ListarCatalogo). Lista cerrada: el valor
+ * nunca se concatena al SQL sin pasar por aquí. El id final desempata para que
+ * la paginación sea estable.
+ */
+const ORDENES = {
+  RECIENTES: "COALESCE(tomada_en, indexado_en) DESC, id",
+  ALFABETICO: "lower(titulo) ASC, id",
+  MAS_VISTOS: "visualizaciones DESC, COALESCE(tomada_en, indexado_en) DESC, id",
+};
+
 /** Los grupos siempre como arreglo, aunque el validador devuelva undefined. */
 function gruposDe(usuario) {
   return Array.isArray(usuario.grupos) ? usuario.grupos : [];
@@ -46,7 +71,7 @@ class CatalogoRepository {
   async buscarPorId(id, usuario) {
     const { rows } = await this.pool.query(
       `SELECT * FROM medios
-       WHERE id = $1 AND ${sqlPuedeLeer(2, 3)}`,
+       WHERE id = $1 AND ${sqlVisible(2, 3)}`,
       [id, usuario.id, gruposDe(usuario)]
     );
     return rows[0] || null;
@@ -66,22 +91,24 @@ class CatalogoRepository {
     return rows[0] || null;
   }
 
-  async listarPorTipo(usuario, tipo, limite, desplazamiento) {
+  async listarPorTipo(usuario, tipo, limite, desplazamiento, ordenPor = "RECIENTES") {
+    const orden = ORDENES[ordenPor] || ORDENES.RECIENTES;
     const { rows } = await this.pool.query(
       `SELECT * FROM medios
-       WHERE tipo = $1 AND ${sqlPuedeLeer(2, 3)}
-       ORDER BY COALESCE(tomada_en, indexado_en) DESC
+       WHERE tipo = $1 AND ${sqlVisible(2, 3)}
+       ORDER BY ${orden}
        LIMIT $4 OFFSET $5`,
       [tipo, usuario.id, gruposDe(usuario), limite, desplazamiento]
     );
     return rows;
   }
 
-  async buscarPorTitulo(usuario, tipo, criterio) {
+  async buscarPorTitulo(usuario, tipo, criterio, ordenPor = "ALFABETICO") {
+    const orden = ORDENES[ordenPor] || ORDENES.ALFABETICO;
     const { rows } = await this.pool.query(
       `SELECT * FROM medios
-       WHERE tipo = $1 AND lower(titulo) LIKE lower($4) AND ${sqlPuedeLeer(2, 3)}
-       ORDER BY titulo ASC LIMIT 100`,
+       WHERE tipo = $1 AND lower(titulo) LIKE lower($4) AND ${sqlVisible(2, 3)}
+       ORDER BY ${orden} LIMIT 100`,
       [tipo, usuario.id, gruposDe(usuario), `%${criterio}%`]
     );
     return rows;
@@ -124,6 +151,36 @@ class CatalogoRepository {
     );
     const miniatura = rows[0]?.miniatura_path;
     if (miniatura) await fsp.unlink(miniatura).catch(() => {});
+  }
+
+  /**
+   * Rehace la lista de medios compartidos con `usuario`. En una transacción:
+   * quien liste mientras tanto ve la lista anterior o la nueva, nunca vacía.
+   */
+  async fijarCompartidosCon(usuario, medioIds) {
+    const cliente = await this.pool.connect();
+    try {
+      await cliente.query("BEGIN");
+      await cliente.query("DELETE FROM medios_compartidos WHERE usuario = $1", [usuario]);
+      if (medioIds.length) {
+        await cliente.query(
+          `INSERT INTO medios_compartidos (medio_id, usuario)
+           SELECT DISTINCT unnest($1::uuid[]), $2 ON CONFLICT DO NOTHING`,
+          [medioIds, usuario]
+        );
+      }
+      await cliente.query("COMMIT");
+    } catch (e) {
+      await cliente.query("ROLLBACK").catch(() => {});
+      throw e;
+    } finally {
+      cliente.release();
+    }
+  }
+
+  /** Una sesión de streaming iniciada = una visualización (ordenPor MAS_VISTOS). */
+  async sumarVisualizacion(id) {
+    await this.pool.query("UPDATE medios SET visualizaciones = visualizaciones + 1 WHERE id = $1", [id]);
   }
 
   /** Elimina del catálogo los medios cuyo archivo ya no existe en Storage. */
@@ -178,9 +235,9 @@ class CatalogoRepository {
    */
   async listarMediosDeAlbum(albumId, usuario) {
     const { rows } = await this.pool.query(
-      `SELECT m.*, am.orden FROM album_medios am
-       JOIN medios m ON m.id = am.medio_id
-       WHERE am.album_id = $1 AND ${sqlPuedeLeer(2, 3)}
+      `SELECT medios.*, am.orden FROM album_medios am
+       JOIN medios ON medios.id = am.medio_id
+       WHERE am.album_id = $1 AND ${sqlVisible(2, 3)}
        ORDER BY am.orden ASC`,
       [albumId, usuario.id, gruposDe(usuario)]
     );
@@ -212,5 +269,7 @@ class CatalogoRepository {
     return rowCount > 0;
   }
 }
+
+CatalogoRepository.ORDENES = Object.keys(ORDENES);
 
 module.exports = CatalogoRepository;

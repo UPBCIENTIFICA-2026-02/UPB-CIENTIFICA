@@ -10,13 +10,15 @@ function crearRutasAlbum(albumService) {
 
   router.get("/fotos", async (req, res, siguiente) => {
     try {
-      res.json(await albumService.listarFotos(req.usuario, Number(req.query.pagina || 0)));
+      res.json(await albumService.listarFotos(
+        req.usuario, Number(req.query.pagina || 0), 50, req.query.ordenPor, req.token
+      ));
     } catch (e) { siguiente(e); }
   });
 
   router.get("/fotos/buscar", async (req, res, siguiente) => {
     try {
-      res.json(await albumService.buscarFotos(req.usuario, req.query.criterioTexto));
+      res.json(await albumService.buscarFotos(req.usuario, req.query.criterioTexto, req.query.ordenPor));
     } catch (e) { siguiente(e); }
   });
 

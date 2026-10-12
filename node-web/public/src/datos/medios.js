@@ -5,8 +5,13 @@
  * que lo cumple. Las rutas son las que ya expone node-media (rutas/album.js y
  * rutas/streaming.js), bajo el prefijo de la pasarela.
  *
- * Foto:  { id, titulo, tipo, tamanoBytes, ancho, alto, tieneMiniatura, fecha }
- * Video: { id, titulo, duracionSegundos, fecha }
+ * Foto:  { id, titulo, tipo, tamanoBytes, ancho, alto, tieneMiniatura, fecha, propietario, compartido }
+ * Video: { id, titulo, duracionSegundos, fecha, tamanoBytes, tieneMiniatura, visualizaciones,
+ *          propietario, compartido }
+ *
+ * Lo compartido contigo también llega aquí (compartido = true). El orden lo
+ * aplica node-media (ordenPor del Contrato_Streaming): RECIENTES, ALFABETICO
+ * y, solo en videos, MAS_VISTOS.
  */
 
 import { pedir, urlConToken } from "../red/clienteApi.js";
@@ -17,17 +22,21 @@ import { albumDemo, streamingDemo } from "./demo.js";
 // descarga por foto mientras dure la sesión.
 const cacheMiniaturas = new Map();
 
+const conOrden = (ordenPor) => (ordenPor ? `&ordenPor=${encodeURIComponent(ordenPor)}` : "");
+
+/** Miniatura con token, como blob; una descarga por elemento mientras dure la sesión. */
+function miniatura(ruta, id) {
+  if (!cacheMiniaturas.has(ruta)) {
+    cacheMiniaturas.set(ruta, pedir(ruta, { como: "blob" }).then((b) => URL.createObjectURL(b)));
+  }
+  return cacheMiniaturas.get(ruta);
+}
+
 const albumReal = {
-  fotos: (pagina = 0) => pedir(`/album/fotos?pagina=${pagina}`),
+  fotos: (pagina = 0, ordenPor) => pedir(`/album/fotos?pagina=${pagina}${conOrden(ordenPor)}`),
   async urlMiniatura(foto) {
     if (!foto.tieneMiniatura) return null;
-    if (!cacheMiniaturas.has(foto.id)) {
-      cacheMiniaturas.set(
-        foto.id,
-        pedir(`/album/fotos/${encodeURIComponent(foto.id)}/miniatura`, { como: "blob" }).then((b) => URL.createObjectURL(b))
-      );
-    }
-    return cacheMiniaturas.get(foto.id);
+    return miniatura(`/album/fotos/${encodeURIComponent(foto.id)}/miniatura`);
   },
   async urlContenido(foto) {
     const blob = await pedir(`/album/fotos/${encodeURIComponent(foto.id)}/contenido`, { como: "blob", tiempo: 120_000 });
@@ -44,14 +53,18 @@ const albumReal = {
 };
 
 const streamingReal = {
-  catalogo: (pagina = 0) => pedir(`/streaming/catalogo?pagina=${pagina}`),
+  catalogo: (pagina = 0, ordenPor) => pedir(`/streaming/catalogo?pagina=${pagina}${conOrden(ordenPor)}`),
   sesion: (id) => pedir(`/streaming/${encodeURIComponent(id)}/sesion`),
+  async urlMiniatura(video) {
+    if (!video.tieneMiniatura) return null;
+    return miniatura(`/streaming/${encodeURIComponent(video.id)}/miniatura`);
+  },
 };
 
 const fuenteAlbum = () => (esDemo() ? albumDemo : albumReal);
 
 export const album = {
-  fotos: (pagina) => fuenteAlbum().fotos(pagina),
+  fotos: (pagina, ordenPor) => fuenteAlbum().fotos(pagina, ordenPor),
   urlMiniatura: (foto) => fuenteAlbum().urlMiniatura(foto),
   urlContenido: (foto) => fuenteAlbum().urlContenido(foto),
   indexar: () => fuenteAlbum().indexar(),
@@ -62,7 +75,8 @@ export const album = {
   quitarFoto: (albumId, medioId) => fuenteAlbum().quitarFoto(albumId, medioId),
 };
 export const streaming = {
-  catalogo: (pagina) => (esDemo() ? streamingDemo : streamingReal).catalogo(pagina),
+  catalogo: (pagina, ordenPor) => (esDemo() ? streamingDemo : streamingReal).catalogo(pagina, ordenPor),
+  urlMiniatura: (video) => (esDemo() ? Promise.resolve(null) : streamingReal.urlMiniatura(video)),
   sesion: (id) => (esDemo() ? streamingDemo : streamingReal).sesion(id),
 
   /**

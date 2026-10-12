@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -24,9 +25,9 @@ import (
 func main() {
 	cfg := config.Load()
 
-	store, err := storage.NewFSStore(cfg.DataDir)
+	store, descripcion, err := construirAlmacen(cfg)
 	if err != nil {
-		log.Fatalf("almacenamiento (%s): %v", cfg.DataDir, err)
+		log.Fatalf("almacenamiento: %v", err)
 	}
 
 	// Composition root: unico sitio donde se decide la estrategia de validacion.
@@ -58,7 +59,7 @@ func main() {
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterFileSyncServer(grpcServer, syncsvc.New(store))
 
-	log.Printf("syncd (node-sync) escuchando en %s (data=%s, auth=%s)", cfg.Addr, cfg.DataDir, cfg.AuthMode)
+	log.Printf("syncd (node-sync) escuchando en %s (almacen=%s, auth=%s)", cfg.Addr, descripcion, cfg.AuthMode)
 
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
@@ -78,6 +79,24 @@ func main() {
 	case <-time.After(5 * time.Second):
 		grpcServer.Stop()
 	}
+}
+
+// construirAlmacen elige donde se guardan los archivos.
+//
+// ANTES: siempre FSStore sobre /srv/home, saltandose a Distributed Storage.
+// AHORA: por defecto StorageStore (API REST de node-repository con el token
+// del usuario); FSStore solo si se pide explicitamente con -almacen=fs.
+func construirAlmacen(cfg config.Config) (storage.Store, string, error) {
+	switch cfg.Almacen {
+	case "storage":
+		s, err := storage.NewStorageStore(cfg.StorageURL, cfg.StorageCA, cfg.Registro)
+		return s, "storage " + cfg.StorageURL, err
+	case "fs":
+		log.Printf("ADVERTENCIA: almacen fs: escribe directo en %s sin pasar por Storage (sin cuota, permisos ni versiones). Solo pruebas.", cfg.DataDir)
+		s, err := storage.NewFSStore(cfg.DataDir)
+		return s, "fs " + cfg.DataDir, err
+	}
+	return nil, "", fmt.Errorf(`-almacen debe ser "storage" o "fs", no %q`, cfg.Almacen)
 }
 
 // construirValidador elige la estrategia segun la configuracion.

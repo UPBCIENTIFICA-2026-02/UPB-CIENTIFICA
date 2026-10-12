@@ -13,6 +13,26 @@ class Ffmpeg {
     this.ffprobeBin = ffprobeBin;
     this.dirMiniaturas = dirMiniaturas;
     this.anchoMiniatura = anchoMiniatura;
+    this.disponible = false;
+  }
+
+  /**
+   * Comprueba al arrancar que ffmpeg y ffprobe se pueden ejecutar. Sin ellos el
+   * servicio funciona igual (contrato: la miniatura es una mejora, no un
+   * bloqueante), pero no hay miniaturas ni duración; se avisa una vez en el
+   * registro en vez de con un error por cada archivo indexado.
+   */
+  async comprobar() {
+    try {
+      await this.#ejecutar(this.ffmpegBin, ["-version"]);
+      await this.#ejecutar(this.ffprobeBin, ["-version"]);
+      this.disponible = true;
+    } catch (e) {
+      this.disponible = false;
+      console.warn(`[ffmpeg] NO disponible (${e.message}). Sin miniaturas ni duración: ` +
+        "instala FFmpeg o define FFMPEG_BIN y FFPROBE_BIN.");
+    }
+    return this.disponible;
   }
 
   #ejecutar(binario, args) {
@@ -32,6 +52,7 @@ class Ffmpeg {
 
   /** Metadatos técnicos: ancho, alto, duración. */
   async inspeccionar(rutaArchivo) {
+    if (!this.disponible) throw new Error("FFmpeg no disponible");
     const salida = await this.#ejecutar(this.ffprobeBin, [
       "-v", "quiet", "-print_format", "json",
       "-show_format", "-show_streams", rutaArchivo,
@@ -49,6 +70,7 @@ class Ffmpeg {
 
   /** Genera la miniatura y devuelve su ruta. Para video toma el segundo 1. */
   async generarMiniatura(rutaArchivo, medioId, esVideo) {
+    if (!this.disponible) throw new Error("FFmpeg no disponible");
     await fsp.mkdir(this.dirMiniaturas, { recursive: true });
     const destino = path.join(this.dirMiniaturas, `${medioId}.jpg`);
 

@@ -6,6 +6,9 @@ module.exports = {
     databaseUrl: process.env.DATABASE_URL,
     fuenteMedios: process.env.FUENTE_MEDIOS || "storage-api",
     urlStorage: process.env.URL_STORAGE || "http://node-repository:8084",
+    // Shared File (shared-file-svc), en la VM node-repository. Lo compartido con
+    // el usuario también sale en su álbum y su catálogo.
+    urlCompartidos: process.env.URL_COMPARTIDOS || "http://node-repository:8085",
     raizNfs: process.env.RAIZ_NFS || "/srv/home",
     dirMiniaturas: path.resolve(process.env.DIR_MINIATURAS || "./miniaturas"),
     anchoMiniatura: Number(process.env.ANCHO_MINIATURA || 320),

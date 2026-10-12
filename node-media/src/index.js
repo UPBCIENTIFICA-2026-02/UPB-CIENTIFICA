@@ -5,6 +5,7 @@ const { crearPool, aplicarEsquema } = require("./datos/db");
 const CatalogoRepository = require("./datos/CatalogoRepository");
 const { crearFuente } = require("./datos/FuenteMedios");
 const Ffmpeg = require("./datos/ffmpeg");
+const FuenteCompartidos = require("./datos/FuenteCompartidos");
 const IndexadorService = require("./dominio/IndexadorService");
 const AlbumService = require("./dominio/AlbumService");
 const StreamingService = require("./dominio/StreamingService");
@@ -22,9 +23,11 @@ async function construirAplicacion() {
     const catalogo = new CatalogoRepository(pool);
     const fuente = crearFuente(config);
     const ffmpeg = new Ffmpeg(config);
-    const indexador = new IndexadorService({ catalogo, fuente, ffmpeg });
+    await ffmpeg.comprobar();
+    const compartidos = new FuenteCompartidos(config.urlCompartidos);
+    const indexador = new IndexadorService({ catalogo, fuente, ffmpeg, compartidos });
     const albumService = new AlbumService({ catalogo, fuente, indexador });
-    const streamingService = new StreamingService({ catalogo, fuente });
+    const streamingService = new StreamingService({ catalogo, fuente, indexador });
     const validador = crearValidador(config);
 
     const app = express();
@@ -35,7 +38,7 @@ async function construirAplicacion() {
         await pool.query("SELECT 1");
         res.json({
             estado: "ok", servicio: "media", bd: "ok",
-            fuente: config.fuenteMedios, version: "0.1.0",
+            fuente: config.fuenteMedios, ffmpeg: ffmpeg.disponible, version: "0.1.0",
         });
         } catch {
         res.status(503).json({ estado: "degradado", servicio: "media", bd: "error" });
@@ -47,18 +50,19 @@ async function construirAplicacion() {
     app.use("/streaming", auth, crearRutasStreaming(streamingService));
 
     app.use(manejoErrores);
-    return { app, pool };
+    return { app, pool, ffmpeg };
 }
 
 if (require.main === module) {
     construirAplicacion()
-        .then(({ app }) => {
+        .then(({ app, ffmpeg }) => {
         app.listen(config.puerto, () => {
             console.log("=========================================================");
             console.log(" Media Service (Photo Album + Streaming)");
             console.log(` Puerto: ${config.puerto}`);
             console.log(` Fuente de medios: ${config.fuenteMedios}`);
-            console.log(` Miniaturas: ${config.dirMiniaturas}`);
+            console.log(` Miniaturas: ${config.dirMiniaturas} (FFmpeg ${ffmpeg.disponible ? "disponible" : "NO disponible"})`);
+            console.log(` Shared File: ${config.urlCompartidos}`);
             console.log("=========================================================");
         });
         })

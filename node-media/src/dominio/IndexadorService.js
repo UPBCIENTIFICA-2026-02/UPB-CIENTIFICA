@@ -17,15 +17,41 @@ const EXT_VIDEO = new Set([".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v"]);
  * node-repository/src/dominio/ArchivoService.js). Antes devolvía los nodos raíz
  * de todos los usuarios, así que este indexador registraba archivos ajenos.
  *
- * TODO: hoy la indexación se dispara bajo demanda (POST /album/indexar).
- * Cuando exista un mecanismo de eventos, conviene que Storage notifique las
- * altas y bajas para evitar recorrer todo el Home.
+ * Además del Home indexa lo COMPARTIDO con el usuario (Contrato_Streaming,
+ * ListarCatalogo: "propio + compartido con él"), preguntándole a Shared File
+ * Service qué le compartieron.
+ *
+ * Cuándo se indexa: bajo demanda (POST /album/indexar) y, ANTES solo así, lo
+ * nuevo no aparecía hasta pulsar "Buscar nuevas". AHORA también al pedir la
+ * primera página del álbum o del catálogo, como mucho una vez por minuto y
+ * usuario (refrescar). Así una revocación o un borrado desaparecen en la
+ * siguiente consulta, como pide el contrato.
+ *
+ * TODO: cuando exista un mecanismo de eventos, conviene que Storage notifique
+ * las altas y bajas para evitar recorrer todo el Home.
  */
+const EDAD_MAXIMA_INDICE_MS = 60_000;
+
 class IndexadorService {
-  constructor({ catalogo, fuente, ffmpeg }) {
+  #ultimoRefresco = new Map();   // uid -> instante del último índice completo
+  #enCurso = new Map();          // uid -> promesa (dos peticiones a la vez esperan la misma)
+
+  constructor({ catalogo, fuente, ffmpeg, compartidos = null }) {
     this.catalogo = catalogo;
     this.fuente = fuente;
     this.ffmpeg = ffmpeg;
+    this.compartidos = compartidos;
+  }
+
+  /**
+   * Reindexa si el índice de este usuario tiene más de un minuto. Nunca falla:
+   * si Storage o Shared File no responden, se lista lo que ya estaba indexado.
+   */
+  async refrescar(usuario, token) {
+    const hace = Date.now() - (this.#ultimoRefresco.get(usuario.id) || 0);
+    if (hace < EDAD_MAXIMA_INDICE_MS) return;
+    await this.indexarHome(usuario, token).catch((e) =>
+      console.warn(`[indexador] refresco de ${usuario.id} fallido: ${e.message}`));
   }
 
   #clasificar(nombre) {
@@ -36,6 +62,15 @@ class IndexadorService {
   }
 
   async indexarHome(usuario, token) {
+    if (this.#enCurso.has(usuario.id)) return this.#enCurso.get(usuario.id);
+    const promesa = this.#indexarTodo(usuario, token).finally(() => {
+      this.#enCurso.delete(usuario.id);
+    });
+    this.#enCurso.set(usuario.id, promesa);
+    return promesa;
+  }
+
+  async #indexarTodo(usuario, token) {
     const encontrados = [];
     await this.#recorrer("root", usuario, token, encontrados);
 
@@ -62,7 +97,63 @@ class IndexadorService {
         .map((a) => a.id)
     );
 
-    return { indexados: registrados.length, revisados: encontrados.length };
+    const compartidos = await this.#indexarCompartidos(usuario, token);
+    this.#ultimoRefresco.set(usuario.id, Date.now());
+
+    return {
+      indexados: registrados.length,
+      revisados: encontrados.length,
+      compartidos: compartidos ?? 0,
+    };
+  }
+
+  /**
+   * Indexa lo que Shared File dice que está compartido con el usuario (archivos
+   * sueltos y el contenido de carpetas) y rehace su lista de visibles. Cada
+   * medio queda registrado a nombre de su DUEÑO real; la miniatura se genera
+   * con el token de quien recibe, que Storage autoriza por la compartición.
+   *
+   * Si Shared File no responde se conserva la lista anterior (null): mejor un
+   * catálogo un poco viejo que uno que pierde de golpe todo lo compartido.
+   */
+  async #indexarCompartidos(usuario, token) {
+    if (!this.compartidos) return null;
+    let relaciones;
+    try {
+      relaciones = await this.compartidos.compartidosConmigo(token);
+    } catch (e) {
+      console.warn(`[indexador] sin compartidos para ${usuario.id}: ${e.message}`);
+      return null;
+    }
+
+    const encontrados = new Map();
+    for (const r of relaciones) {
+      if (r.elementoTipo === "DIRECTORIO") {
+        const dentro = [];
+        try {
+          await this.#recorrer(r.elementoId, usuario, token, dentro);
+        } catch (e) {
+          console.warn(`[indexador] carpeta compartida ${r.nombre} omitida: ${e.message}`);
+        }
+        dentro.forEach((a) => encontrados.set(a.id, a));
+      } else if (this.#clasificar(r.nombre || "")) {
+        encontrados.set(r.elementoId, {
+          id: r.elementoId, nombre: r.nombre, tamanoBytes: r.tamanoBytes, propietario: r.propietario,
+        });
+      }
+    }
+
+    const visibles = [];
+    for (const archivo of encontrados.values()) {
+      if ((archivo.propietario || usuario.id) === usuario.id) continue;   // es suyo: ya está
+      try {
+        visibles.push((await this.#indexarArchivo(archivo, usuario, token)).id);
+      } catch (e) {
+        console.warn(`[indexador] compartido omitido ${archivo.nombre}: ${e.message}`);
+      }
+    }
+    await this.catalogo.fijarCompartidosCon(usuario.id, visibles);
+    return visibles.length;
   }
 
   async #recorrer(directorioId, usuario, token, acumulador, profundidad = 0) {
@@ -105,11 +196,17 @@ class IndexadorService {
      * archivos. Los permisos entran en la comparación porque si Storage los
      * cambió hay que refrescar la copia local aunque el archivo sea el mismo.
      */
+    // Un archivo compartido suelto llega de Shared File sin grupo ni permisos:
+    // se conservan los que ya había registrado su dueño en vez de pisarlos.
+    const grupo = archivo.grupo || existente?.grupo || "usuarios";
+    const permisos = archivo.permisos || existente?.permisos || PERMISOS_ARCHIVO_NUEVO;
+
     if (
       existente &&
       Number(existente.tamano_bytes) === Number(archivo.tamanoBytes) &&
-      existente.grupo === (archivo.grupo || "usuarios") &&
-      existente.permisos === (archivo.permisos || PERMISOS_ARCHIVO_NUEVO)
+      existente.grupo === grupo &&
+      existente.permisos === permisos &&
+      (existente.miniatura_path || !this.ffmpeg.disponible)
     ) {
       return existente;
     }
@@ -131,8 +228,8 @@ class IndexadorService {
         id: medioId,
         archivoStorageId: archivo.id,
         propietario,
-        grupo: archivo.grupo || "usuarios",
-        permisos: archivo.permisos || PERMISOS_ARCHIVO_NUEVO,
+        grupo,
+        permisos,
         titulo: path.parse(archivo.nombre).name,
         tipo,
         mime: null,

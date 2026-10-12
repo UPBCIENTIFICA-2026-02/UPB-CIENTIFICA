@@ -1,6 +1,8 @@
 /*
- * Streaming (StreamingScreen.kt): catálogo en cuadrícula con miniaturas en
- * degradado y duración. Al elegir un video se abre una sesión de
+ * Streaming (StreamingScreen.kt): catálogo en cuadrícula con la miniatura que
+ * genera node-media (o un degradado si no la hay) y la duración. Incluye lo
+ * compartido contigo y se puede ordenar (ordenPor del Contrato_Streaming:
+ * recientes, más vistos, alfabético). Al elegir un video se abre una sesión de
  * reproducción en node-media y el reproductor pide el contenido por rangos,
  * así se puede saltar en la línea de tiempo sin descargar el archivo entero.
  */
@@ -9,7 +11,7 @@ import { icono } from "../iconos.js";
 import { esc, formatearDuracion, formatearDia, hashKotlin } from "../formato.js";
 import { barraSuperior, conectarBusqueda, estadoVacio, estadoError, esqueleto } from "../componentes/basicos.js";
 import { accionesCuenta, conectarCuenta } from "../componentes/cuenta.js";
-import { abrirDialogo } from "../componentes/superpuestos.js";
+import { abrirDialogo, abrirMenu } from "../componentes/superpuestos.js";
 import { streaming } from "../../datos/medios.js";
 
 /** Pares de colores para las miniaturas; uno por video, estable (DegradadosMiniatura). */
@@ -25,6 +27,13 @@ const degradado = (id) => {
   return `linear-gradient(135deg, ${desde}, ${hasta})`;
 };
 
+const ORDENES = [
+  ["RECIENTES", "Recientes"],
+  ["MAS_VISTOS", "Más vistos"],
+  ["ALFABETICO", "Título (A-Z)"],
+];
+let ordenPor = "RECIENTES";
+
 export function montar(contenedor) {
   let consulta = "";
   let estado = { tipo: "cargando" };
@@ -34,6 +43,7 @@ export function montar(contenedor) {
     <div data-cab>${barraSuperior({ placeholder: "Buscar videos", acciones: accionesCuenta() })}</div>
     <div class="fila-titulo">
       <h1 class="t-title-l">Streaming</h1>
+      <button type="button" class="selector-orden" data-orden aria-haspopup="menu"></button>
       <button type="button" class="boton-icono" data-actualizar aria-label="Actualizar" title="Actualizar">${icono("actualizar")}</button>
     </div>
     <div data-cuerpo></div>`;
@@ -42,11 +52,40 @@ export function montar(contenedor) {
   conectarCuenta(contenedor);
   conectarBusqueda(contenedor, (v) => { consulta = v; pintar(); });
 
+  const botonOrden = contenedor.querySelector("[data-orden]");
+  const pintarOrden = () => {
+    botonOrden.innerHTML = `${ORDENES.find(([v]) => v === ordenPor)[1]} ${icono("abajo", "s18")}`;
+  };
+  botonOrden.addEventListener("click", (e) =>
+    abrirMenu(e.currentTarget, [
+      { titulo: "Ordenar por" },
+      ...ORDENES.map(([valor, texto]) => ({
+        texto, marcado: ordenPor === valor,
+        accion: () => { ordenPor = valor; pintarOrden(); cargar(); },
+      })),
+    ])
+  );
+
+  // Las miniaturas reales se piden con el token (como blob) al entrar en pantalla.
+  const observador = new IntersectionObserver((entradas) => {
+    for (const e of entradas) {
+      if (!e.isIntersecting) continue;
+      observador.unobserve(e.target);
+      const video = estado.lista?.find((v) => String(v.id) === e.target.dataset.id);
+      if (!video) continue;
+      streaming.urlMiniatura(video).then((url) => {
+        if (!url) return;
+        const caja = e.target.querySelector(".miniatura-video");
+        caja.style.background = `#000 url("${url}") center / cover no-repeat`;
+      }).catch(() => {});
+    }
+  }, { rootMargin: "200px" });
+
   async function cargar() {
     estado = { tipo: "cargando" };
     pintar();
     try {
-      const lista = await streaming.catalogo(0);
+      const lista = await streaming.catalogo(0, ordenPor);
       if (vivo) estado = { tipo: "listo", lista };
     } catch (error) {
       if (vivo) estado = { tipo: "error", mensaje: error.message };
@@ -55,6 +94,7 @@ export function montar(contenedor) {
   }
 
   function pintar() {
+    observador.disconnect();
     if (estado.tipo === "cargando") { cuerpo.innerHTML = esqueleto(); return; }
     if (estado.tipo === "error") {
       cuerpo.innerHTML = estadoError(estado.mensaje);
@@ -64,7 +104,7 @@ export function montar(contenedor) {
     const q = consulta.trim().toLowerCase();
     const visibles = estado.lista.filter((v) => (v.titulo ?? "").toLowerCase().includes(q));
     if (!estado.lista.length) {
-      cuerpo.innerHTML = estadoVacio({ icono: "biblioteca", titulo: "El catálogo está vacío", mensaje: "Todavía no hay contenido disponible para reproducir. Los videos que subas a Mis archivos aparecen aquí después de indexarlos en Fotos." });
+      cuerpo.innerHTML = estadoVacio({ icono: "biblioteca", titulo: "El catálogo está vacío", mensaje: "Todavía no hay contenido disponible para reproducir. Los videos de Mis archivos y los que te compartan aparecen aquí." });
       return;
     }
     if (!visibles.length) {
@@ -78,8 +118,13 @@ export function montar(contenedor) {
           <span class="duracion">${esc(formatearDuracion(v.duracionSegundos))}</span>
         </div>
         <div class="t-title-s">${esc(v.titulo)}</div>
-        ${v.fecha ? `<div class="t-body-s atenuado">${esc(formatearDia(v.fecha))}</div>` : ""}
+        <div class="t-body-s atenuado">${[
+          v.compartido ? `Compartido por ${esc(v.propietario)}` : "",
+          v.fecha ? esc(formatearDia(v.fecha)) : "",
+          ordenPor === "MAS_VISTOS" ? `${esc(v.visualizaciones ?? 0)} reproducciones` : "",
+        ].filter(Boolean).join(" · ")}</div>
       </button>`).join("")}</div>`;
+    cuerpo.querySelectorAll("[data-id]").forEach((el) => observador.observe(el));
   }
 
   async function reproducir(video) {
@@ -122,6 +167,7 @@ export function montar(contenedor) {
   });
   contenedor.querySelector("[data-actualizar]").addEventListener("click", cargar);
 
+  pintarOrden();
   cargar();
-  return () => { vivo = false; };
+  return () => { vivo = false; observador.disconnect(); };
 }

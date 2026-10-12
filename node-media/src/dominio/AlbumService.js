@@ -1,6 +1,17 @@
 const { NoEncontrado, SolicitudInvalida } = require("./errores");
 const { eliminarMedio } = require("./eliminarMedio");
 
+/** Orden del álbum: el ordenPor del Contrato_Streaming que tiene sentido en fotos. */
+const ORDENES_FOTOS = ["RECIENTES", "ALFABETICO"];
+
+function validarOrden(ordenPor, permitidos) {
+  if (ordenPor === undefined || ordenPor === null || ordenPor === "") return undefined;
+  if (!permitidos.includes(ordenPor)) {
+    throw new SolicitudInvalida(`ordenPor debe ser uno de: ${permitidos.join(", ")}`);
+  }
+  return ordenPor;
+}
+
 /**
  * Reglas de negocio del álbum de fotografías (RF-05).
  *
@@ -15,7 +26,11 @@ class AlbumService {
     this.indexador = indexador;
   }
 
-  #aDto(medio) {
+  /**
+   * `propietario` y `compartido` dicen de quién es y si llegó por una
+   * compartición (Contrato_Streaming: el resumen incluye el propietario).
+   */
+  #aDto(medio, usuario) {
     return {
       id: medio.id,
       titulo: medio.titulo,
@@ -26,29 +41,38 @@ class AlbumService {
       tieneMiniatura: Boolean(medio.miniatura_path),
       // Fecha de captura si FFmpeg la leyó; si no, cuándo se indexó.
       fecha: medio.tomada_en || medio.indexado_en,
+      propietario: medio.propietario,
+      compartido: medio.propietario !== usuario.id,
     };
   }
 
-  async listarFotos(usuario, pagina = 0, porPagina = 50) {
+  /**
+   * La primera página refresca antes el índice (Home + compartidos, como mucho
+   * una vez por minuto): lo nuevo aparece sin pulsar "Buscar nuevas".
+   */
+  async listarFotos(usuario, pagina = 0, porPagina = 50, ordenPor, token) {
     if (pagina < 0) throw new SolicitudInvalida("La página no puede ser negativa");
+    const orden = validarOrden(ordenPor, ORDENES_FOTOS);
+    if (pagina === 0 && token) await this.indexador.refrescar(usuario, token);
     const filas = await this.catalogo.listarPorTipo(
-      usuario, "foto", porPagina, pagina * porPagina
+      usuario, "foto", porPagina, pagina * porPagina, orden
     );
-    return filas.map((f) => this.#aDto(f));
+    return filas.map((f) => this.#aDto(f, usuario));
   }
 
-  async buscarFotos(usuario, criterio) {
+  async buscarFotos(usuario, criterio, ordenPor) {
     if (!criterio || criterio.trim().length < 2) {
       throw new SolicitudInvalida("El criterio de búsqueda debe tener al menos 2 caracteres");
     }
-    const filas = await this.catalogo.buscarPorTitulo(usuario, "foto", criterio.trim());
-    return filas.map((f) => this.#aDto(f));
+    const orden = validarOrden(ordenPor, ORDENES_FOTOS);
+    const filas = await this.catalogo.buscarPorTitulo(usuario, "foto", criterio.trim(), orden);
+    return filas.map((f) => this.#aDto(f, usuario));
   }
 
   async obtenerFoto(medioId, usuario) {
     const medio = await this.catalogo.buscarPorId(medioId, usuario);
     if (!medio) throw new NoEncontrado(`medio ${medioId}`);
-    return this.#aDto(medio);
+    return this.#aDto(medio, usuario);
   }
 
   /** Miniatura: se sirve desde la caché local, no desde Storage. */
@@ -100,7 +124,7 @@ class AlbumService {
       id: album.id,
       nombre: album.nombre,
       descripcion: album.descripcion,
-      fotos: medios.map((m) => this.#aDto(m)),
+      fotos: medios.map((m) => this.#aDto(m, usuario)),
     };
   }
 
@@ -124,5 +148,7 @@ class AlbumService {
     if (!eliminado) throw new NoEncontrado(`álbum ${albumId}`);
   }
 }
+
+AlbumService.validarOrden = validarOrden;
 
 module.exports = AlbumService;

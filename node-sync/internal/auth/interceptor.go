@@ -33,6 +33,9 @@ type Usuario struct {
 	UID    string
 	Roles  []string
 	Grupos []string
+	// Token ya validado. node-sync lo reenvía a Distributed Storage para
+	// actuar EN NOMBRE del usuario (Storage aplica sus cuotas y permisos).
+	Token string
 }
 
 // Validator permite intercambiar la estrategia de validacion sin tocar el
@@ -259,7 +262,13 @@ func extraerUsuario(ctx context.Context, v Validator) (Usuario, error) {
 	if len(valores) == 0 {
 		return Usuario{}, status.Error(codes.Unauthenticated, "falta el header authorization")
 	}
-	return v.Validate(ctx, strings.TrimPrefix(valores[0], "Bearer "))
+	token := strings.TrimPrefix(valores[0], "Bearer ")
+	u, err := v.Validate(ctx, token)
+	if err != nil {
+		return Usuario{}, err
+	}
+	u.Token = token
+	return u, nil
 }
 
 func UnaryInterceptor(v Validator) grpc.UnaryServerInterceptor {

@@ -62,3 +62,28 @@ CREATE INDEX IF NOT EXISTS idx_medios_propietario ON medios(propietario, tipo);
 CREATE INDEX IF NOT EXISTS idx_medios_titulo      ON medios(propietario, lower(titulo));
 CREATE INDEX IF NOT EXISTS idx_medios_grupo       ON medios(grupo, tipo);
 CREATE INDEX IF NOT EXISTS idx_album_medios_orden ON album_medios(album_id, orden);
+
+-- ---------------------------------------------------------------------------
+-- Medios COMPARTIDOS con un usuario (Contrato_Streaming, ListarCatalogo:
+-- "propio + compartido con él").
+--
+-- Compartir ya no cambia los bits Unix de arriba: Shared File registra la
+-- relación y Storage la aplica con su tabla `accesos`. Así que los bits
+-- replicados no bastan para saber que a "investigador" le compartieron un
+-- video de "user1". Esta tabla guarda, por usuario, qué medios le llegan por
+-- una compartición; se rehace con lo que devuelve ListarCompartidosConmigo
+-- cada vez que se refresca el índice de ese usuario (como mucho una vez por
+-- minuto, al pedir la primera página del álbum o del catálogo). Una revocación
+-- deja de listarse en el siguiente refresco, y los BYTES nunca dependen de esta
+-- copia: Storage los vuelve a autorizar con el token de quien los pide.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS medios_compartidos (
+    medio_id  UUID NOT NULL REFERENCES medios(id) ON DELETE CASCADE,
+    usuario   TEXT NOT NULL,
+    PRIMARY KEY (medio_id, usuario)
+);
+CREATE INDEX IF NOT EXISTS idx_medios_compartidos_usuario ON medios_compartidos(usuario);
+
+-- Para ordenPor = MAS_VISTOS (Contrato_Streaming). Se cuenta una
+-- visualización por cada sesión de streaming iniciada (IniciarStream).
+ALTER TABLE medios ADD COLUMN IF NOT EXISTS visualizaciones INTEGER NOT NULL DEFAULT 0;

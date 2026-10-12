@@ -1,6 +1,10 @@
 const { v4: uuid } = require("uuid");
 const { NoEncontrado, SolicitudInvalida } = require("./errores");
 const { eliminarMedio } = require("./eliminarMedio");
+const AlbumService = require("./AlbumService");
+
+/** ordenPor del Contrato_Streaming (ListarCatalogo). Por defecto RECIENTES. */
+const ORDENES_VIDEO = ["RECIENTES", "MAS_VISTOS", "ALFABETICO"];
 
 /**
  * Reglas de negocio del servicio de streaming (RF-06).
@@ -11,35 +15,57 @@ const { eliminarMedio } = require("./eliminarMedio");
  * reproducción, migrarlas a PostgreSQL.
  */
 class StreamingService {
-  constructor({ catalogo, fuente }) {
+  constructor({ catalogo, fuente, indexador = null }) {
     this.catalogo = catalogo;
     this.fuente = fuente;
+    this.indexador = indexador;
     this.sesiones = new Map();
   }
 
-  #aDto(medio) {
+  /** Resumen de ContenidoMultimedia: id, título, duración, miniatura, propietario, fecha. */
+  #aDto(medio, usuario) {
     return {
       id: medio.id,
       titulo: medio.titulo,
       duracionSegundos: medio.duracion_segundos ?? 0,
       fecha: medio.tomada_en || medio.indexado_en,
+      tamanoBytes: Number(medio.tamano_bytes),
+      tieneMiniatura: Boolean(medio.miniatura_path),
+      visualizaciones: medio.visualizaciones ?? 0,
+      propietario: medio.propietario,
+      compartido: medio.propietario !== usuario.id,
     };
   }
 
-  async catalogoVideos(usuario, pagina = 0, porPagina = 50) {
+  /**
+   * ListarCatalogo: propio + compartido con el usuario. La primera página
+   * refresca antes el índice (como mucho una vez por minuto).
+   */
+  async catalogoVideos(usuario, pagina = 0, porPagina = 50, ordenPor, token) {
     if (pagina < 0) throw new SolicitudInvalida("La página no puede ser negativa");
+    const orden = AlbumService.validarOrden(ordenPor, ORDENES_VIDEO);
+    if (pagina === 0 && token && this.indexador) await this.indexador.refrescar(usuario, token);
     const filas = await this.catalogo.listarPorTipo(
-      usuario, "video", porPagina, pagina * porPagina
+      usuario, "video", porPagina, pagina * porPagina, orden
     );
-    return filas.map((v) => this.#aDto(v));
+    return filas.map((v) => this.#aDto(v, usuario));
   }
 
-  async buscar(usuario, criterio) {
+  async buscar(usuario, criterio, ordenPor) {
     if (!criterio || criterio.trim().length < 2) {
       throw new SolicitudInvalida("El criterio de búsqueda debe tener al menos 2 caracteres");
     }
-    const filas = await this.catalogo.buscarPorTitulo(usuario, "video", criterio.trim());
-    return filas.map((v) => this.#aDto(v));
+    const orden = AlbumService.validarOrden(ordenPor, ORDENES_VIDEO);
+    const filas = await this.catalogo.buscarPorTitulo(usuario, "video", criterio.trim(), orden);
+    return filas.map((v) => this.#aDto(v, usuario));
+  }
+
+  /** Miniatura (GenerarVistaPrevia): desde la caché local de miniaturas. */
+  async rutaMiniatura(medioId, usuario) {
+    const medio = await this.catalogo.buscarPorId(medioId, usuario);
+    if (!medio || medio.tipo !== "video") throw new NoEncontrado(`video ${medioId}`);
+    if (!medio.miniatura_path) throw new NoEncontrado(`miniatura de ${medioId}`);
+    return medio.miniatura_path;
   }
 
   /** Abre una sesión de reproducción y devuelve la URL del contenido. */
@@ -52,6 +78,7 @@ class StreamingService {
     this.sesiones.set(sesionId, {
       medioId, usuario: usuario.id, abiertaEn: Date.now(),
     });
+    await this.catalogo.sumarVisualizacion(medioId);
 
     return { sesionId, manifestUrl: `/streaming/${medioId}/contenido` };
   }

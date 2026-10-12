@@ -3,7 +3,8 @@
  *
  *   Conmigo       ListarCompartidosConmigo. Una carpeta se abre aquí mismo
  *                 (su contenido lo lista Storage, que ya aplica el permiso);
- *                 un archivo se descarga.
+ *                 imágenes y videos se ven en el visor; lo demás se descarga.
+ *                 Con nivel "compartir" se puede volver a compartir.
  *   Que comparto  ListarQueYoComparto. Cambiar el nivel
  *                 (ActualizarPermisosCompartidos) o dejar de compartir.
  */
@@ -18,6 +19,10 @@ import { abrirHoja, cuerpoDetalles, conectarHoja, avisar, confirmar } from "../c
 import { compartidos, compartidosSimulados, NIVELES, textoNivel } from "../../datos/compartidos.js";
 import { almacenamiento } from "../../datos/almacenamiento.js";
 import { esDemo } from "../../sesion/sesion.js";
+import { abrirArchivo, esVisible } from "../componentes/visorArchivo.js";
+import { abrirCompartir } from "../componentes/compartir.js";
+
+const COMPARTIR = "LECTURA_ESCRITURA_COMPARTIR";
 
 const SECCIONES = { conmigo: "Conmigo", comparto: "Que comparto" };
 const esDir = (r) => r.elementoTipo === "DIRECTORIO";
@@ -29,6 +34,8 @@ export function montar(contenedor) {
   let estado = { tipo: "cargando" };
   /** Carpetas compartidas abiertas: [{ id, nombre }]. Vacía = la lista. */
   let ruta = [];
+  /** Nivel de la carpeta compartida por la que se entró: lo de dentro lo hereda. */
+  let nivelCarpeta = null;
   let vivo = true;
 
   contenedor.innerHTML = `
@@ -149,9 +156,16 @@ export function montar(contenedor) {
   }
 
   function detallesConmigo(r) {
+    const elemento = { id: r.elementoId, nombre: r.nombre, tamanoBytes: r.tamanoBytes, tipo: esDir(r) ? "directorio" : "archivo" };
     const acciones = esDir(r)
-      ? [{ texto: "Abrir", icono: "carpetaAbierta", clase: "boton-relleno", accion: (h) => { h.close(); abrirCarpeta(r.elementoId, r.nombre); } }]
-      : [{ texto: "Descargar", icono: "descargar", clase: "boton-relleno", accion: () => descargar(r.elementoId, r.nombre) }];
+      ? [{ texto: "Abrir", icono: "carpetaAbierta", clase: "boton-relleno", accion: (h) => { h.close(); nivelCarpeta = r.nivelPermiso; abrirCarpeta(r.elementoId, r.nombre); } }]
+      : [
+          ...(esVisible(r.nombre) ? [{ texto: "Abrir", icono: "ver", clase: "boton-relleno", accion: (h) => { h.close(); abrirArchivo(elemento); } }] : []),
+          { texto: "Descargar", icono: "descargar", clase: esVisible(r.nombre) ? "boton-contorno" : "boton-relleno", accion: () => descargar(r.elementoId, r.nombre) },
+        ];
+    if (r.nivelPermiso === COMPARTIR) {
+      acciones.push({ texto: "Compartir", icono: "compartir", accion: (h) => { h.close(); abrirCompartir(elemento); } });
+    }
     const hoja = abrirHoja(cuerpoDetalles({
       iconoHtml: iconoTipo(tipoArchivo(r.nombre, esDir(r)), 48),
       titulo: r.nombre,
@@ -162,6 +176,27 @@ export function montar(contenedor) {
         ["Tu acceso", textoNivel(r.nivelPermiso)],
         ...(r.fechaExpiracion ? [["Caduca", formatearFecha(r.fechaExpiracion)]] : []),
         ...(esDir(r) ? [] : [["Tamaño", formatearTamano(r.tamanoBytes)]]),
+      ],
+      acciones,
+    }));
+    conectarHoja(hoja, acciones);
+  }
+
+  /** Algo DENTRO de una carpeta compartida contigo. */
+  function detallesElemento(a) {
+    const acciones = [
+      ...(esVisible(a.nombre) ? [{ texto: "Abrir", icono: "ver", clase: "boton-relleno", accion: (h) => { h.close(); abrirArchivo(a); } }] : []),
+      { texto: "Descargar", icono: "descargar", clase: esVisible(a.nombre) ? "boton-contorno" : "boton-relleno", accion: () => descargar(a.id, a.nombre) },
+      ...(nivelCarpeta === COMPARTIR ? [{ texto: "Compartir", icono: "compartir", accion: (h) => { h.close(); abrirCompartir(a); } }] : []),
+    ];
+    const hoja = abrirHoja(cuerpoDetalles({
+      iconoHtml: iconoTipo(tipoArchivo(a.nombre, false), 48),
+      titulo: a.nombre,
+      subtitulo: tipoArchivo(a.nombre).etiqueta,
+      filas: [
+        ["Tamaño", formatearTamano(a.tamanoBytes)],
+        ["Ubicación", ruta.map((c) => c.nombre).join(" / ")],
+        ["Tu acceso", nivelCarpeta ? textoNivel(nivelCarpeta) : "—"],
       ],
       acciones,
     }));
@@ -234,14 +269,14 @@ export function montar(contenedor) {
       const a = estado.lista.find((x) => x.id === fila.dataset.elemento);
       if (!a) return;
       if (a.tipo === "directorio") abrirCarpeta(a.id, a.nombre);
-      else descargar(a.id, a.nombre);
+      else if (!abrirArchivo(a)) detallesElemento(a);      // imagen/video -> visor
       return;
     }
     const r = estado.lista?.find((x) => x.compartidoId === fila.dataset.id);
     if (!r) return;
     if (seccion === "conmigo") {
-      if (esDir(r)) abrirCarpeta(r.elementoId, r.nombre);
-      else detallesConmigo(r);
+      if (esDir(r)) { nivelCarpeta = r.nivelPermiso; abrirCarpeta(r.elementoId, r.nombre); }
+      else if (!abrirArchivo({ id: r.elementoId, nombre: r.nombre, tamanoBytes: r.tamanoBytes })) detallesConmigo(r);
     } else detallesComparto(r);
   }
 
@@ -262,6 +297,7 @@ export function montar(contenedor) {
     if (!b || b.disabled) return;
     const i = Number(b.dataset.nivel);
     ruta = i < 0 ? [] : ruta.slice(0, i + 1);
+    if (!ruta.length) nivelCarpeta = null;
     cargar();
   });
   $("[data-actualizar]").addEventListener("click", cargar);

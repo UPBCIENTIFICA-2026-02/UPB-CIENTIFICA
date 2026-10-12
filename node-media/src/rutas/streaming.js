@@ -1,4 +1,5 @@
 const express = require("express");
+const fs = require("fs");
 const { Readable } = require("stream");
 
 /** Capa de presentación/API del Streaming. Conforme a Contrato_Streaming. */
@@ -7,13 +8,26 @@ function crearRutasStreaming(streamingService) {
 
   router.get("/catalogo", async (req, res, siguiente) => {
     try {
-      res.json(await streamingService.catalogoVideos(req.usuario, Number(req.query.pagina || 0)));
+      // ordenPor: RECIENTES (por defecto) | MAS_VISTOS | ALFABETICO
+      res.json(await streamingService.catalogoVideos(
+        req.usuario, Number(req.query.pagina || 0), 50, req.query.ordenPor, req.token
+      ));
     } catch (e) { siguiente(e); }
   });
 
   router.get("/buscar", async (req, res, siguiente) => {
     try {
-      res.json(await streamingService.buscar(req.usuario, req.query.criterioTexto));
+      res.json(await streamingService.buscar(req.usuario, req.query.criterioTexto, req.query.ordenPor));
+    } catch (e) { siguiente(e); }
+  });
+
+  // Vista previa del video (fotograma del segundo 1), generada al indexar.
+  router.get("/:id/miniatura", async (req, res, siguiente) => {
+    try {
+      const ruta = await streamingService.rutaMiniatura(req.params.id, req.usuario);
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Cache-Control", "private, max-age=86400");
+      fs.createReadStream(ruta).on("error", siguiente).pipe(res);
     } catch (e) { siguiente(e); }
   });
 
