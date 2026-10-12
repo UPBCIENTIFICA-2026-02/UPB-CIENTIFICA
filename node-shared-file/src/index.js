@@ -51,7 +51,7 @@ async function construirAplicacion() {
     });
 
     app.use("/shared-file",
-        crearMiddlewareAutenticacion(validador),
+        crearMiddlewareAutenticacion(validador, "sharedfile"),
         crearRutasCompartidos(servicio)
     );
 

@@ -76,11 +76,23 @@ const USUARIOS = {
   },
 };
 
-/** Lo que cada perfil puede usar. Lo consume la app en mapaServiciosAutorizados. */
+/**
+ * Mapa de servicios: lo que cada PERFIL puede usar. Es lo mismo que en el
+ * directorio real está en ou=services (despliegue/node-soap/directorio.ldif):
+ * la app lo recibe en mapaServiciosAutorizados y los servicios lo exigen con
+ * validarAccesoServicio cuando corren en modo "soap" (D2).
+ *
+ * Los estudiantes no tienen "hpc": así se puede comprobar que el gestor del
+ * clúster los rechaza con 403. Album, streaming y filesync trabajan sobre el
+ * Home, así que todo perfil que los tenga necesita también "storage".
+ */
 const SERVICIOS_POR_PERFIL = {
-  investigadores: ["storage", "streaming", "sharedfile", "hpc"],
-  estudiantes: ["storage", "streaming"],
+  investigadores: ["storage", "sharedfile", "album", "streaming", "filesync", "hpc"],
+  estudiantes: ["storage", "sharedfile", "album", "streaming", "filesync"],
 };
+
+/** Home de cada usuario (D3). En el directorio real es el atributo homeDirectory. */
+const homeDe = (uid) => `/srv/home/${uid}`;
 
 /** token -> { uid, vence } */
 const sesiones = new Map();
@@ -246,7 +258,26 @@ const OPERACIONES = {
       ["success", "true"], ["message", "Usuario encontrado"], ["usuario", usuario],
       ["nombre", u.nombre], ["apellido", u.apellido],
       ["correo", `${usuario}@upb-cientifica.local`],
+      ["homeDirectory", homeDe(usuario)],
     ];
+  },
+
+  /**
+   * Mapa de servicios (D2), igual que user.php: el perfil es el primer grupo
+   * en orden alfabético y se mira si el servicio lo incluye.
+   */
+  validarAccesoServicio(xml) {
+    const usuario = campo(xml, "usuario");
+    const servicio = campo(xml, "servicio");
+    const datos = USUARIOS[usuario];
+    if (!datos || !servicio) return [["success", "false"], ["message", "Usuario o servicio inválido"]];
+    const perfil = [...datos.grupos].sort()[0];
+    const ok = (SERVICIOS_POR_PERFIL[perfil] || []).includes(servicio);
+    log(`validarAccesoServicio  ${usuario} (${perfil}) -> ${servicio}: ${ok ? "PERMITIDO" : "DENEGADO"}`);
+    return ok
+      ? [["success", "true"], ["message", `Acceso PERMITIDO al servicio ${servicio}`], ["perfil", perfil], ["servicio", servicio]]
+      : [["success", "false"], ["message", `Acceso DENEGADO al servicio ${servicio} para el perfil ${perfil}`],
+         ["perfil", perfil], ["servicio", servicio]];
   },
 
   autenticarUsuario(xml) {

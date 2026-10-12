@@ -1,0 +1,150 @@
+# Directorio de UPB-CIENTIFICA para la VM node-soap (OpenLDAP).
+#
+# Es la estructura que lee node-soap/back/user.php:
+#
+#   ou=people    usuarios (inetOrgPerson + posixAccount). homeDirectory es el
+#                Home del usuario: lo publica obtenerUsuario (D3).
+#   ou=groups    grupos posix con memberUid = uid. El PERFIL de un usuario es
+#                su primer grupo en orden alfabético (gruposDe + sort).
+#   ou=services  un posixGroup por servicio, con memberUid = PERFIL que puede
+#                usarlo. Lo consultan validarAccesoServicio (D2, lo exigen
+#                todos los servicios en modo soap) y el login
+#                (mapaServiciosAutorizados).
+#
+# LOS NOMBRES DE SERVICIO NO SON LIBRES: son los que pide cada servicio.
+#   storage     node-repository        album       node-media (/album)
+#   sharedfile  node-shared-file       streaming   node-media (/streaming)
+#   filesync    node-sync              hpc         gestor-cluster (RMI)
+# album, streaming y filesync trabajan sobre el Home: un perfil que los tenga
+# necesita también storage.
+#
+# Las contraseñas van como @CLAVE_<uid>@: desplegar-node-soap.sh las cambia
+# por su hash {SSHA} (slappasswd) antes de cargar. No pongas claves reales
+# en este archivo: está versionado.
+#
+# Se carga con "ldapadd -c": las entradas que ya existan se saltan.
+
+dn: ou=people,dc=upb-cientifica,dc=local
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=upb-cientifica,dc=local
+objectClass: organizationalUnit
+ou: groups
+
+dn: ou=services,dc=upb-cientifica,dc=local
+objectClass: organizationalUnit
+ou: services
+
+# --------------------------------------------------------------- usuarios
+
+dn: uid=user1,ou=people,dc=upb-cientifica,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: user1
+cn: Usuario
+sn: Uno
+mail: user1@upb-cientifica.local
+uidNumber: 10001
+gidNumber: 2001
+homeDirectory: /srv/home/user1
+loginShell: /bin/bash
+userPassword: @CLAVE_user1@
+
+dn: uid=investigador,ou=people,dc=upb-cientifica,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: investigador
+cn: Investigador
+sn: Prueba
+mail: investigador@upb-cientifica.local
+uidNumber: 10002
+gidNumber: 2001
+homeDirectory: /srv/home/investigador
+loginShell: /bin/bash
+userPassword: @CLAVE_investigador@
+
+dn: uid=estudiante,ou=people,dc=upb-cientifica,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: estudiante
+cn: Estudiante
+sn: Prueba
+mail: estudiante@upb-cientifica.local
+uidNumber: 10003
+gidNumber: 2002
+homeDirectory: /srv/home/estudiante
+loginShell: /bin/bash
+userPassword: @CLAVE_estudiante@
+
+# ----------------------------------------------------------------- grupos
+# El perfil es el primero en orden alfabético: "estudiantes" e
+# "investigadores" van antes que "usuarios".
+
+dn: cn=investigadores,ou=groups,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: investigadores
+gidNumber: 2001
+memberUid: user1
+memberUid: investigador
+
+dn: cn=estudiantes,ou=groups,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: estudiantes
+gidNumber: 2002
+memberUid: estudiante
+
+dn: cn=usuarios,ou=groups,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: usuarios
+gidNumber: 2000
+memberUid: user1
+memberUid: investigador
+memberUid: estudiante
+
+# ---------------------------------------------- mapa de servicios (por perfil)
+# Los estudiantes no tienen hpc: el gestor del clúster les responde 403.
+
+dn: cn=storage,ou=services,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: storage
+gidNumber: 3001
+memberUid: investigadores
+memberUid: estudiantes
+
+dn: cn=sharedfile,ou=services,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: sharedfile
+gidNumber: 3002
+memberUid: investigadores
+memberUid: estudiantes
+
+dn: cn=album,ou=services,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: album
+gidNumber: 3003
+memberUid: investigadores
+memberUid: estudiantes
+
+dn: cn=streaming,ou=services,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: streaming
+gidNumber: 3004
+memberUid: investigadores
+memberUid: estudiantes
+
+dn: cn=filesync,ou=services,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: filesync
+gidNumber: 3005
+memberUid: investigadores
+memberUid: estudiantes
+
+dn: cn=hpc,ou=services,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: hpc
+gidNumber: 3006
+memberUid: investigadores

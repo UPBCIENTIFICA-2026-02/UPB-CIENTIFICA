@@ -1,11 +1,12 @@
 const {
     ErrorDominio, NoEncontrado, SinPermisoCompartir, DestinatarioInexistente,
     YaCompartido, RechazoDeStorage, SolicitudInvalida, NoAutenticado,
-    StorageNoDisponible, ServicioAuthNoDisponible,
+    StorageNoDisponible, ServicioAuthNoDisponible, ServicioNoAutorizado,
 } = require("../dominio/errores");
 
 const MAPA_HTTP = new Map([
     [NoAutenticado, 401],
+    [ServicioNoAutorizado, 403],
     [SinPermisoCompartir, 403],
     [NoEncontrado, 404],
     [DestinatarioInexistente, 404],

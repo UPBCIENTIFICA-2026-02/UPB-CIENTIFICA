@@ -75,8 +75,19 @@ class ServicioAuthNoDisponible extends ErrorDominio {
     }
 }
 
+/**
+ * El perfil del usuario no tiene el servicio en su mapa de servicios
+ * autorizados (validarAccesoServicio de Authentication). Token válido, pero
+ * este servicio no es para él: 403, no 401.
+ */
+class ServicioNoAutorizado extends ErrorDominio {
+    constructor(servicio) {
+        super(`Tu perfil no tiene acceso al servicio "${servicio}"`, "SERVICIO_NO_AUTORIZADO");
+    }
+}
+
 module.exports = {
     ErrorDominio, NoEncontrado, PermisoDenegado,
     CuotaExcedida, NoAutenticado, SolicitudInvalida,
-    RangoNoSatisfacible, ServicioAuthNoDisponible,
+    RangoNoSatisfacible, ServicioAuthNoDisponible, ServicioNoAutorizado,
 };

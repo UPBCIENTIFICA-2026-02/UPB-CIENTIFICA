@@ -115,8 +115,21 @@ public class JobServiceImpl implements JobService {
         if (usuario == null) {
             throw NoAutorizadoException.tokenInvalido();
         }
+        // D2: el perfil tiene que tener "hpc" en su mapa de servicios autorizados.
+        // sinIdentidad=false: hay identidad pero no alcanza, job-api responde 403.
+        try {
+            if (!validador.autorizarServicio(usuario, SERVICIO)) {
+                throw new NoAutorizadoException(
+                        "Tu perfil no tiene acceso al servicio \"" + SERVICIO + "\"", false);
+            }
+        } catch (AuthNoDisponibleException e) {
+            throw new RemoteException(e.getMessage(), e);
+        }
         return usuario;
     }
+
+    /** Nombre de este servicio en el mapa de servicios autorizados del directorio. */
+    private static final String SERVICIO = "hpc";
 
     @Override
     public String submitJob(String token, String nombre, String comando, int prioridad)

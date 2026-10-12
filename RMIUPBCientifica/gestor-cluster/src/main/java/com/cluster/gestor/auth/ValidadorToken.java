@@ -17,4 +17,19 @@ public interface ValidadorToken {
      *         descartara una sesión que sigue siendo buena.
      */
     Usuario validar(String token) throws AuthNoDisponibleException;
+
+    /**
+     * Mapa de servicios autorizados (D2): ¿el perfil del usuario puede usar
+     * {@code servicio}? Operación validarAccesoServicio de users.wsdl.
+     *
+     * ANTES nadie lo comprobaba: un usuario sin "hpc" en su mapa enviaba
+     * trabajos igual. Por defecto (modo simulado, sin directorio que consultar)
+     * todo usuario puede usar todo; {@code ValidadorSoap} lo pregunta a node-soap.
+     *
+     * @throws AuthNoDisponibleException si no se pudo consultar: nunca se
+     *         concede el acceso por defecto en ese caso.
+     */
+    default boolean autorizarServicio(Usuario usuario, String servicio) throws AuthNoDisponibleException {
+        return true;
+    }
 }

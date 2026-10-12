@@ -42,8 +42,9 @@ func main() {
 	}
 
 	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(auth.UnaryInterceptor(validador), loggingUnary),
-		grpc.ChainStreamInterceptor(auth.StreamInterceptor(validador), loggingStream),
+		// "filesync": nombre de este servicio en el mapa de servicios autorizados.
+		grpc.ChainUnaryInterceptor(auth.UnaryInterceptor(validador, "filesync"), loggingUnary),
+		grpc.ChainStreamInterceptor(auth.StreamInterceptor(validador, "filesync"), loggingStream),
 	}
 	if cfg.TLSEnabled() {
 		creds, err := credentials.NewServerTLSFromFile(cfg.TLSCert, cfg.TLSKey)

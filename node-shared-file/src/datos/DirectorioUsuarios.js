@@ -24,11 +24,14 @@ class DirectorioUsuarios {
     }
 
     /**
-     * Ruta del Home. El contrato dice que sale de Authentication, pero
-     * obtenerPerfilUsuario no la publica todavía; mientras tanto, la
-     * convención del sistema (/srv/home/<uid>). PENDIENTE con node-soap.
+     * Ruta del Home. El contrato dice que sale de Authentication.
+     *
+     * ANTES: siempre la convención (/srv/home/<uid>), porque node-soap no la
+     * publicaba. AHORA (D3) DirectorioSoap la pide a obtenerUsuario, que
+     * devuelve el homeDirectory de LDAP; la convención queda solo como respaldo
+     * (modo simulado, o una entrada sin homeDirectory).
      */
-    homeDe(uid) {
+    async homeDe(uid) {
         return this.plantillaHome.replace("{uid}", uid);
     }
 }
@@ -48,6 +51,20 @@ class DirectorioSoap extends DirectorioUsuarios {
 
     async existeUsuario(uid) {
         if (!FORMATO_USUARIO.test(uid || "")) return false;
+        return (await this.#obtenerUsuario(uid)).existe;
+    }
+
+    /** homeDirectory del directorio; si no lo trae, la convención. */
+    async homeDe(uid) {
+        if (FORMATO_USUARIO.test(uid || "")) {
+            const { home } = await this.#obtenerUsuario(uid);
+            if (home) return home;
+        }
+        return super.homeDe(uid);
+    }
+
+    /** Operación obtenerUsuario de users.wsdl: { existe, home }. */
+    async #obtenerUsuario(uid) {
         // Hijos sin namespace (elementFormDefault unqualified), como en el ValidadorSoap.
         const sobre = `<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -73,8 +90,8 @@ class DirectorioSoap extends DirectorioUsuarios {
         }
         if (!respuesta.ok) throw new ServicioAuthNoDisponible(`node-soap respondió ${respuesta.status}`);
         const xml = await respuesta.text();
-        const m = xml.match(/<(?:[\w.-]+:)?success[^>]*>([^<]*)</);
-        return m?.[1] === "true";
+        const valor = (etiqueta) => xml.match(new RegExp(`<(?:[\\w.-]+:)?${etiqueta}[^>]*>([^<]*)<`))?.[1];
+        return { existe: valor("success") === "true", home: valor("homeDirectory") || null };
     }
 }
 

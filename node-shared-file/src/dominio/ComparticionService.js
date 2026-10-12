@@ -299,7 +299,10 @@ class ComparticionService {
 
     /** ObtenerHome (§3.8). */
     async obtenerHome(usuario, token) {
-        return { homePath: this.directorio.homeDe(usuario.id), contenido: await this.storage.listarHome(token) };
+        const [homePath, contenido] = await Promise.all([
+            this.directorio.homeDe(usuario.id), this.storage.listarHome(token),
+        ]);
+        return { homePath, contenido };
     }
 
     /** ListarContenidoHome (§3.8). */

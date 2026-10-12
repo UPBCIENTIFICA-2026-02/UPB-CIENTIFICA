@@ -36,7 +36,7 @@ async function construirAplicacion() {
     });
 
     app.use("/storage",
-        crearMiddlewareAutenticacion(validador),
+        crearMiddlewareAutenticacion(validador, "storage"),
         crearRutasAlmacenamiento(archivoService)
     );
 

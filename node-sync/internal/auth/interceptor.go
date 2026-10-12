@@ -271,11 +271,15 @@ func extraerUsuario(ctx context.Context, v Validator) (Usuario, error) {
 	return u, nil
 }
 
-func UnaryInterceptor(v Validator) grpc.UnaryServerInterceptor {
+// servicio: nombre en el mapa de servicios autorizados ("filesync"). Ver servicios.go.
+func UnaryInterceptor(v Validator, servicio string) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler) (interface{}, error) {
 		u, err := extraerUsuario(ctx, v)
 		if err != nil {
+			return nil, err
+		}
+		if err := exigirServicio(ctx, v, u, servicio); err != nil {
 			return nil, err
 		}
 		return handler(context.WithValue(ctx, ctxKey{}, u), req)
@@ -290,11 +294,14 @@ type wrappedStream struct {
 
 func (w wrappedStream) Context() context.Context { return w.ctx }
 
-func StreamInterceptor(v Validator) grpc.StreamServerInterceptor {
+func StreamInterceptor(v Validator, servicio string) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, _ *grpc.StreamServerInfo,
 		handler grpc.StreamHandler) error {
 		u, err := extraerUsuario(ss.Context(), v)
 		if err != nil {
+			return err
+		}
+		if err := exigirServicio(ss.Context(), v, u, servicio); err != nil {
 			return err
 		}
 		return handler(srv, wrappedStream{ss, context.WithValue(ss.Context(), ctxKey{}, u)})

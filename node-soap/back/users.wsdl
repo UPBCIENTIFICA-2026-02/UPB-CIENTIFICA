@@ -79,6 +79,9 @@
                         <xsd:element name="nombre" type="xsd:string" minOccurs="0" nillable="true"/>
                         <xsd:element name="apellido" type="xsd:string" minOccurs="0" nillable="true"/>
                         <xsd:element name="correo" type="xsd:string" minOccurs="0" nillable="true"/>
+                        <!-- D3: ruta del Home del usuario (atributo homeDirectory de LDAP).
+                             Opcional: si falta, los servicios usan /srv/home/<uid>. -->
+                        <xsd:element name="homeDirectory" type="xsd:string" minOccurs="0" nillable="true"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>

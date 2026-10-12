@@ -45,9 +45,10 @@ async function construirAplicacion() {
         }
     });
 
-    const auth = crearMiddlewareAutenticacion(validador);
-    app.use("/album", auth, crearRutasAlbum(albumService));
-    app.use("/streaming", auth, crearRutasStreaming(streamingService));
+    // Photo Album y Streaming son dos servicios del mapa aunque los sirva el mismo
+    // proceso: un perfil puede tener uno y no el otro.
+    app.use("/album", crearMiddlewareAutenticacion(validador, "album"), crearRutasAlbum(albumService));
+    app.use("/streaming", crearMiddlewareAutenticacion(validador, "streaming"), crearRutasStreaming(streamingService));
 
     app.use(manejoErrores);
     return { app, pool, ffmpeg };

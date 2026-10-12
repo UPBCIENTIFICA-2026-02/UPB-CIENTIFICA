@@ -37,6 +37,12 @@ public class ValidadorSoap implements ValidadorToken {
     private final HttpClient cliente;
     private final Map<String, EnCache> cache = new ConcurrentHashMap<>();
 
+    private record Acceso(boolean permitido, Instant vence) {
+    }
+
+    /** "uid|servicio" -> respuesta de validarAccesoServicio, un minuto. */
+    private final Map<String, Acceso> accesos = new ConcurrentHashMap<>();
+
     public ValidadorSoap(String endpoint, String namespace, Duration ttlCache) {
         this.endpoint = URI.create(endpoint);
         this.namespace = namespace;
@@ -78,6 +84,36 @@ public class ValidadorSoap implements ValidadorToken {
         return usuario;
     }
 
+    /**
+     * validarAccesoServicio(usuario, servicio). Se cachea un minuto por
+     * (uid, servicio): el mapa cambia muy rara vez.
+     */
+    @Override
+    public boolean autorizarServicio(Usuario usuario, String servicio) throws AuthNoDisponibleException {
+        String clave = usuario.uid() + "|" + servicio;
+        Acceso previo = accesos.get(clave);
+        if (previo != null && Instant.now().isBefore(previo.vence())) {
+            return previo.permitido();
+        }
+        String cuerpo = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                  <soap:Body>
+                    <ns:validarAccesoServicio xmlns:ns="%s">
+                      <usuario>%s</usuario>
+                      <servicio>%s</servicio>
+                    </ns:validarAccesoServicio>
+                  </soap:Body>
+                </soap:Envelope>""".formatted(namespace, escapar(usuario.uid()), escapar(servicio));
+        String xml = enviar(cuerpo, "validarAccesoServicio");
+        boolean permitido = "true".equals(extraer(xml, "success"));
+        if (accesos.size() > 1000) {
+            accesos.clear();
+        }
+        accesos.put(clave, new Acceso(permitido, Instant.now().plus(Duration.ofMinutes(1))));
+        return permitido;
+    }
+
     private void guardar(String token, Usuario usuario) {
         // Tope simple para que la caché no crezca sin límite.
         if (cache.size() > 1000) {
@@ -102,11 +138,14 @@ public class ValidadorSoap implements ValidadorToken {
                     </ns:validarToken>
                   </soap:Body>
                 </soap:Envelope>""".formatted(namespace, escapar(token));
+        return enviar(cuerpo, "validarToken");
+    }
 
+    private String enviar(String cuerpo, String operacion) throws AuthNoDisponibleException {
         HttpRequest peticion = HttpRequest.newBuilder(endpoint)
                 .timeout(Duration.ofSeconds(5))
                 .header("Content-Type", "text/xml; charset=utf-8")
-                .header("SOAPAction", namespace + "/validarToken")
+                .header("SOAPAction", namespace + "/" + operacion)
                 .POST(HttpRequest.BodyPublishers.ofString(cuerpo))
                 .build();
 

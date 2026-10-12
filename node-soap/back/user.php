@@ -289,7 +289,20 @@ function autenticarUsuario($datos)
 /*
  * OBTENER INFORMACIÓN DEL USUARIO
  *
- * Contrato sin cambios.
+ * ============================================================================
+ *  >>> CAMBIO QUE AFECTA A LA VM node-soap (D3: árbol de archivos) <<<
+ *
+ *  ANTES: devolvía usuario, nombre, apellido y correo. La ruta del Home no
+ *         salía del directorio: cada servicio la deducía por convención
+ *         (/srv/home/<uid>).
+ *  AHORA: devuelve además `homeDirectory`, el atributo homeDirectory de la
+ *         entrada (objectClass posixAccount). Es un elemento OPCIONAL en el
+ *         WSDL (minOccurs="0"): los clientes que no lo conocen lo ignoran, y si
+ *         la entrada no lo tiene se devuelve null y los servicios usan la
+ *         convención de siempre. No hay que tocar el esquema de OpenLDAP:
+ *         homeDirectory es estándar (nis.schema), solo hay que darle valor a
+ *         cada usuario (ver despliegue/node-soap/directorio.ldif).
+ * ============================================================================
  */
 function obtenerUsuario($datos)
 {
@@ -363,7 +376,9 @@ function obtenerUsuario($datos)
         "usuario" => $usuarioLDAP["uid"][0] ?? $usuario,
         "nombre" => $usuarioLDAP["cn"][0] ?? null,
         "apellido" => $usuarioLDAP["sn"][0] ?? null,
-        "correo" => $usuarioLDAP["mail"][0] ?? null
+        "correo" => $usuarioLDAP["mail"][0] ?? null,
+        // ldap_get_entries pasa los nombres de atributo a minúsculas.
+        "homeDirectory" => $usuarioLDAP["homedirectory"][0] ?? null
     ];
 }
 

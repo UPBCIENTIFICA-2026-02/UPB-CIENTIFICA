@@ -24,6 +24,15 @@ class ValidadorSimulado extends ValidadorToken {
     const usuario = token.split("-")[2] || "desconocido";
     return { id: usuario, roles: ["investigador"], grupos: ["usuarios"] };
   }
+
+  /**
+   * Sin directorio no hay mapa de servicios que consultar: en modo simulado
+   * todo usuario puede usar todo. La autorización real (D2) solo se aplica en
+   * modo "soap", contra validarAccesoServicio de node-soap.
+   */
+  async autorizarServicio(_usuario, _servicio) {
+    return true;
+  }
 }
 
 /**
@@ -67,6 +76,7 @@ class ValidadorSoap extends ValidadorToken {
     this.ttlCacheMs = ttlCacheMs;
     this.tamanoMaxCache = tamanoMaxCache;
     this.cache = new Map();
+    this.accesos = new Map();   // "uid|servicio" -> { permitido, vence }
   }
 
   #deCache(token) {
@@ -163,6 +173,59 @@ class ValidadorSoap extends ValidadorToken {
 
     this.#aCache(token, usuario);
     return usuario;
+  }
+
+  /**
+   * Mapa de servicios (D2): ¿el perfil del usuario puede usar `servicio`?
+   * Operación validarAccesoServicio(usuario, servicio) de users.wsdl.
+   *
+   * ANTES ningún servicio lo comprobaba: el login devolvía
+   * mapaServiciosAutorizados pero un usuario sin "hpc" en su mapa podía usar
+   * la HPC igual. AHORA el middleware de autenticación lo exige.
+   *
+   * Se cachea por (uid, servicio) un minuto: el mapa cambia muy rara vez y así
+   * no se añade una llamada SOAP a cada petición. Si node-soap no responde se
+   * lanza ServicioAuthNoDisponible (503), nunca se concede por defecto.
+   */
+  async autorizarServicio(usuario, servicio) {
+    const clave = `${usuario.id}|${servicio}`;
+    const entrada = this.accesos.get(clave);
+    if (entrada && Date.now() < entrada.vence) return entrada.permitido;
+
+    const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const sobre = `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <ns:validarAccesoServicio xmlns:ns="${this.namespace}">
+      <usuario>${esc(usuario.id)}</usuario>
+      <servicio>${esc(servicio)}</servicio>
+    </ns:validarAccesoServicio>
+  </soap:Body>
+</soap:Envelope>`;
+    let respuesta;
+    try {
+      respuesta = await fetch(this.urlServicio, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/xml; charset=utf-8",
+          SOAPAction: `${this.namespace}/validarAccesoServicio`,
+        },
+        body: sobre,
+        signal: AbortSignal.timeout(5000),
+      });
+    } catch (e) {
+      throw new ServicioAuthNoDisponible(e.message);
+    }
+    if (!respuesta.ok) {
+      throw new ServicioAuthNoDisponible(`node-soap respondió ${respuesta.status} a validarAccesoServicio`);
+    }
+    const permitido = extraer(await respuesta.text(), "success") === "true";
+
+    if (this.accesos.size >= this.tamanoMaxCache) {
+      this.accesos.delete(this.accesos.keys().next().value);
+    }
+    this.accesos.set(clave, { permitido, vence: Date.now() + 60_000 });
+    return permitido;
   }
 }
 

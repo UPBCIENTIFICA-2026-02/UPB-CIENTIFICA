@@ -34,6 +34,11 @@
   soap: los servicios validan cada token preguntando a auth-local por SOAP. Es
         mas realista: ejercita el ValidadorSoap de cada servicio y los grupos
         del usuario cuentan para los permisos Unix de Storage.
+        Ademas cada servicio exige el MAPA DE SERVICIOS del perfil
+        (validarAccesoServicio): p. ej. "estudiante" no tiene "hpc" y el gestor
+        le responde 403. En simulado todo usuario puede usar todo.
+        Ojo: en soap solo valen los tokens que emite auth-local (inicia sesion),
+        no cualquier "mock-token-<uid>-..." escrito a mano.
 
 .PARAMETER HpcLocal
   Arranca gestor-cluster y job-api en este PC (necesita Java 17+ y los .jar
