@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import express from 'express';
 import morgan from 'morgan';
 import { config, resumenConfig } from './src/config.js';
-import { reenviar, noDisponible } from './src/pasarela.js';
+import { reenviar } from './src/pasarela.js';
 import { rutas } from './src/rutas.js';
 
 const app = express();
@@ -38,7 +38,7 @@ app.use('/api/album',       reenviar(config.nodos.medios,   '/album',     'Photo
 app.use('/api/streaming',   reenviar(config.nodos.medios,   '/streaming', 'Streaming (node-media)'));
 app.use('/api/jobs',        reenviar(config.nodos.trabajos, '/jobs',      'HPC (job-api)'));
 app.use('/api/cluster',     reenviar(config.nodos.trabajos, '/cluster',   'HPC (job-api)'));
-app.use('/api/shared-file', noDisponible('Shared File'));
+app.use('/api/shared-file', reenviar(config.nodos.compartidos, '/shared-file', 'Shared File (node-repository)'));
 
 // --- Lo que node-web traduce: inicio y cierre de sesión por SOAP -------------
 app.use('/api', express.json({ limit: '1mb' }), rutas);

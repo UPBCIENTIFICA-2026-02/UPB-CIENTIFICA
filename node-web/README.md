@@ -61,7 +61,7 @@ Usa `login`/`logout`, las mismas operaciones que la app móvil y el escritorio.
 | `/api/streaming/**` | node-media `/streaming/**` |
 | `/api/jobs`, `/api/jobs/**` | job-api `/jobs/**` |
 | `/api/cluster/**` | job-api `/cluster/**` |
-| `/api/shared-file/**` | *(no existe aún: 501)* |
+| `/api/shared-file/**` | node-shared-file `/shared-file/**` (puerto 8085, VM node-repository) |
 | `/salud` | sonda de vida de node-web |
 
 Detalles que importan:

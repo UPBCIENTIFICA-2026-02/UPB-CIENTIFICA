@@ -207,7 +207,10 @@ export function montar(contenedor, { intencion }) {
   function mostrarDetalles(a) {
     const tipo = tipoArchivo(a.nombre, esCarpeta(a));
     const acciones = esCarpeta(a)
-      ? [{ texto: "Abrir", icono: "carpetaAbierta", clase: "boton-relleno", accion: (h) => { h.close(); abrirCarpeta(a); } }]
+      ? [
+          { texto: "Abrir", icono: "carpetaAbierta", clase: "boton-relleno", accion: (h) => { h.close(); abrirCarpeta(a); } },
+          { texto: "Compartir", icono: "compartir", accion: (h) => { h.close(); abrirCompartir(a); } },
+        ]
       : [
           { texto: "Descargar", icono: "descargar", clase: "boton-relleno", accion: () => descargar(a) },
           { texto: "Compartir", icono: "compartir", accion: (h) => { h.close(); abrirCompartir(a); } },

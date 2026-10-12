@@ -177,12 +177,29 @@ GET    /storage/cuota
 `ArchivoDto`: `id`, `nombre`, `tipo`, `tamanoBytes`, `version`,
 `directorioContenedorId`.
 
-**Shared File (REST)**
+**Shared File (REST)** — `node-shared-file/`, puerto 8085, VM node-repository.
+Detalle completo en `node-shared-file/README.md`.
 ```
-POST   /shared-file/compartir
-GET    /shared-file/compartidos-conmigo
-DELETE /shared-file/compartir/{id}
+POST   /shared-file/compartir                 CompartirArchivo
+POST   /shared-file/compartir-directorio      CompartirDirectorio
+PATCH  /shared-file/compartir/{id}            ActualizarPermisosCompartidos
+DELETE /shared-file/compartir/{id}            DejarDeCompartir
+GET    /shared-file/compartidos-conmigo       ListarCompartidosConmigo
+GET    /shared-file/que-yo-comparto           ListarQueYoComparto
+GET    /shared-file/permisos-efectivos/{id}   ObtenerPermisosEfectivos
+GET    /shared-file/home, /home/contenido, /cuota
 ```
+
+**Storage, añadido para Shared File** (las comparticiones las APLICA Storage):
+```
+GET    /storage/nodos/{id}                          metadatos + nivelEfectivo de quien pregunta
+PUT    /storage/nodos/{id}/accesos                  { destinatarioTipo, destinatarioId, nivel, expiraEn? }
+DELETE /storage/nodos/{id}/accesos/{tipo}/{destinatario}
+```
+Permiso efectivo = bits Unix + comparticiones propias y heredadas de carpetas,
+prevalece el más permisivo (`node-repository/src/dominio/accesos.js`). Desde
+2026-10-11 todo nace privado (`rw-------`): antes el grupo común "usuarios"
+podía leerlo todo.
 
 **Streaming (REST)**
 ```
@@ -271,7 +288,7 @@ arquitectura y el roadmap.)
 | **Authentication (node-soap)** | ❌ **no existe** |
 | Monitoreo | ❌ no existe |
 | `job-runner.jar` / MPI real | ❌ no existe |
-| Shared File | ❓ confirmar si está dentro de node-repository |
+| Shared File | ✅ `node-shared-file/` (8085), proceso aparte en la VM node-repository, como `shared-file-svc` en el diagrama |
 | `fsagent` | ❌ no existe |
 | `respaldo-gpg.sh` | ❌ no existe |
 

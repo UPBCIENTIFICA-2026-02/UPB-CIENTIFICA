@@ -39,3 +39,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_nombre_unico_en_dir
 CREATE UNIQUE INDEX IF NOT EXISTS idx_nombre_unico_en_home
     ON nodos(propietario, nombre)
     WHERE directorio_contenedor_id IS NULL;
+
+-- Comparticiones que Storage APLICA en sus validaciones (Contrato_SharedFile,
+-- paso 6 de CompartirArchivo). Quién comparte con quién lo decide y lo registra
+-- Shared File Service en su propia BD; aquí solo queda lo necesario para
+-- calcular el permiso efectivo (ver src/dominio/accesos.js). Un acceso sobre
+-- un directorio vale para todo su contenido, presente y futuro.
+CREATE TABLE IF NOT EXISTS accesos (
+    nodo_id            UUID NOT NULL REFERENCES nodos(id) ON DELETE CASCADE,
+    destinatario_tipo  TEXT NOT NULL CHECK (destinatario_tipo IN ('USUARIO', 'GRUPO')),
+    destinatario_id    TEXT NOT NULL,
+    nivel              TEXT NOT NULL CHECK (nivel IN
+                         ('LECTURA', 'LECTURA_ESCRITURA', 'LECTURA_ESCRITURA_COMPARTIR')),
+    expira_en          TIMESTAMPTZ,
+    otorgado_por       TEXT NOT NULL,
+    otorgado_en        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (nodo_id, destinatario_tipo, destinatario_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_accesos_destinatario ON accesos(destinatario_tipo, destinatario_id);

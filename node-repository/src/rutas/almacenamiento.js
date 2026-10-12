@@ -112,6 +112,32 @@ function crearRutasAlmacenamiento(archivoService) {
         } catch (e) { siguiente(e); }
     });
 
+    // --- Usado por Shared File Service (IAlmacenamiento) ---
+
+    // GET /storage/nodos/:id  -> metadatos + nivelEfectivo de quien pregunta
+    router.get("/nodos/:id", async (req, res, siguiente) => {
+        try {
+        res.json(await archivoService.obtenerNodo(req.params.id, req.usuario));
+        } catch (e) { siguiente(e); }
+    });
+
+    // PUT /storage/nodos/:id/accesos  { destinatarioTipo, destinatarioId, nivel, expiraEn? }
+    router.put("/nodos/:id/accesos", async (req, res, siguiente) => {
+        try {
+        res.json(await archivoService.otorgarAcceso(req.params.id, req.body || {}, req.usuario));
+        } catch (e) { siguiente(e); }
+    });
+
+    // DELETE /storage/nodos/:id/accesos/:tipo/:destinatario
+    router.delete("/nodos/:id/accesos/:tipo/:destinatario", async (req, res, siguiente) => {
+        try {
+        await archivoService.revocarAcceso(
+            req.params.id, req.params.tipo, req.params.destinatario, req.usuario
+        );
+        res.status(204).end();
+        } catch (e) { siguiente(e); }
+    });
+
     // GET /storage/cuota
     router.get("/cuota", async (req, res, siguiente) => {
         try {

@@ -94,24 +94,43 @@ export const almacenamientoDemo = {
 };
 
 // --------------------------------------------------------------- Shared File
-// Los mismos dos registros del móvil (SharedFileRepository.datosSimulados) y uno más.
-const compartidos = [
-  { compartidoId: "s1", archivoId: "10", nombreArchivo: "paper_borrador.docx", propietario: "maria.lopez", permisoUnix: "r--" },
-  { compartidoId: "s2", archivoId: "11", nombreArchivo: "dataset_compartido.zip", propietario: "carlos.ruiz", permisoUnix: "rw-" },
-  { compartidoId: "s3", archivoId: "12", nombreArchivo: "guia-laboratorio-mpi.pdf", propietario: "angie.villareal", permisoUnix: "r--" },
+// Misma forma que RelacionCompartido de node-shared-file (solo modo demostración).
+const relacionDemo = (compartidoId, nombre, propietario, nivelPermiso, destinatarioId, elementoTipo = "ARCHIVO") => ({
+  compartidoId, elementoId: `demo-${compartidoId}`, elementoTipo, nombre, tamanoBytes: 1_250_000,
+  propietario, compartidoPor: propietario, destinatarioTipo: "USUARIO", destinatarioId,
+  nivelPermiso, estadoInvitacion: "ACTIVO", fechaCompartido: "2026-10-01T15:00:00Z", fechaExpiracion: null,
+});
+const compartidosConmigoDemo = [
+  relacionDemo("s1", "paper_borrador.docx", "maria.lopez", "LECTURA", "demo"),
+  relacionDemo("s2", "dataset_compartido.zip", "carlos.ruiz", "LECTURA_ESCRITURA", "demo"),
+  relacionDemo("s3", "guia-laboratorio-mpi.pdf", "angie.villareal", "LECTURA", "demo"),
 ];
+let queCompartoDemo = [relacionDemo("s4", "Resultados", "demo", "LECTURA", "maria.lopez", "DIRECTORIO")];
 
 export const compartidosDemo = {
   async compartidosConmigo() {
     await latencia();
-    return compartidos.map((c) => ({ ...c }));
+    return compartidosConmigoDemo.map((c) => ({ ...c }));
   },
-  async compartir() {
+  async queYoComparto() {
     await latencia();
-    return { compartidoId: `mock-shared-${Date.now()}` };
+    return queCompartoDemo.map((c) => ({ ...c }));
   },
-  async revocar() {
+  async compartir(elemento, destinatarioTipo, destinatarioId, nivelPermiso) {
     await latencia();
+    const r = { ...relacionDemo(`demo-${Date.now()}`, elemento.nombre, "demo", nivelPermiso, destinatarioId,
+      elemento.tipo === "directorio" ? "DIRECTORIO" : "ARCHIVO"), destinatarioTipo };
+    queCompartoDemo = [r, ...queCompartoDemo];
+    return { compartidoId: r.compartidoId, estadoInvitacion: "ACTIVO" };
+  },
+  async cambiarNivel(id, nivel) {
+    await latencia();
+    queCompartoDemo = queCompartoDemo.map((r) => (r.compartidoId === id ? { ...r, nivelPermiso: nivel } : r));
+    return { compartidoId: id, nivelPermiso: nivel, advertencia: null };
+  },
+  async revocar(id) {
+    await latencia();
+    queCompartoDemo = queCompartoDemo.filter((r) => r.compartidoId !== id);
   },
 };
 

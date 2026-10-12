@@ -17,11 +17,11 @@ const valoresPorDefecto = {
   API_BASE: "/api",
 
   /**
-   * Shared File todavía no existe en el backend (igual que en el móvil:
-   * Configuracion.SHARED_FILE_DISPONIBLE = false). Mientras sea false, la
-   * pestaña Compartidos muestra datos de ejemplo y lo dice en pantalla.
+   * Shared File Service (node-shared-file, puerto 8085, VM node-repository),
+   * reenviado por node-web bajo /api/shared-file. En false, la pestaña
+   * Compartidos usa datos de ejemplo y lo dice en pantalla.
    */
-  SHARED_FILE_DISPONIBLE: false,
+  SHARED_FILE_DISPONIBLE: true,
 
   /** Tablero de Grafana (node-monitoreo). Se abre en una pestaña nueva. */
   URL_MONITOREO: "/monitoreo/",

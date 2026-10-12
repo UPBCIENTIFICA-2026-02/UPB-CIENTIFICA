@@ -12,6 +12,11 @@
       "descripcion": "Distributed Storage sobre el repositorio NFSv4 (node-repository)",
       "protocolo": "HTTP"
     },
+    "compartidos": {
+      "url": "http://node-repository:8085",
+      "descripcion": "Shared File Service (shared-file-svc), en la VM node-repository junto a Storage. El diagrama no le da puerto: 8085",
+      "protocolo": "HTTP"
+    },
     "medios": {
       "url": "http://node-media:8083",
       "descripcion": "Album de fotografias y streaming (node-media)",

@@ -2,5 +2,5 @@ Copia del front web generada por node-web/herramientas/traer-interfaz.js.
 NO editar aquí: los cambios se hacen en el repositorio del front y se vuelve a copiar.
 
 Origen:  C:\Users\sanab\OneDrive\Documentos\GitHub\FrontWebUPBCientifica
-Commit:  92106fa front-web (2026-10-10 21:20:58 -0500)  + cambios sin commitear
-Copiado: 2026-10-11T02:38:02.040Z
+Commit:  d140ccf unitos arreglos (2026-10-11 00:01:24 -0500)  + cambios sin commitear
+Copiado: 2026-10-12T00:32:35.735Z

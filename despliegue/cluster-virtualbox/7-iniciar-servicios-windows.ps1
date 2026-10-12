@@ -9,6 +9,7 @@
       auth-local       8081   Authentication (SOAP) de pruebas
       node-repository  8084   Distributed Storage
       node-media       8083   Photo Album + Streaming
+      node-shared-file 8085   Shared File (compartir archivos y carpetas)
       node-web         8080   Portal web (SPA)
 
   y deja apuntado el portal al job-api del cluster (hpc-master, 192.168.56.10:8082).
@@ -84,6 +85,14 @@ $servicios = @(
        # VM de produccion, que en este PC no resuelve.
        Env = @{ MODO_AUTENTICACION = $ModoAuth; URL_AUTH_SOAP = $urlAuth; NAMESPACE_AUTH = $nsAuth;
                 URL_STORAGE = 'http://127.0.0.1:8084' } },
+    # Shared File: en produccion va en la VM node-repository (shared-file-svc).
+    # MODO_DIRECTORIO=soap: comprueba que el usuario destinatario existe
+    # preguntando a auth-local (obtenerUsuario), aunque los tokens se validen
+    # en modo simulado. Asi un nombre mal escrito da SHR-003 y no se comparte.
+    @{ Nombre = 'node-shared-file'; Puerto = 8085; Dir = (Join-Path $raiz 'node-shared-file');
+       Cmd = 'npm start';
+       Env = @{ MODO_AUTENTICACION = $ModoAuth; URL_AUTH_SOAP = $urlAuth; NAMESPACE_AUTH = $nsAuth;
+                MODO_DIRECTORIO = 'soap'; URL_STORAGE = 'http://127.0.0.1:8084' } },
     @{ Nombre = 'node-web';        Puerto = 8080; Dir = (Join-Path $raiz 'node-web');
        Cmd = 'npm start';
        # node-web no tiene .env: sin estas variables usa rutas-servicio.json,
@@ -92,6 +101,7 @@ $servicios = @(
        Env = @{ PORT = '8080'; BIND = '0.0.0.0'; DIR_INTERFAZ = $dirInterfaz;
                 URL_IDENTIDAD = 'http://127.0.0.1:8081';
                 URL_ARCHIVOS  = 'http://127.0.0.1:8084';
+                URL_COMPARTIDOS = 'http://127.0.0.1:8085';
                 URL_MEDIOS    = 'http://127.0.0.1:8083';
                 URL_TRABAJOS  = $UrlTrabajos;
                 URL_MONITOREO = 'http://127.0.0.1:3000' } }
@@ -190,9 +200,9 @@ foreach ($s in $servicios) {
     }
 }
 
-# Storage y Media abren el puerto aunque la base de datos falle al arrancar?
+# Storage, Media y Shared File abren el puerto aunque la base de datos falle al arrancar?
 # No: aplican el esquema ANTES de escuchar. Si no abrieron, casi siempre es la BD.
-foreach ($s in $servicios | Where-Object { $_.Puerto -in 8083, 8084 }) {
+foreach ($s in $servicios | Where-Object { $_.Puerto -in 8083, 8084, 8085 }) {
     try {
         $h = Invoke-RestMethod -Uri "http://127.0.0.1:$($s.Puerto)/health" -TimeoutSec 5
         Write-Host ("  {0,-16} base de datos: {1}" -f $s.Nombre, $h.bd)

@@ -140,6 +140,59 @@ class MetadatosRepository {
         return Number(rows[0].total);
     }
 
+    // --- comparticiones (tabla accesos) ---
+
+    /**
+     * Accesos que pueden afectar a un nodo: los suyos y los de todos los
+     * directorios que lo contienen (CompartirDirectorio se hereda).
+     * La caducidad la evalúa el dominio, no esta consulta.
+     */
+    async accesosDeNodoYAntepasados(nodoId) {
+        const { rows } = await this.pool.query(
+        `WITH RECURSIVE cadena(id, padre) AS (
+            SELECT id, directorio_contenedor_id FROM nodos WHERE id = $1
+            UNION ALL
+            SELECT n.id, n.directorio_contenedor_id
+            FROM nodos n JOIN cadena c ON n.id = c.padre
+        )
+        SELECT a.* FROM accesos a JOIN cadena c ON a.nodo_id = c.id`,
+        [nodoId]
+        );
+        return rows;
+    }
+
+    /** Accesos propios (no heredados) de varios nodos a la vez: para filtrar un listado. */
+    async accesosDeNodos(nodoIds) {
+        if (nodoIds.length === 0) return [];
+        const { rows } = await this.pool.query(
+        "SELECT * FROM accesos WHERE nodo_id = ANY($1::uuid[])", [nodoIds]
+        );
+        return rows;
+    }
+
+    async guardarAcceso({ nodoId, destinatarioTipo, destinatarioId, nivel, expiraEn, otorgadoPor }) {
+        const { rows } = await this.pool.query(
+        `INSERT INTO accesos
+            (nodo_id, destinatario_tipo, destinatario_id, nivel, expira_en, otorgado_por)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (nodo_id, destinatario_tipo, destinatario_id)
+        DO UPDATE SET nivel = EXCLUDED.nivel, expira_en = EXCLUDED.expira_en,
+                      otorgado_por = EXCLUDED.otorgado_por, otorgado_en = now()
+        RETURNING *`,
+        [nodoId, destinatarioTipo, destinatarioId, nivel, expiraEn || null, otorgadoPor]
+        );
+        return rows[0];
+    }
+
+    async eliminarAcceso(nodoId, destinatarioTipo, destinatarioId) {
+        const { rowCount } = await this.pool.query(
+        `DELETE FROM accesos
+        WHERE nodo_id = $1 AND destinatario_tipo = $2 AND destinatario_id = $3`,
+        [nodoId, destinatarioTipo, destinatarioId]
+        );
+        return rowCount > 0;
+    }
+
     async listarVersiones(nodoId) {
         const { rows } = await this.pool.query(
         "SELECT * FROM versiones WHERE nodo_id = $1 ORDER BY version DESC",

@@ -1,7 +1,6 @@
 const path = require("path");
-const {
-    puedeLeer, puedeEscribir, PERMISOS_ARCHIVO_NUEVO, PERMISOS_DIRECTORIO_NUEVO,
-} = require("./permisos");
+const { PERMISOS_ARCHIVO_NUEVO, PERMISOS_DIRECTORIO_NUEVO } = require("./permisos");
+const { nivelEfectivo, alcanza, esNivelValido } = require("./accesos");
 const {
     NoEncontrado, PermisoDenegado, CuotaExcedida, SolicitudInvalida,
     RangoNoSatisfacible,
@@ -55,21 +54,57 @@ class ArchivoService {
         return nodo;
     }
 
+    /**
+     * Permiso efectivo del usuario sobre el nodo: bits Unix + comparticiones
+     * propias y heredadas de los directorios que lo contienen. Ver dominio/accesos.js.
+     */
+    async #nivel(nodo, usuario) {
+        if (nodo.propietario === usuario.id) return nivelEfectivo(nodo, usuario);
+        const accesos = await this.metadatos.accesosDeNodoYAntepasados(nodo.id);
+        return nivelEfectivo(nodo, usuario, accesos);
+    }
+
+    /**
+     * Exige un nivel mínimo. Si el usuario no tiene NINGÚN acceso se responde
+     * "no encontrado" y no "prohibido": así no se confirma a un extraño que
+     * existe un archivo con ese id.
+     */
+    async #exigir(nodo, usuario, minimo, accion) {
+        const nivel = await this.#nivel(nodo, usuario);
+        if (nivel === "NINGUNO") throw new NoEncontrado(`nodo ${nodo.id}`);
+        if (!alcanza(nivel, minimo)) throw new PermisoDenegado(accion);
+        return nivel;
+    }
+
     async listarDirectorio(directorioId, usuario) {
         if (directorioId === "root") {
         // Solo el Home del usuario: ver la nota de la cabecera de la clase.
+        // Todo lo que hay ahí es suyo, así que no hay nada que filtrar.
         const hijos = await this.metadatos.listarHijosRaiz(usuario.id);
-        return hijos.filter((n) => puedeLeer(n, usuario)).map((n) => this.#aDto(n));
+        return hijos.map((n) => this.#aDto(n));
         }
 
         const directorio = await this.#obtenerOFallar(directorioId);
         if (directorio.tipo !== "directorio") {
         throw new SolicitudInvalida("El identificador no corresponde a un directorio");
         }
-        if (!puedeLeer(directorio, usuario)) throw new PermisoDenegado("listar el directorio");
+
+        // Accesos del directorio y sus antepasados: valen para él y, heredados,
+        // para todo lo que contiene. Se piden una vez, no una por hijo.
+        const heredados = directorio.propietario === usuario.id
+        ? [] : await this.metadatos.accesosDeNodoYAntepasados(directorio.id);
+        const nivelDirectorio = nivelEfectivo(directorio, usuario, heredados);
+        if (nivelDirectorio === "NINGUNO") throw new NoEncontrado(`nodo ${directorioId}`);
 
         const hijos = await this.metadatos.listarHijos(directorioId);
-        return hijos.filter((n) => puedeLeer(n, usuario)).map((n) => this.#aDto(n));
+        const propios = await this.metadatos.accesosDeNodos(
+        hijos.filter((h) => h.propietario !== usuario.id).map((h) => h.id)
+        );
+        return hijos
+        .filter((h) => nivelEfectivo(h, usuario, [
+            ...heredados, ...propios.filter((a) => a.nodo_id === h.id),
+        ]) !== "NINGUNO")
+        .map((h) => this.#aDto(h));
     }
 
     async subirArchivo({ nombre, buffer, directorioDestino, sobrescribir }, usuario) {
@@ -85,9 +120,7 @@ class ArchivoService {
         if (contenedor.tipo !== "directorio") {
             throw new SolicitudInvalida("El destino no es un directorio");
         }
-        if (!puedeEscribir(contenedor, usuario)) {
-            throw new PermisoDenegado("escribir en el directorio destino");
-        }
+        await this.#exigir(contenedor, usuario, "LECTURA_ESCRITURA", "escribir en el directorio destino");
         }
 
         // --- Control de cuota (RF-04) ---
@@ -144,7 +177,7 @@ class ArchivoService {
     async descargarArchivo(archivoId, usuario, rango = null) {
         const nodo = await this.#obtenerOFallar(archivoId);
         if (nodo.tipo !== "archivo") throw new SolicitudInvalida("El recurso no es un archivo");
-        if (!puedeLeer(nodo, usuario)) throw new PermisoDenegado("descargar el archivo");
+        await this.#exigir(nodo, usuario, "LECTURA", "descargar el archivo");
 
         const total = Number(nodo.tamano_bytes);
 
@@ -193,7 +226,7 @@ class ArchivoService {
         if (nodo.tipo !== "archivo") {
         throw new SolicitudInvalida("El recurso no es un archivo");
         }
-        if (!puedeEscribir(nodo, usuario)) throw new PermisoDenegado("eliminar el archivo");
+        await this.#exigir(nodo, usuario, "LECTURA_ESCRITURA", "eliminar el archivo");
 
         await this.almacenamiento.eliminar(nodo.ruta_fisica);
         await this.metadatos.eliminar(archivoId);
@@ -208,9 +241,7 @@ class ArchivoService {
         if (padre.tipo !== "directorio") {
             throw new SolicitudInvalida("El padre no es un directorio");
         }
-        if (!puedeEscribir(padre, usuario)) {
-            throw new PermisoDenegado("crear en el directorio padre");
-        }
+        await this.#exigir(padre, usuario, "LECTURA_ESCRITURA", "crear en el directorio padre");
         }
 
         const nodo = await this.metadatos.crear({
@@ -219,6 +250,63 @@ class ArchivoService {
         tamanoBytes: 0, directorioContenedorId: contenedorId, rutaFisica: null,
         });
         return this.#aDto(nodo);
+    }
+
+    /**
+     * ObtenerMetadatos: un nodo y el permiso efectivo de quien pregunta.
+     * Lo usa Shared File para comprobar que el elemento existe y que el
+     * solicitante puede compartirlo, sin reimplementar la regla de permisos.
+     */
+    async obtenerNodo(nodoId, usuario) {
+        const nodo = await this.#obtenerOFallar(nodoId);
+        const nivel = await this.#nivel(nodo, usuario);
+        if (nivel === "NINGUNO") throw new NoEncontrado(`nodo ${nodoId}`);
+        return { ...this.#aDto(nodo), nivelEfectivo: nivel };
+    }
+
+    /**
+     * Aplica una compartición decidida por Shared File (paso 6 del contrato).
+     * Storage vuelve a comprobar que quien la pide tiene el nivel "compartir":
+     * el propietario, o alguien a quien se le dio LECTURA_ESCRITURA_COMPARTIR.
+     */
+    async otorgarAcceso(nodoId, { destinatarioTipo, destinatarioId, nivel, expiraEn }, usuario) {
+        if (!["USUARIO", "GRUPO"].includes(destinatarioTipo)) {
+        throw new SolicitudInvalida("destinatarioTipo debe ser USUARIO o GRUPO");
+        }
+        if (!destinatarioId) throw new SolicitudInvalida("Falta destinatarioId");
+        if (!esNivelValido(nivel)) {
+        throw new SolicitudInvalida("nivel debe ser LECTURA, LECTURA_ESCRITURA o LECTURA_ESCRITURA_COMPARTIR");
+        }
+        let expira = null;
+        if (expiraEn) {
+        expira = new Date(expiraEn);
+        if (Number.isNaN(expira.getTime())) throw new SolicitudInvalida("expiraEn no es una fecha válida");
+        if (expira <= new Date()) throw new SolicitudInvalida("expiraEn tiene que ser una fecha futura");
+        }
+
+        const nodo = await this.#obtenerOFallar(nodoId);
+        await this.#exigir(nodo, usuario, "LECTURA_ESCRITURA_COMPARTIR", "compartir este elemento");
+        if (destinatarioTipo === "USUARIO" && destinatarioId === nodo.propietario) {
+        throw new SolicitudInvalida("El destinatario ya es el propietario del elemento");
+        }
+
+        const acceso = await this.metadatos.guardarAcceso({
+        nodoId, destinatarioTipo, destinatarioId, nivel,
+        expiraEn: expira, otorgadoPor: usuario.id,
+        });
+        return {
+        nodoId: acceso.nodo_id, destinatarioTipo: acceso.destinatario_tipo,
+        destinatarioId: acceso.destinatario_id, nivel: acceso.nivel,
+        expiraEn: acceso.expira_en, otorgadoPor: acceso.otorgado_por,
+        };
+    }
+
+    /** Retira una compartición (DejarDeCompartir). Mismo requisito que otorgarla. */
+    async revocarAcceso(nodoId, destinatarioTipo, destinatarioId, usuario) {
+        const nodo = await this.#obtenerOFallar(nodoId);
+        await this.#exigir(nodo, usuario, "LECTURA_ESCRITURA_COMPARTIR", "dejar de compartir este elemento");
+        const habia = await this.metadatos.eliminarAcceso(nodoId, destinatarioTipo, destinatarioId);
+        if (!habia) throw new NoEncontrado(`acceso de ${destinatarioTipo} ${destinatarioId} sobre ${nodoId}`);
     }
 
     async consultarCuota(usuario) {

@@ -35,6 +35,7 @@ export const config = {
   nodos: {
     identidad: url('identidad'),
     archivos: url('archivos'),
+    compartidos: url('compartidos'),
     medios: url('medios'),
     trabajos: url('trabajos'),
     monitoreo: url('monitoreo')
