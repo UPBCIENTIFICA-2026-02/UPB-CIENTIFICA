@@ -81,15 +81,20 @@ estadoInvitacion, fechaCompartido, fechaExpiracion`.
 - **Grupos destinatarios no se validan**: `users.wsdl` no tiene una operación para
   comprobar que un grupo existe, y el contrato admite compartir con un grupo sin
   miembros (§8). Los usuarios sí se validan (`obtenerUsuario`).
-- **`homePath`** debería venir de Authentication, pero `obtenerPerfilUsuario` no
-  lo publica: se usa la convención `/srv/home/<uid>` (`PLANTILLA_HOME`), la misma
-  de node-sync.
+- **`homePath`** sale de Authentication: con `MODO_DIRECTORIO=soap`, de
+  `obtenerUsuario.homeDirectory` (atributo de LDAP). La convención
+  `/srv/home/<uid>` (`PLANTILLA_HOME`) queda como respaldo (modo simulado o una
+  entrada sin `homeDirectory`).
 - **`ObtenerPermisosEfectivos` solo para uno mismo**: calcularlo para otro usuario
   requiere sus grupos, y Authentication no los entrega a terceros.
 - **Eventos** (`ArchivoCompartido`, `ComparticionRevocada`): se escriben como una
-  línea JSON en el registro del servicio hasta que exista Monitoring.
-- **node-media no muestra lo compartido** en Fotos/Streaming del destinatario: su
-  catálogo copia solo los bits Unix. Se ve y se abre desde Compartidos.
+  línea JSON en el registro del servicio (no hay bus de eventos). La actividad
+  HTTP se ve en el monitoreo (`GET /metrics`).
+- **Lo compartido sale también en Fotos y Streaming** del destinatario: node-media
+  consulta `GET /shared-file/compartidos-conmigo` con el token del usuario al
+  refrescar su índice.
+- **Mapa de servicios:** en modo `soap` se exige `sharedfile` en el perfil
+  (`validarAccesoServicio`); si no, `403 SERVICIO_NO_AUTORIZADO`.
 
 ## Arrancar
 
@@ -112,7 +117,8 @@ src/
   middleware/                   autenticación y traducción de errores a HTTP
   rutas/compartidos.js          HTTP <-> dominio
   dominio/ComparticionService.js  reglas del contrato
-  dominio/errores.js            SHR-xxx
+  dominio/errores.js            SHR-xxx (+ SERVICIO_NO_AUTORIZADO)
+  metricas.js                   GET /metrics para Prometheus
   datos/ComparticionesRepository.js  tabla relaciones
   datos/StorageCliente.js       IAlmacenamiento (con el token del usuario)
   datos/DirectorioUsuarios.js   Strategy simulado / soap (obtenerUsuario)

@@ -32,13 +32,18 @@ antes**; se conservan porque explican qué estaba mal y por qué.
 | 2.1 | **Nuevas operaciones `iniciarSesion`, `validarToken` y `cerrarSesion`**, en el código y en el WSDL |
 | 2.2 | `roles` (el perfil) y `grupos` se devuelven por separado; el perfil sale de la lista **ordenada**, así que ya no depende del orden de LDAP |
 | 3.1–3.6 | `?? null` en los atributos, comprobación de `ldap_search` en `validarAccesoServicio`, mensaje de grupos corregido, `?? ""` en las entradas, `conectarLDAPAdmin()` extraído y `LDAP_OPT_REFERRALS = 0` |
+| D3 (2026-10-12) | `obtenerUsuario` devuelve **`homeDirectory`** (atributo de LDAP; elemento opcional en el WSDL). Shared File lo usa como `homePath` |
+| D2 (2026-10-12) | `validarAccesoServicio` no cambió, pero ahora **todos los servicios lo llaman** para exigir el mapa de servicios. Nombres que deben existir en `ou=services`: `storage`, `sharedfile`, `album`, `streaming`, `filesync`, `hpc` |
 
 **Lo que hace falta hacer EN LA VM** (los tres cambios llevan respaldo, así que
 el servicio sigue funcionando sin tocar nada, pero conviene hacerlos):
 
 1. Copiar a `/var/www/html/soap/` los archivos nuevos y modificados:
    **`sesion.php`** (nuevo, obligatorio), `user.php`, `users.wsdl`, `mfa.php`,
-   `mfa.wsdl`.
+   `mfa.wsdl`. **Lo hace `despliegue/node-soap/desplegar-node-soap.sh`**, que
+   además carga `despliegue/node-soap/directorio.ldif` (usuarios con
+   `homeDirectory`, grupos y el mapa de servicios en `ou=services`) y comprueba
+   que `estudiante` quede sin `hpc`.
 2. Añadir a `/etc/apache2/soap-config.php` las constantes
    `LDAP_SERVICE_BIND_PW`, `LDAP_HOST` y `AUTH_TOKEN_SECRET`. La plantilla está
    en `node-soap/back/soap-config.php.example`.
@@ -55,12 +60,14 @@ CONFIGURACIÓN DE LA VM <<<` en el archivo correspondiente, con el «antes» y e
   existe el token con el que exigirla, pero añadirlo cambia la firma de
   operaciones que el compañero puede estar usando, así que es una decisión suya.
 - **1.6** — los OTP siguen en `/tmp` con el código en claro.
-- **1.8** — sin límite de intentos.
+- **1.8** — sin límite de intentos en node-soap. (El portal sí limita: 5 fallos
+  en 15 min por usuario e IP → 429, en node-web.)
 - **4.1–4.3** — el `targetNamespace` sigue siendo la IP y sin versionar, a
   propósito: cambiarlo invalida los stubs de todos los clientes y hay que
   coordinarlo.
-- **4.4** — falta la carpeta `node-soap/despliegue/` con el `.ldif`, `slapd.conf`
-  y el *vhost*. Solo existe ya `soap-config.php.example`.
+- **4.4** — ya hay `.ldif` y script de despliegue en `despliegue/node-soap/`.
+  Siguen fuera del repo `slapd.conf` y el *vhost* de Apache (se asumen los de la
+  VM del equipo).
 - **4.5** — el archivo sigue llamándose `user.php` (no se renombró para no
   romper el despliegue).
 - **4.6** — sin verificar si el 8081 sirve TLS de verdad.

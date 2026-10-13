@@ -8,10 +8,15 @@ DTO de cada servicio — duplicarlos aquí solo sirve para que se desactualicen.
 |---|---|
 | Rutas que node-web expone al navegador | `FrontWebUPBCientifica/docs/PASARELA.md` |
 | Storage (`/storage/**`) | `docs/contratos/Contrato Storage.pdf` del monorepo |
-| Photo Album y Streaming (`/album/**`, `/streaming/**`) | `docs/contratos/Contrato Streaming.pdf` (falta el de Photo Album) |
+| Photo Album (`/album/**`) | `docs/contratos/Contrato PhotoAlbum.md` |
+| Streaming (`/streaming/**`) | `docs/contratos/Contrato Streaming.pdf` |
 | HPC (`/jobs/**`, `/cluster/**`) | `docs/contratos/Contrato HPC.pdf` |
-| Shared File (`/shared-file/**`) | `docs/contratos/Contrato SharedFile.pdf` — servicio sin implementar, node-web responde 501 |
-| Authentication (SOAP) | `docs/contratos/Contrato Auth.pdf` y `node-soap/soap/users.wsdl` |
+| Shared File (`/shared-file/**`) | `docs/contratos/Contrato SharedFile.pdf` (servicio `node-shared-file`, 8085) |
+| Monitoreo (`/monitoreo/**`) | Grafana de `node-monitoreo` (`node-monitoreo/README.md`) |
+| Authentication (SOAP) | `docs/contratos/Contrato Auth.pdf` y `node-soap/back/users.wsdl` |
+
+Los cambios de API que aún no están en los PDF:
+`docs/contratos/Adendas a los contratos.md`.
 
 ## Lo único que node-web traduce: la sesión
 
@@ -24,18 +29,17 @@ y `logout` de node-soap (namespace `http://192.168.1.195/soap`, endpoint
 | `token` | `token` |
 | `expiraEn` | `expiraEn` |
 | `roles` (separados por comas) | `roles` (arreglo) |
-| `serviciosAutorizados` (separados por comas) | `serviciosAutorizados` (arreglo) |
+| `mapaServiciosAutorizados` (separados por comas) | `serviciosAutorizados` (arreglo) |
 | sin `token` + `message` | 401 `{ error: "CREDENCIALES_INVALIDAS", mensaje }` |
 | node-soap no responde | 503 `{ error: "AUTH_NO_DISPONIBLE", mensaje }` |
+| 5 fallos en 15 min (usuario + IP) | 429 `{ error: "DEMASIADOS_INTENTOS", mensaje }` + `Retry-After` |
 
 ## Desacuerdos conocidos (no los resuelve node-web)
 
 1. **HPC.** El front envía `POST /jobs` con `{ nombre, rutaCodigoFuente,
    rutaDataset, numeroProcesos, prioridad }` y consulta `GET /cluster/estado`,
    como dice `Contrato_HPC`. El job-api de `RMIUPBCientifica` todavía exige
-   `{ nombre, comando, prioridad }` y no tiene `/cluster/estado` (responde 500
-   en vez de 404 a rutas desconocidas). Se arregla en job-api, no aquí.
-2. **Monitoreo.** node-monitoreo no existe; el front abre `/monitoreo/` y node-web
-   aún no lo publica.
-3. **Puertos.** El plan del diagrama es la referencia: 8081 identidad,
-   8082 trabajos, 8083 medios, 8084 archivos, 3000 monitoreo.
+   `{ nombre, comando, prioridad }` y no tiene `/cluster/estado` (responde 404).
+   Se arregla en job-api, no aquí.
+2. **Puertos.** El plan del diagrama es la referencia: 8081 identidad,
+   8082 trabajos, 8083 medios, 8084 archivos, 8085 compartidos, 3000 monitoreo.

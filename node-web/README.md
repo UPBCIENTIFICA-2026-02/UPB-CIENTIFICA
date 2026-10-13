@@ -14,9 +14,11 @@ Proyecto de aula, Sistemas Distribuidos 2026-20, UPB Bucaramanga.
 | `«file» rutas-servicio.json` | `rutas-servicio.json` |
 | `HTTPS :443` desde los clientes | Nginx (`despliegue/nginx-node-web.conf`) |
 | `SOAP/HTTPS :8081` → node-soap | `src/identidad.js` |
-| `HTTPS :8082` → node-rmi | `src/pasarela.js` |
+| `HTTPS :8082` → node-rmi | `src/pasarela.js` (hoy HTTP: job-api no sirve TLS) |
 | `HTTP :8083` → node-media | `src/pasarela.js` |
 | `HTTP :8084` → node-repository | `src/pasarela.js` |
+| `HTTP :8085` → shared-file-svc (VM node-repository) | `src/pasarela.js` |
+| `HTTP :3000` → node-monitoreo (Grafana) | `src/pasarela.js`, publicado en `/monitoreo/` |
 
 ## Qué hace y qué no hace
 
@@ -40,6 +42,22 @@ No hace, deliberadamente:
 - **No es la puerta de los clientes nativos.** La app móvil y el agente de
   escritorio hablan directamente con los servicios. Si esta máquina cae, solo se
   pierde el acceso por navegador.
+
+## Seguridad (análisis de vulnerabilidades, `docs/seguridad/` del monorepo)
+
+- **Cabeceras** en todas las respuestas (`src/seguridad.js`): CSP estricta
+  (`script-src 'self'` + hash del único script en línea de `index.html`, calculado
+  al arrancar), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`,
+  `Permissions-Policy`. No se aplican bajo `/monitoreo/` (Grafana trae las suyas).
+- **Nada oculto**: cualquier ruta con un segmento que empiece por `.` (`/.git`,
+  `/.env`) responde 404. Antes, sirviendo el front desde su repositorio, se podía
+  bajar `/.git/config`.
+- **Límite de intentos de login** (`src/limiteIntentos.js`): 5 fallos por usuario
+  e IP, o 20 por IP, en 15 minutos → `429 DEMASIADOS_INTENTOS` con `Retry-After`.
+- **Token en la URL** (`?access_token=` del `<video>`): se pasa a cabecera, se quita
+  antes de reenviar y se oculta en el registro.
+- `GET /metrics` (Prometheus, `src/metricas.js`): peticiones, errores y latencia.
+  Sin autenticación: en producción solo lo alcanza node-monitoreo.
 
 ## API
 
@@ -161,7 +179,10 @@ src/
   config.js             Lee el mapa y permite sobreescribirlo por entorno
   pasarela.js           Reenvío 1 a 1 hacia cada servicio
   identidad.js          Cliente SOAP hacia node-soap (login / logout)
-  rutas.js              POST y DELETE /api/sesion
+  rutas.js              POST y DELETE /api/sesion (con límite de intentos)
+  seguridad.js          CSP y demás cabeceras; 404 a rutas ocultas
+  limiteIntentos.js     Freno a la fuerza bruta en el login
+  metricas.js           GET /metrics para Prometheus
 public/                 Copia del front web (npm run interfaz). No editar aquí.
 despliegue/
   instalar.sh           Provisión de la VM
@@ -182,6 +203,4 @@ docs/
   `comando` y no tiene esa ruta. La pasarela reenvía igual, así que el arreglo
   es solo en job-api. Mientras, el formulario de envío del front no funciona;
   listar y cancelar sí.
-- **Monitoreo.** El front abre `/monitoreo/` en otra pestaña (su `URL_MONITOREO`);
-  node-web no lo sirve todavía porque node-monitoreo no existe.
 - **Certificado.** El script genera uno autofirmado; hay que reemplazarlo por el del CCA.

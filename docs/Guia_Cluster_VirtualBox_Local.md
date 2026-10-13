@@ -1,10 +1,14 @@
 # Clúster local en VirtualBox + servicios para probar las interfaces
 
 Guía paso a paso para montar en **tu propio PC** el clúster MPI de 3 nodos y los
-servicios del sistema, y probarlos desde las dos interfaces que ya existen: la
-**app móvil** (`FrontUPBCientifica`) y el **front web** (`FrontWebUPBCientifica`),
-que entrega `node-web` y que habla con los servicios a través de su pasarela
-`/api` (contrato en `FrontWebUPBCientifica/docs/PASARELA.md`).
+servicios del sistema, y probarlos desde las tres interfaces: la **app móvil**
+(`FrontUPBCientifica`), el **front web** (`FrontWebUPBCientifica`, que entrega
+`node-web` y habla con los servicios a través de su pasarela `/api`, contrato en
+`FrontWebUPBCientifica/docs/PASARELA.md`) y la **app de escritorio**
+(`FrontDesktopUPBCientifica`).
+
+> Última revisión: 2026-10-13. Incluye Shared File, File Sync en una VM Ubuntu,
+> el modo `soap` con mapa de servicios y el módulo de monitoreo.
 
 Los scripts están en [`despliegue/cluster-virtualbox/`](../despliegue/cluster-virtualbox/).
 Hacen automáticamente lo que la [guía del laboratorio](Guia_Cluster_HPC_UPB_CIENTIFICA.md)
@@ -17,26 +21,33 @@ paso de MPI, esa guía lo explica; esta te lleva de cero a funcionando.
 ## 0. Qué vas a montar
 
 ```
-                       TU PC (Windows)
- ┌──────────────────────────────────────────────────────────────┐
- │  PostgreSQL :5432                                            │
- │  auth-local :8081 ── node-repository :8084 ── node-media :8083│
- │                 \                    |                       │
- │                  └──── node-web :8080 (portal)               │
- │                                      |                       │
- │      red host-only 192.168.56.0/24   | HTTP :8082            │
- │  ┌───────────────────────────────────┼─────────────────────┐ │
- │  │ VirtualBox                        ▼                     │ │
- │  │  hpc-master  .10   job-api :8082 → gestor-cluster (RMI) │ │
- │  │      │  NFS /srv/home       mpirun ─┬──────────┐        │ │
- │  │  hpc-worker1 .11 ◄──────────────────┘          │        │ │
- │  │  hpc-worker2 .12 ◄─────────────────────────────┘        │ │
- │  └─────────────────────────────────────────────────────────┘ │
- └──────────────────────────────────────────────────────────────┘
+                         TU PC (Windows)
+ ┌────────────────────────────────────────────────────────────────────┐
+ │  PostgreSQL :5432                                                  │
+ │  auth-local :8081   node-repository :8084   node-shared-file :8085 │
+ │                     node-media :8083        node-web :8080 (portal)│
+ │  monitoreo (opcional): Grafana :3000  Prometheus :9095             │
+ │  (-HpcLocal) gestor-cluster RMI :2099 + job-api :8082              │
+ │                                                                    │
+ │  ┌ VirtualBox ───────────────────────────────────────────────────┐ │
+ │  │ UbuntuServer1 (NAT)  syncd :9090  ◄── 9090 reenviado del PC   │ │
+ │  │                                                               │ │
+ │  │ red host-only 192.168.56.0/24                                 │ │
+ │  │  hpc-master  .10   job-api :8082 → gestor-cluster (RMI)       │ │
+ │  │      │  NFS /srv/home       mpirun ─┬──────────┐              │ │
+ │  │  hpc-worker1 .11 ◄──────────────────┘          │              │ │
+ │  │  hpc-worker2 .12 ◄─────────────────────────────┘              │ │
+ │  └───────────────────────────────────────────────────────────────┘ │
+ └────────────────────────────────────────────────────────────────────┘
         ▲ Wi-Fi (192.168.20.31)
-        │ :8081 :8083 :8084
+        │ :8080 :8081 :8082 :8083 :8084 :8085 :9090
    📱 App móvil
 ```
+
+| VM | Para qué | Pasos |
+|---|---|---|
+| `hpc-master`, `hpc-worker1`, `hpc-worker2` | Clúster MPI (opcional si usas `-HpcLocal`) | 1 a 6 |
+| `UbuntuServer1` (o la que tengas) | File Sync (`syncd`) | 7.4 |
 
 | Máquina | IP host-only | RAM | Qué hace |
 |---|---|---|---|
@@ -71,20 +82,18 @@ profesor y actualizar esos dos documentos.
 
 | Interfaz | Funciona | Con qué servicio |
 |---|---|---|
-| App · Login | ✅ | auth-local |
-| App · Mis archivos | ✅ | node-repository |
-| App · Streaming | ✅ (sin duración ni miniatura si no tienes FFmpeg) | node-media |
-| App · HPC (enviar con comando, lista, detalle, cancelar) | ✅ (sin tarjeta de carga del clúster: `job-api` no tiene `/cluster/estado`) | job-api → gestor (clúster, o este PC con `-HpcLocal`) |
-| App · Compartidos conmigo | ⚠️ datos simulados | Shared File no existe |
-| App · Sincronización | ❌ | falta generar el cliente gRPC en la app |
-| Web · Mis archivos (subir, carpetas, descargar, borrar, cuota) | ✅ | node-repository |
-| Web · Fotos (álbumes, indexar, visor) | ✅ | node-media |
-| Web · Streaming (reproducción por rangos) | ✅ | node-media |
-| Web · HPC: lista y cancelar | ✅ | job-api → gestor → **clúster** |
-| Web · HPC: enviar desde el formulario | ❌ el front usa el contrato de `Contrato_HPC` (código fuente + dataset) y `job-api` todavía pide un comando; se envía por API (paso 9) | — |
-| Web · HPC: tarjeta del clúster | ❌ `job-api` no tiene `/cluster/estado` | — |
-| Web · Compartidos | ⚠️ datos simulados | Shared File no existe |
-| Web · Monitoreo | ❌ | node-monitoreo no existe |
+| Login (las tres) | ✅ | auth-local |
+| Mis archivos: subir, carpetas, ver, descargar, borrar, cuota (las tres) | ✅ | node-repository |
+| Compartidos: compartir, recompartir, ver lo compartido (las tres) | ✅ | node-shared-file → node-repository |
+| Fotos y Streaming: propio + compartido, orden, miniaturas, visor y reproductor dentro de la app (las tres) | ✅ | node-media (FFmpeg) |
+| Sincronización · móvil (carpeta del teléfono, al llegar al Wi-Fi del servidor, horario) | ✅ | node-sync (VM) → node-repository |
+| Sincronización · escritorio (carpeta del PC, manual / al conectar / cada hora / diaria) | ✅ | node-sync (VM) → node-repository |
+| HPC · app y escritorio (enviar con comando, lista, detalle, cancelar) | ✅ (sin tarjeta de carga: `job-api` no tiene `/cluster/estado`) | job-api → gestor (clúster, o este PC con `-HpcLocal`) |
+| HPC · web: lista y cancelar | ✅ | job-api → gestor |
+| HPC · web: enviar desde el formulario | ❌ el front usa `Contrato_HPC` (código fuente + dataset) y `job-api` todavía pide un comando; se envía por API (paso 9) | — |
+| HPC · web: tarjeta del clúster | ❌ `job-api` no tiene `/cluster/estado` | — |
+| Monitoreo (Grafana, desde el portal en `/monitoreo/`) | ✅ con `-Monitoreo` | node-monitoreo |
+| Mapa de servicios (`estudiante` sin HPC → 403) | ✅ con `-ModoAuth soap` | auth-local + cada servicio |
 
 ---
 
@@ -92,8 +101,9 @@ profesor y actualizar esos dos documentos.
 
 ### 1.1 Memoria
 
-Tu PC tiene **15.6 GB**. Las tres VMs usan 4 GB, y los servicios de Windows
-otros ~1 GB. Antes de arrancar:
+Tu PC tiene **15.6 GB**. Las tres VMs del clúster usan 4 GB, la VM de File Sync
+~1 GB, y los servicios de Windows otros ~1.5 GB (2 más con el monitoreo). Antes
+de arrancar:
 
 - Cierra Android Studio y el emulador si no los usas (usarás el celular físico).
 - **No arranques la VM `Debian` que ya tienes**: es Debian 13 y tiene asignados
@@ -129,7 +139,25 @@ Descarga **`debian-12.15.0-amd64-netinst.iso`** (unos 650 MB) en `Descargas`.
 > El proyecto fija Debian 12 / OpenMPI 4.1. No uses la 13: trae otra versión de
 > OpenMPI y la guía del laboratorio no coincidiría.
 
-### 1.4 Abrir la terminal
+### 1.4 Herramientas portables (`%USERPROFILE%\sdk`)
+
+No se instalan con instalador: se descomprimen en `C:\Users\<tú>\sdk` y los
+scripts las buscan ahí.
+
+| Carpeta | Qué | Para qué |
+|---|---|---|
+| `go` | Go 1.22 | Compilar node-sync (para Linux: ver 7.4) |
+| `protoc` | protoc 25 | Regenerar los stubs de `filesync.proto` |
+| `maven` | Maven 3.9 | Compilar `RMIUPBCientifica` |
+| `ffmpeg` | FFmpeg 8.1 | Miniaturas y duración en node-media |
+| `monitoreo` | Prometheus, Grafana, blackbox y windows_exporter | Módulo de monitoreo (`-Monitoreo`) |
+| `zap` | OWASP ZAP | Análisis de vulnerabilidades (`docs/seguridad/`) |
+
+> **El Control inteligente de aplicaciones de Windows bloquea los ejecutables de
+> Go recién compilados** (también `go run` y `go test`). Por eso node-sync no
+> corre en Windows sino en una VM Ubuntu (7.4). Las demás herramientas sí corren.
+
+### 1.5 Abrir la terminal
 
 Todos los comandos de Windows van en **PowerShell**, desde la carpeta de los
 scripts:
@@ -284,20 +312,17 @@ informe y la bitácora.
 
 ### 6.1 Compilar los `.jar` en Windows
 
-Maven viene con la extensión de Java de VS Code, y su ruta cambia con cada
-actualización. Esto lo encuentra:
+Con el Maven portable de la sección 1.4:
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Java\jdk-17'
-$mvn = Get-ChildItem "$env:USERPROFILE\.vscode\extensions\oracle.oracle-java-*\nbcode\java\maven\bin\mvn.cmd" |
-       Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
-
 cd ..\..\RMIUPBCientifica
-& $mvn -o -q -DskipTests package
+& "$env:USERPROFILE\sdk\maven\bin\mvn.cmd" -q -DskipTests package
 cd ..\despliegue\cluster-virtualbox
 ```
 
-Si falla por dependencias, quita el `-o` (descarga lo que falte).
+> Si `gestor-cluster` y `job-api` están corriendo en Windows (`-HpcLocal`),
+> deténlos antes: Windows no deja reemplazar un `.jar` en uso y `job-api.jar`
+> quedaría incompleto.
 
 ### 6.2 Copiar y desplegar
 
@@ -319,9 +344,10 @@ que termina habiendo corrido en los tres nodos.
   OK  REST -> RMI -> mpirun -> 3 nodos: el gestor está conectado al clúster
 ```
 
-> ⚠️ El gestor ejecuta **cualquier** comando que le mande un usuario autenticado,
-> como `mpiuser`, en el clúster. Es aceptable aquí; en producción es el pendiente
-> 7.3 de TRASPASO, que resuelve `job-runner.jar`.
+> ⚠️ El gestor ejecuta **cualquier** comando que le mande un usuario autenticado
+> (con `hpc` en su perfil), como `mpiuser`, en el clúster. Es aceptable aquí; en
+> producción es el pendiente 7.2 de TRASPASO (riesgo V-11 del análisis de
+> vulnerabilidades), que resuelve `job-runner.jar`.
 
 ---
 
@@ -343,8 +369,10 @@ Para que el celular llegue a los servicios, y las VMs a auth-local:
 
 ```powershell
 New-NetFirewallRule -DisplayName "UPB-CIENTIFICA pruebas locales" -Direction Inbound `
-  -Protocol TCP -LocalPort 8080,8081,8083,8084 -Action Allow -Profile Any
+  -Protocol TCP -LocalPort 8080,8081,8082,8083,8084,8085,9090 -Action Allow -Profile Any
 ```
+
+(8082 solo con `-HpcLocal`; 9090 es File Sync, reenviado a su VM.)
 
 `-Profile Any` importa: Windows clasifica la red host-only de VirtualBox como
 *pública*, y una regla solo para redes privadas no la cubriría.
@@ -365,10 +393,28 @@ que respondan:
   OK     auth-local       :8081
   OK     node-repository  :8084
   OK     node-media       :8083
+  OK     node-shared-file :8085
   OK     node-web         :8080
   node-repository  base de datos: ok
   node-media       base de datos: ok
+  node-shared-file base de datos: ok
+  node-sync (VM) :9090 reenviado; si no sincroniza, revisa que syncd este arrancado en la VM
   job-api del cluster (192.168.56.10:8082) alcanzable
+```
+
+Si algo falla, la ventana del script **no se cierra**: muestra el error y espera
+a que pulses Enter.
+
+| Opción | Qué añade |
+|---|---|
+| `-HpcLocal` | `gestor-cluster` (RMI 2099, métricas 9102) y `job-api` (8082) en Windows |
+| `-ModoAuth soap` | Los servicios validan cada token con auth-local **y exigen el mapa de servicios** (paso 10) |
+| `-Monitoreo` | Prometheus (9095), Grafana (3000) y los exportadores (`node-monitoreo/`) |
+
+La combinación habitual:
+
+```powershell
+.\7-iniciar-servicios-windows.ps1 -HpcLocal -ModoAuth soap -Monitoreo
 ```
 
 **HPC sin las VMs.** Con `-HpcLocal` el script arranca también `gestor-cluster`
@@ -382,11 +428,81 @@ del portal.
 ```
 
 > **Qué es `auth-local`.** Un Authentication Service de pruebas
-> ([`herramientas/auth-local.js`](../herramientas/auth-local.js)). Hace falta
-> porque ninguno de los dos simuladores que había servía para probar contra los
-> servicios reales: el `server.js` de la app solo habla `login`, y
-> `nodos-falsos.js` emite tokens que Storage y el gestor rechazan. Este habla los
-> dos contratos de `users.wsdl` en el mismo puerto y ruta que el node-soap real.
+> ([`herramientas/auth-local.js`](../herramientas/auth-local.js)) que imita
+> node-soap en el mismo puerto y ruta: login, validación de tokens,
+> `obtenerUsuario` (con `homeDirectory`) y `validarAccesoServicio` con el mismo
+> mapa de servicios que `despliegue/node-soap/directorio.ldif`.
+
+### 7.4 File Sync en una VM Ubuntu (una sola vez)
+
+Windows no deja ejecutar `syncd` (sección 1.4), así que corre en una VM Ubuntu
+con red **NAT**. VirtualBox reenvía el 9090 del PC a la VM, de modo que la app
+(`192.168.20.31:9090`) y el escritorio (`127.0.0.1:9090`) no cambian nada. Desde
+la VM, tu PC es `10.0.2.2`.
+
+**1. Compilar para Linux en Windows** (compilar sí está permitido):
+
+```powershell
+cd ..\..\node-sync
+$env:GOOS='linux'; $env:GOARCH='amd64'; $env:CGO_ENABLED='0'
+& "$env:USERPROFILE\sdk\go\bin\go.exe" build -o bin\syncd-linux-amd64 ./cmd/syncd
+Remove-Item env:GOOS, env:GOARCH, env:CGO_ENABLED
+cd ..\despliegue\cluster-virtualbox
+```
+
+**2. Configurar la VM** (apagada; cambia el nombre si tu VM se llama distinto):
+
+```powershell
+$vb = "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe"
+& $vb modifyvm "UbuntuServer1" --natpf1 "syncd,tcp,,9090,,9090"
+& $vb modifyvm "UbuntuServer1" --natpf1 "ssh,tcp,127.0.0.1,2223,,22"
+& $vb modifyvm "UbuntuServer1" --nat-localhostreachable1 on   # que 10.0.2.2 llegue a 127.0.0.1 del PC
+```
+
+Sin `--nat-localhostreachable1 on`, VirtualBox 7 no deja que la VM llegue a los
+servicios del PC por `10.0.2.2` (los `curl` de abajo salen vacíos).
+
+**3. En la VM:**
+
+```bash
+sudo apt update && sudo apt install -y openssh-server curl
+sudo mkdir -p /opt/syncd /var/lib/syncd && sudo chown $USER /opt/syncd /var/lib/syncd
+curl -s http://10.0.2.2:8084/health; echo     # debe responder Storage
+curl -s http://10.0.2.2:8081/                 # debe responder auth-local
+```
+
+**4. Copiar el binario (Windows) y dejarlo como servicio (VM):**
+
+```powershell
+scp -P 2223 ..\..\node-sync\bin\syncd-linux-amd64 <usuario>@127.0.0.1:/opt/syncd/syncd
+```
+
+```bash
+chmod +x /opt/syncd/syncd
+sudo tee /etc/systemd/system/syncd.service >/dev/null <<'EOF'
+[Unit]
+Description=UPB-CIENTIFICA node-sync (File Sync gRPC)
+After=network-online.target
+
+[Service]
+Environment=SYNC_ADDR=:9090
+Environment=SYNC_ALMACEN=storage
+Environment=SYNC_STORAGE_URL=http://10.0.2.2:8084/storage
+Environment=SYNC_AUTH_MODE=soap
+Environment=SYNC_AUTH_URL=http://10.0.2.2:8081/soap/user.php
+Environment=SYNC_REGISTRO=/var/lib/syncd/registro-sync.json
+ExecStart=/opt/syncd/syncd
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload && sudo systemctl enable --now syncd
+journalctl -u syncd -f
+```
+
+`SYNC_AUTH_MODE` tiene que coincidir con el `-ModoAuth` del script 7 (`soap` o
+`simulado`). Si cambias el código de node-sync: recompila (1) y repite la copia (4).
 
 ---
 
@@ -413,29 +529,23 @@ cd C:\Users\sanab\OneDrive\Documentos\GitHub\FrontUPBCientifica
 
 ### 8.2 Darle contenido
 
-La app solo **lista** archivos; no tiene botón de subir. Se sube por la API. El
-token se pide al portal con el **mismo usuario** con el que entrarás en la app
-(si no, los archivos serán de otro dueño y no los verás):
-
-```powershell
-$s = Invoke-RestMethod -Method Post http://localhost:8080/api/sesion `
-       -ContentType 'application/json' -Body '{"usuario":"user1","contrasena":"1234"}'
-$t = "Authorization: Bearer $($s.token)"
-
-curl.exe -X POST "http://localhost:8084/storage/archivos?directorioDestino=root" -H $t -F "archivo=@C:\ruta\a\documento.pdf"
-curl.exe -X POST "http://localhost:8084/storage/archivos?directorioDestino=root" -H $t -F "archivo=@C:\ruta\a\video.mp4"
-curl.exe -X POST "http://localhost:8084/storage/archivos?directorioDestino=root" -H $t -F "archivo=@C:\ruta\a\foto.jpg"
-
-# Media no se entera solo de lo que se sube: hay que indexar.
-curl.exe -X POST http://localhost:8083/album/indexar -H $t
-```
+Desde la propia app: **Mis archivos → +** sube archivos o carpetas del teléfono.
+Fotos y videos aparecen solos en Fotos y Streaming: node-media reindexa al abrir
+la primera página (como mucho una vez por minuto). El botón de buscar contenido
+nuevo lo fuerza al momento.
 
 ### 8.3 Qué comprobar en el celular
 
 Entra con `user1` / `1234`.
 
-- **Mis archivos**: aparecen los tres archivos con su tamaño real.
-- **Streaming**: aparece el video.
+- **Mis archivos**: subir, crear carpetas, abrir imágenes y videos en el visor.
+- **Compartidos**: comparte un archivo con `investigador` y entra con él en el
+  portal: lo verá en Compartidos, y si es foto o video, también en Fotos y
+  Streaming con "Compartido por user1".
+- **Streaming / Fotos**: ordenar (Recientes, Más vistos, Título) y miniaturas reales.
+- **Sincronización** (icono de nube arriba): elige una carpeta del teléfono;
+  queda respaldada en "Respaldo celular" de tu Home. Se sincroniza sola al
+  volver a conectar al Wi-Fi del PC, o en el horario que elijas.
 
 En la ventana de auth-local verás cada intento de login, y **si se rechaza, el
 motivo** (usuario inexistente, contraseña vacía, cuántos caracteres llegaron…).
@@ -450,9 +560,11 @@ botón de modo demostración, que usa datos de ejemplo). Es el front de
 si está clonado junto al monorepo, así que sus cambios se ven al recargar.
 
 Prueba **Mis archivos** (sube arrastrando, crea una carpeta, descarga, borra),
-**Fotos** (botón *Indexar* y luego los álbumes) y **Streaming** (el video se
-reproduce y se puede saltar en la línea de tiempo: eso son peticiones `Range`
-que atraviesan node-web → node-media → node-repository).
+**Compartidos**, **Fotos** (álbumes y orden; lo nuevo aparece solo) y
+**Streaming** (el video se reproduce y se puede saltar en la línea de tiempo:
+peticiones `Range` que atraviesan node-web → node-media → node-repository).
+Con `-Monitoreo`, el botón **Monitoreo** de Inicio abre Grafana en `/monitoreo/`
+(`admin` / `admin` la primera vez).
 
 ### HPC: lo que funciona y lo que no
 
@@ -490,13 +602,21 @@ Cada usuario solo ve sus propios trabajos: si entras con `user1`, no verás el d
 
 ---
 
-## Paso 10 (opcional) — Validación de tokens "de verdad"
+## Paso 10 — Validación de tokens y mapa de servicios "de verdad"
 
 Por defecto los servicios usan el validador **simulado**: aceptan cualquier
 token `mock-token-<uid>-…` sin preguntar a nadie. En modo **soap**, cada
-servicio le pregunta a auth-local por cada token, como hará con el node-soap
-real. Es más fiel y prueba el código de integración (`ValidadorSoap` de Storage,
-Media y el gestor).
+servicio le pregunta a auth-local por cada token **y si el perfil del usuario
+tiene ese servicio en su mapa** (`validarAccesoServicio`), como hará con el
+node-soap real.
+
+| Usuario | Perfil | Servicios |
+|---|---|---|
+| `user1`, `investigador` | investigadores | todos |
+| `estudiante` | estudiantes | todos menos `hpc`: el gestor le responde **403** |
+
+En modo soap solo valen los tokens que emite auth-local (iniciando sesión); un
+`mock-token-…` escrito a mano da 401.
 
 ```powershell
 # Windows: cierra las 4 ventanas de servicios y relanza
@@ -517,27 +637,30 @@ grupo inventado, `usuarios`.)
 ## El día a día: encender y apagar
 
 **Encender** (el maestro primero; los workers montan `/srv/home` solos cuando
-está disponible). El gestor y `job-api` arrancan solos con el maestro:
+está disponible). El gestor y `job-api` arrancan solos con el maestro; `syncd`
+arranca solo con su VM:
 
 ```powershell
 $vbm = 'C:\Program Files\Oracle\VirtualBox\VBoxManage.exe'
-'hpc-master', 'hpc-worker1', 'hpc-worker2' | ForEach-Object { & $vbm startvm $_ --type headless }
+'hpc-master', 'hpc-worker1', 'hpc-worker2', 'UbuntuServer1' | ForEach-Object { & $vbm startvm $_ --type headless }
 
 cd C:\Users\sanab\OneDrive\Documentos\GitHub\UPB-CIENTIFICA\despliegue\cluster-virtualbox
-.\7-iniciar-servicios-windows.ps1
+.\7-iniciar-servicios-windows.ps1 -ModoAuth soap -Monitoreo        # o -HpcLocal sin el clúster
 ```
 
 **Apagar** (los workers primero):
 
 ```powershell
-'hpc-worker2', 'hpc-worker1', 'hpc-master' | ForEach-Object { & $vbm controlvm $_ acpipowerbutton }
+'hpc-worker2', 'hpc-worker1', 'hpc-master', 'UbuntuServer1' | ForEach-Object { & $vbm controlvm $_ acpipowerbutton }
 ```
 
-Y cierra las ventanas de los servicios.
+Y cierra las ventanas de los servicios. El monitoreo corre oculto: deténlo con
+`Get-Process prometheus, grafana, blackbox_exporter, windows_exporter | Stop-Process`.
 
 > Los trabajos HPC se guardan **en memoria** del gestor: al apagar el maestro se
-> pierden (TRASPASO §7.5). Los archivos de Storage y del catálogo de Media sí
-> persisten en PostgreSQL.
+> pierden (TRASPASO §7.3). Los archivos de Storage, las comparticiones y el
+> catálogo de Media persisten en PostgreSQL; el histórico de métricas, en
+> `%USERPROFILE%\sdk\monitoreo\datos` (30 días).
 
 ---
 
@@ -554,6 +677,15 @@ Y cierra las ventanas de los servicios.
 | `mpirun` se cuelga sin mensaje | MPI usando la tarjeta NAT | Revisar `/etc/openmpi/openmpi-mca-params.conf` en los 3 nodos (paso 2) |
 | *There are not enough slots available* | `-np` mayor que los slots del hostfile | Usar `-np 6` o menos |
 | Script 7: *"puertos ocupados"* | `server.js`, `nodos-falsos.js` o una ejecución anterior | Cerrar esas ventanas |
+| Script 7 se cerraba sin decir nada | Versión anterior del script | Ahora muestra el error y espera a Enter |
+| `go run` / `syncd.exe`: *"Una directiva de Control de aplicaciones bloqueó este archivo"* | Control inteligente de aplicaciones de Windows | node-sync va en la VM (7.4) |
+| En la VM, `curl http://10.0.2.2:8084/health` sale vacío | VirtualBox 7 no reenvía a 127.0.0.1 del PC | `--nat-localhostreachable1 on` con la VM apagada (7.4) |
+| App / escritorio: la sincronización no conecta | `syncd` parado en la VM, o firewall del 9090 | `journalctl -u syncd` en la VM; paso 7.2 |
+| Un servicio responde 401 a un token `mock-token-…` | Modo `soap`: solo valen tokens de auth-local | Iniciar sesión, o arrancar sin `-ModoAuth soap` |
+| `403 SERVICIO_NO_AUTORIZADO` | El perfil no tiene ese servicio en su mapa | Es lo esperado para `estudiante` en HPC (paso 10) |
+| Portal: *"Demasiados intentos fallidos"* (429) | 5 contraseñas mal en 15 min para ese usuario | Esperar 15 min o reiniciar node-web |
+| `localhost:8080` muestra otra cosa | Otro programa (p. ej. ZAP) escucha en 127.0.0.1:8080 | Cerrarlo; ZAP con `-port 8099` |
+| Fotos o videos sin miniatura | Media arrancó sin FFmpeg | Script 7 lo busca en `%USERPROFILE%\sdk\ffmpeg`; reabrir node-media |
 | Storage o Media no abren su puerto | No existen las bases | Paso 7.1 |
 | Web · HPC: *"No hay respuesta de HPC (job-api)"* | Maestro apagado o `job-api` caído | `ssh hpc-master "systemctl status upbc-job-api"` |
 | Web · HPC al enviar: *"comando: El comando del trabajo es obligatorio"* | El formulario usa `Contrato_HPC` y `job-api` todavía no | Enviar por API (paso 9) |
@@ -580,17 +712,18 @@ Conviene tenerlo claro para no buscar errores donde no los hay:
   disco.** Storage guarda en `node-repository/almacen-pruebas` de Windows; el
   clúster usa `/srv/home` de `hpc-master`. Un trabajo no puede leer un archivo
   subido por la app. Unirlos es parte de lo que debe hacer `job-runner.jar`
-  (recibir los datos desde Storage) y de la decisión pendiente de TRASPASO §7.2.
+  (recibir los datos desde Storage; TRASPASO §7.1).
 - **El formulario HPC del front web no envía trabajos** hasta que `job-api`
   adopte el contrato de `Contrato_HPC` (código fuente + dataset + procesos) y
   exponga `/cluster/estado`. Por eso el paso 9 envía por API.
 - **La app móvil envía trabajos con un comando**, que es lo que acepta hoy
   `job-api`. Cuando `job-api` adopte `Contrato_HPC`, la app tendrá que cambiar
   su formulario igual que el portal.
-- **Shared File, Monitoreo y la sincronización de la app** no existen todavía.
-- **Sin FFmpeg** (no lo tienes instalado), Media indexa los videos sin duración
-  ni miniatura. Para tenerlas: `winget install Gyan.FFmpeg` y reabrir la
-  ventana de node-media.
-- **node-soap real**: aquí lo sustituye auth-local. Cuando tu compañero tenga la
-  VM de node-soap, el cambio es solo de dirección: en el script 7, `$urlAuth`;
-  en la app, `HOST_SOAP_LAB`.
+- **La programación de la sincronización del escritorio** solo corre con la app
+  abierta y la sesión iniciada (el token vive en memoria); no hay `fsagent`.
+- **node-soap real**: aquí lo sustituye auth-local. Para la VM del equipo:
+  `despliegue/node-soap/desplegar-node-soap.sh` (carga el LDIF con usuarios,
+  grupos y mapa de servicios). Luego el cambio es de dirección: en el script 7,
+  `$urlAuth`; en la app, `HOST_SOAP_LAB`; en la VM de sync, `SYNC_AUTH_URL`.
+- **Producción**: aquí todo es HTTP y los servicios escuchan en la red local
+  (riesgos V-12/V-13/V-14 de `docs/seguridad/analisis-vulnerabilidades.md`).

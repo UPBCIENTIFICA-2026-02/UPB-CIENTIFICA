@@ -3,6 +3,12 @@
 Guía paso a paso para montar el clúster MPI sobre las máquinas del Laboratorio,
 siguiendo el diagrama de despliegue del proyecto.
 
+> Para practicar en tu PC antes del laboratorio, los mismos pasos están
+> automatizados con VirtualBox en [`Guia_Cluster_VirtualBox_Local.md`](Guia_Cluster_VirtualBox_Local.md)
+> (3 nodos y scripts de `despliegue/cluster-virtualbox/`).
+>
+> Última revisión: 2026-10-13 (monitoreo de los nodos y estado del gestor).
+
 ---
 
 ## 0. Conceptos previos y qué vamos a montar
@@ -38,6 +44,7 @@ indicación del profesor.)
 - SSH puerto **22** — el maestro lanza procesos en los workers
 - MPI sobre **TCP** — los procesos se comunican entre sí durante la ejecución
 - NFSv4 puerto **2049** — montaje de `/srv/home` (viene de `node-repository`)
+- HTTP **9100** — `node_exporter` en cada nodo, leído por `node-monitoreo` (PASO 16)
 
 ### ⚠️ Un vacío del diagrama que hay que resolver antes de empezar
 
@@ -410,6 +417,9 @@ sudo ufw allow from 192.168.10.0/24 to any port 10000:11999 proto tcp
 sudo ufw allow from 192.168.10.0/24 to any port 2049 proto tcp
 ```
 
+El puerto **9100** (monitoreo) lo abre `instalar-exportador.sh` solo para la IP
+de `node-monitoreo` (PASO 16).
+
 ---
 
 ## PASO 9 — Prueba de humo: "Hola Mundo" en MPI
@@ -576,6 +586,16 @@ El clúster ya funciona a mano. El siguiente paso es que `job-runner.jar` (en
 `hpc-master`) haga lo mismo de forma programática cuando llegue un trabajo desde
 `node-rmi`.
 
+> **Estado actual (2026-10-13).** `job-runner.jar` todavía no existe. Mientras
+> tanto, el gestor del clúster (`RMIUPBCientifica/gestor-cluster`) se despliega
+> **en `hpc-master` como `mpiuser`** y ejecuta el comando de cada trabajo con
+> `bash -c`, así que un trabajo `mpirun --hostfile /srv/home/hostfile …` sí se
+> reparte entre los nodos (lo automatiza `despliegue/cluster-virtualbox/6-desplegar-gestor.sh`).
+> El gestor ya exige token válido y que el perfil tenga `hpc` en su mapa de
+> servicios, y cada usuario solo ve sus trabajos; aun así, ejecutar comandos
+> arbitrarios es un riesgo alto asumido (TRASPASO §7.2, V-11) que `job-runner.jar`
+> debe eliminar.
+
 Lo que ese `.jar` tendrá que hacer, en esencia:
 
 1. Recibir del HPC Service el código fuente y el dataset del usuario.
@@ -624,6 +644,8 @@ Marca cada punto antes de dar el clúster por terminado:
 - [ ] `suma.bin` da el resultado correcto (comunicación entre nodos validada)
 - [ ] Se probó y documentó qué pasa al caer un worker
 - [ ] `hpc-master` tiene OpenJDK 17 instalado
+- [ ] `node_exporter` responde en `:9100` en los 5 nodos y aparecen `up` en Prometheus (`/targets`)
+- [ ] El tablero de Grafana muestra CPU y memoria de los 5 nodos
 
 ---
 
@@ -653,9 +675,31 @@ Guarda como evidencia:
 4. Contenido del `hostfile`.
 5. Resultado de la prueba de caída de un worker (paso 11) y su interpretación.
 6. Captura de `df -h /srv/home` en varios nodos mostrando el montaje compartido.
+7. Captura del tablero de Grafana durante un trabajo: CPU de los nodos, cola y
+   tiempos de ejecución (evidencia del requisito de monitoreo del servicio HPC).
 
 Esto alimenta directamente las secciones **Metodología** y **Resultados** del
 informe, que están vacías, y sirve como avance verificable para la bitácora semanal.
+
+---
+
+## PASO 16 — Monitoreo de los nodos
+
+El requisito de monitoreo pide seguir el servicio HPC: ocupación de CPU, memoria
+y disco de cada nodo, además de la carga de trabajos y los tiempos de ejecución
+que ya publica el gestor (`:9102/metrics`).
+
+En **cada uno de los 5 nodos**, desde una copia del monorepo:
+
+```bash
+sudo ./node-monitoreo/instalar-exportador.sh <ip-de-node-monitoreo>
+curl -s localhost:9100/metrics | head -3
+```
+
+Instala `prometheus-node-exporter` (puerto 9100) y abre ese puerto solo para
+`node-monitoreo`. Los nodos ya están en `node-monitoreo/prometheus/prometheus.yml`
+(`hpc-master`, `hpc-worker1..4`); si sus nombres no resuelven desde
+`node-monitoreo`, añádelos a su `/etc/hosts`. Detalle en `node-monitoreo/README.md`.
 
 ---
 
@@ -670,3 +714,5 @@ informe, que están vacías, y sirve como avance verificable para la bitácora s
 4. **`trabajo.bin`:** el diagrama lo muestra como artefacto dentro de los workers.
    En realidad vive en `/srv/home` (compartido) y se ejecuta en los workers;
    conviene aclararlo o representarlo sobre el almacenamiento compartido.
+5. **Monitoreo:** el diagrama dibuja el 9100 desde "todas las VMs"; los nodos del
+   clúster también lo llevan, y el gestor publica además `:9102/metrics`.

@@ -64,8 +64,15 @@ class ServicioNoAutorizado extends ErrorDominio {
   }
 }
 
+/** Ya existe (p. ej. un álbum con el mismo nombre del mismo propietario). */
+class Conflicto extends ErrorDominio {
+  constructor(detalle) {
+    super(detalle, "CONFLICTO");
+  }
+}
+
 module.exports = {
   ErrorDominio, NoEncontrado, PermisoDenegado,
   NoAutenticado, SolicitudInvalida, FuenteNoDisponible,
-  ServicioAuthNoDisponible, ServicioNoAutorizado,
+  ServicioAuthNoDisponible, ServicioNoAutorizado, Conflicto,
 };

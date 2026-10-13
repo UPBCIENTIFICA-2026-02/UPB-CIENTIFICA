@@ -7,8 +7,9 @@ y acuerdos. Complementa a `CLAUDE.md` (que es el índice) y al código del repo.
 lee directamente. Aquí está lo que **no** se deduce del código: por qué se
 decidió cada cosa, qué se descartó, qué está roto a propósito y qué falta.
 
-Última actualización: tras la revisión de `node-sync` y `RMIUPBCientifica`, y la
-generación de `node-media`.
+Última actualización: 2026-10-13, tras cerrar la auditoría de requisitos
+(File Sync real, compartidos en álbum y streaming, mapa de servicios, respaldos
+GPG, análisis de vulnerabilidades, monitoreo y contrato de Photo Album).
 
 ---
 
@@ -22,8 +23,9 @@ fotos y streaming) más un servicio de ejecución de trabajos MPI sobre un clús
 
 Asignatura: Sistemas Distribuidos. Equipo de 6 personas. Sergio coordina.
 
-**Despliegue:** 7 VMs en el Centro de Computación Avanzada (CCA) + clúster HPC
-sobre máquinas del Laboratorio.
+**Despliegue:** VMs en el Centro de Computación Avanzada (CCA) + clúster HPC
+sobre máquinas del Laboratorio. En desarrollo, todo corre en el PC de Sergio
+(sección 3.6).
 
 ---
 
@@ -41,7 +43,7 @@ Servicios de grano grueso comunicados por contratos estables (WSDL, IDL RMI,
 - Razón: tecnologías heterogéneas obligatorias (PHP/SOAP, Java/RMI, Go/gRPC) y 5
   plataformas cliente. La interoperabilidad se logra por contrato.
 
-### 2.2 Los seis contratos cumplen SOA (verificado)
+### 2.2 Los contratos cumplen SOA (verificado)
 Se revisaron `Contrato_Auth`, `Contrato_Storage`, `Contrato_HPC`,
 `Contrato_SharedFile`, `Contrato_FileSync`, `Contrato_Streaming` buscando
 patrones de microservicios infiltrados. Resultado positivo:
@@ -57,97 +59,99 @@ patrones de microservicios infiltrados. Resultado positivo:
 - Ninguna mención a Docker, Kubernetes, API Gateway, service discovery ni
   escalado independiente por servicio.
 
-**Punto a vigilar:** Shared File menciona que Storage podría *"consultar a este
-servicio en tiempo real"* para validar permisos en cada operación; el propio
-contrato lo marca como posible cuello de botella. Si se implementa así, cachear.
+`Contrato PhotoAlbum.md` (nuevo) sigue la misma línea. Los cambios de API que no
+figuran en los PDF están en `docs/contratos/Adendas a los contratos.md`.
 
 ### 2.3 PostgreSQL como motor de base de datos
-Decisión de equipo. Cada servicio con BD propia:
-- `node-repository` → `metadatos_storage` (índice de archivos y versiones)
-- `node-media` → `catalogo_medios` (metadatos de fotos y videos)
+Cada servicio con BD propia (índices y relaciones, nunca bytes):
+- `node-repository` → `metadatos_storage` (archivos, versiones, carpetas, accesos)
+- `node-shared-file` → `comparticiones` (relaciones de compartición)
+- `node-media` → `catalogo_medios` (índice de fotos y videos, álbumes)
 
-Se descartó SQLite (era la propuesta inicial de Storage). La migración obligó a
-volver asíncrono todo el repositorio y el servicio de dominio, y permitió usar
-`SELECT ... FOR UPDATE` para evitar condiciones de carrera en el versionado.
-
-**Nota:** ninguna BD aparece en `node-repository` en el diagrama de despliegue.
-Hay que agregarla.
+Se descartó SQLite (era la propuesta inicial de Storage).
 
 ### 2.4 Cliente móvil: Kotlin nativo
 - Descartado React Native/Flutter: JavaScript y Dart no hablan RMI ni SOAP bien.
-- El móvil habla **directo** con cada servicio por su protocolo real, sin
-  gateway intermedio. El gateway del diagrama es solo para el cliente Web (un
-  navegador no puede hablar SOAP/RMI/gRPC nativamente).
-- Estado: StateFlow + ViewModel, sin librerías externas.
-- SOAP sobre OkHttp con XML manual (se descartó `ksoap2-android`: vive en
-  JitPack, no resolvía en Gradle, y está desactualizada).
+- El móvil habla **directo** con cada servicio por su protocolo real (SOAP,
+  REST, gRPC con `grpc-okhttp`), sin gateway. El gateway (node-web) es solo para
+  el navegador.
+- SOAP sobre OkHttp con XML manual (se descartó `ksoap2-android`).
 
 ### 2.5 node-media: dos fuentes de archivos tras una interfaz
-`FuenteMedios` tiene dos implementaciones seleccionables por `.env`:
-- `storage-api` (**por defecto**): consume la API REST de node-repository.
-  Respeta cuotas, permisos e índice. Un archivo subido por cualquier vía aparece.
-- `nfs`: lee directo de `/srv/home` como dibuja el diagrama. Menor latencia para
-  video, pero salta las reglas de Storage.
+`FuenteMedios`: `storage-api` (**por defecto**, respeta cuotas y permisos) o
+`nfs` (lee `/srv/home`, como dibuja el diagrama, pero salta las reglas de
+Storage). Se usa `storage-api`.
 
-Decisión pendiente del equipo; el código soporta ambas sin reescritura.
+### 2.6 File Sync persiste a través de Storage (antes 7.2, **decidido**)
+node-sync ya no escribe en el NFS: `StorageStore` sube, baja y borra por la API
+REST de Storage con el token del usuario. Lo sincronizado aparece en "Mis
+archivos", cuenta para la cuota, respeta permisos y queda versionado. Los hashes
+se cachean por (id de Storage, versión) en un JSON local de node-sync.
+`FSStore` (directo al disco) queda solo para pruebas (`-almacen=fs`).
+**Contradice el diagrama**, que dibuja node-sync → node-repository por NFSv4.
 
-### 2.6 Monorepo, una carpeta por servicio
-Cada servicio usa tecnología distinta, así que cada uno necesita su carpeta con
-su entorno y dependencias, dentro de un solo repositorio Git.
-Convención de ramas: `feature/<nombre-del-servicio>`.
+### 2.7 Autorización por mapa de servicios (D2)
+Además de validar el token, cada servicio pregunta a Authentication
+`validarAccesoServicio(usuario, servicio)` (cache 1 min) y responde 403 si el
+perfil no lo tiene. Nombres: `storage`, `sharedfile`, `album`, `streaming`,
+`filesync`, `hpc`. Perfil = primer grupo del usuario en orden alfabético.
+Solo en modo `soap`; en `simulado` todo está permitido.
+
+### 2.8 Monorepo, una carpeta por servicio
+Convención de ramas: `feature/<nombre-del-servicio>`. Los tres clientes viven en
+repositorios aparte: `FrontWebUPBCientifica`, `FrontUPBCientifica` (Android),
+`FrontDesktopUPBCientifica` (Python + CustomTkinter).
 
 ---
 
 ## 3. Datos técnicos
 
-### 3.1 Puertos (del diagrama de despliegue)
+### 3.1 Puertos
 
 | Origen → Destino | Protocolo / Puerto | Nota |
 |---|---|---|
-| Desktop PC → node-soap | SOAP / HTTPS **8081** | autenticación del agente |
-| node-web → node-soap | SOAP / HTTPS **8081** | login y perfiles |
-| Consumidores → node-web | HTTPS **443** | portal y SPA |
-| node-web → node-rmi | HTTPS **8082** | envío de trabajos |
-| node-rmi → hpc-master | RMI / JRMP **2099**, objetos remotos **2100** | |
-| node-rmi ↔ hpc-master | NFSv4 **2049** | montaje `/srv/home` |
-| hpc-master → hpc-worker | SSH **22** y MPI sobre TCP | |
-| node-web → node-repository | HTTP **8084** | |
+| Clientes → node-soap | SOAP / HTTPS **8081** | autenticación (en desarrollo: `auth-local`, HTTP) |
+| Consumidores → node-web | HTTPS **443** (Nginx) → **8080** | portal, SPA y pasarela `/api/*` |
+| node-web → node-rmi (job-api) | HTTP **8082** | el diagrama dice HTTPS |
+| job-api → gestor-cluster | RMI **2099** (Registry) / **2100** (objeto) | |
+| node-web → node-repository | HTTP **8084** | Storage |
+| node-web → node-shared-file | HTTP **8085** | Shared File (VM node-repository) |
 | node-web → node-media | HTTP **8083** | álbum / streaming |
-| node-sync → node-repository | NFSv4 **2049** | lectura / escritura |
-| node-repository → node-media | NFSv4 **2049** | lectura |
-| Desktop PC → node-sync | gRPC / TLS **9090** | sincronización programada |
-| Android → node-sync | gRPC / TLS **9090** | al detectar Wi-Fi local |
-| node-repository → node-soap | LDAPS **636** | |
-| Todas las VMs → node-monitoreo | HTTP **9100** | exporters |
-| node-monitoreo (Grafana) | HTTP **3000** | |
+| node-media → node-shared-file | HTTP **8085** | qué está compartido con el usuario |
+| node-sync → node-repository | HTTP **8084** | **antes NFS 2049**; ver 2.6 |
+| Desktop / Android → node-sync | gRPC **9090** | TLS en producción (`-tls-cert`) |
+| Servicios → node-soap | SOAP **8081** | `validarToken`, `validarAccesoServicio` |
+| node-soap → OpenLDAP | LDAPS **636** | |
+| node-monitoreo → servicios | HTTP `/metrics` | 8080, 8083, 8084, 8085; gestor **9102** |
+| node-monitoreo → todas las VMs | HTTP **9100** | node_exporter |
+| node-monitoreo (Grafana) | HTTP **3000** | también en el portal: `/monitoreo/` |
+| hpc-master → hpc-worker | SSH **22** y MPI/TCP | |
+| hpc-master ↔ workers | NFSv4 **2049** | `/srv/home` |
+
+Los desacuerdos del diagrama de antes (Registry 1099, job-api 8080, syncd 50051)
+**ya están resueltos** a 2099, 8082 y 9090. Queda que job-api va por HTTP.
 
 ### 3.2 Nodos y artefactos (diagrama de despliegue)
 
-**VM node-soap** — OpenLDAP 2.5 slapd (`slapd.conf`, `upb-cientifica.ldif`);
-Apache 2.4 + PHP 8 (`mfa.php`, `users.php`, `users.wsdl`)
+**VM node-soap** — OpenLDAP 2.5 slapd; Apache 2.4 + PHP 8 (`user.php`,
+`sesion.php`, `mfa.php`, `users.wsdl`). Despliegue: `despliegue/node-soap/`.
 
-**VM node-rmi** — Debian 12, JVM 17 (`gestor-cluster.jar`,
-`seguridad-rmi.policy`, `rmiregistry`, `job-api.jar`)
+**VM node-rmi** — JVM 17 (`gestor-cluster.jar`, `seguridad-rmi.policy`,
+`job-api.jar`).
 
-**VM node-web** — Node.js 20 (`rutas-servicio.json`, `spa-ui.js`,
-`servidor-web.js`)
+**VM node-web** — Node.js 20 + Nginx (`servidor-web.js`, `rutas-servicio.json`).
 
 **VM node-repository** — Debian 12, NFSv4, GnuPG 2.4 (`upbc-respaldo.pub`,
-`cuotas.conf`, `/srv/home`, `shared-file-svc`, `respaldo-gpg.sh`)
+`cuotas.conf`, `/srv/home`, `shared-file-svc`, `respaldo-gpg.sh`).
 
-**VM node-sync** — Go 1.22 (`syncd`, `filesync.proto`)
+**VM node-sync** — Go 1.22 (`syncd`, `filesync.proto`).
 
-**VM node-media** — Debian 12, FFmpeg 6, PostgreSQL 15 (`album-svc`,
-`streaming-svc`, BD `catalogo-medios`)
+**VM node-media** — Debian 12, FFmpeg, PostgreSQL 15.
 
-**VM node-monitoreo** — Debian 12 (`grafana-server`, `prometheus`)
+**VM node-monitoreo** — Debian 12 (`prometheus`, `grafana-server`,
+`blackbox_exporter`). Instalación: `node-monitoreo/instalar-node-monitoreo.sh`.
 
-**Clúster HPC (Laboratorio)** — `hpc-master`: Debian 12, OpenMPI 4.1, OpenJDK 17
-(`hostfile`, `job-runner.jar`). `hpc-worker [1..N]`: Debian 12, OpenMPI 4.1
-(`libmpi.so`, `trabajo.bin`)
-
-**Consumidores** — Android Mobile (`credencial.local`, `upbc-movil.apk`);
-Desktop PC (`sync-perfil.conf`, `credencial.local`, `fsagent`, navegador)
+**Clúster HPC** — `hpc-master` + 4 `hpc-worker`, Debian 12, OpenMPI 4.1.
 
 ### 3.3 Interfaces del diagrama de componentes
 - Servicios del Producto: Shared File (`IArchivos`), Photo Album (`IAlbum`),
@@ -159,79 +163,81 @@ Desktop PC (`sync-perfil.conf`, `credencial.local`, `fsagent`, navegador)
   (`IEjecución`), Directorio de Usuarios (`IPerfiles`)
 - Clientes: Interfaz Web SPA, Agente de Escritorio, App Móvil
 
-### 3.4 Endpoints que el cliente móvil espera
+### 3.4 APIs
 
-**Auth (SOAP)**: `login(usuario, contrasena, origenCliente)` → `token`, `roles`,
-`mapaServiciosAutorizados`; `validarToken(token)` → `valido`; `logout(token)`.
-El contrato añade `registrarUsuario`, `obtenerPerfil`, `obtenerRoles`,
-`obtenerPermisos`.
+La referencia son los contratos (`docs/contratos/*.pdf`, `Contrato PhotoAlbum.md`)
+más las **adendas** (`docs/contratos/Adendas a los contratos.md`). Resumen:
 
-**Storage (REST)**
+**Auth (SOAP, `users.wsdl`)** — `iniciarSesion`/`login` → `token`, `uid`,
+`roles`, `grupos`, `mapaServiciosAutorizados`; `validarToken` → `valido`, `uid`,
+`roles`, `grupos`; `cerrarSesion`/`logout`; `obtenerUsuario` (con
+`homeDirectory`); `validarAccesoServicio(usuario, servicio)`.
+
+**Storage (REST, 8084)**
 ```
-GET    /storage/directorios/{id}
-POST   /storage/archivos            (multipart; query: directorioDestino, sobrescribir)
-GET    /storage/archivos/{id}/descargar
+GET    /storage/directorios/{id}             ("root" = Home del usuario)
+POST   /storage/directorios
+POST   /storage/archivos                     (multipart; directorioDestino, sobrescribir)
+GET    /storage/archivos/{id}/descargar      (Range, Content-Type)
 DELETE /storage/archivos/{id}
 GET    /storage/cuota
-```
-`ArchivoDto`: `id`, `nombre`, `tipo`, `tamanoBytes`, `version`,
-`directorioContenedorId`.
-
-**Shared File (REST)** — `node-shared-file/`, puerto 8085, VM node-repository.
-Detalle completo en `node-shared-file/README.md`.
-```
-POST   /shared-file/compartir                 CompartirArchivo
-POST   /shared-file/compartir-directorio      CompartirDirectorio
-PATCH  /shared-file/compartir/{id}            ActualizarPermisosCompartidos
-DELETE /shared-file/compartir/{id}            DejarDeCompartir
-GET    /shared-file/compartidos-conmigo       ListarCompartidosConmigo
-GET    /shared-file/que-yo-comparto           ListarQueYoComparto
-GET    /shared-file/permisos-efectivos/{id}   ObtenerPermisosEfectivos
-GET    /shared-file/home, /home/contenido, /cuota
-```
-
-**Storage, añadido para Shared File** (las comparticiones las APLICA Storage):
-```
-GET    /storage/nodos/{id}                          metadatos + nivelEfectivo de quien pregunta
-PUT    /storage/nodos/{id}/accesos                  { destinatarioTipo, destinatarioId, nivel, expiraEn? }
+GET    /storage/nodos/{id}                   metadatos + nivelEfectivo
+PUT    /storage/nodos/{id}/accesos           { destinatarioTipo, destinatarioId, nivel, expiraEn? }
 DELETE /storage/nodos/{id}/accesos/{tipo}/{destinatario}
 ```
-Permiso efectivo = bits Unix + comparticiones propias y heredadas de carpetas,
-prevalece el más permisivo (`node-repository/src/dominio/accesos.js`). Desde
-2026-10-11 todo nace privado (`rw-------`): antes el grupo común "usuarios"
-podía leerlo todo.
+Permiso efectivo = bits Unix + accesos propios y heredados; gana el más
+permisivo. Todo nace privado (`rw-------`).
 
-**Streaming (REST)**
-```
-GET /streaming/catalogo?pagina=N
-GET /streaming/buscar?criterioTexto=...
-GET /streaming/{id}/sesion
-```
+**Shared File (REST, 8085)** — ver `node-shared-file/README.md`.
 
-**Photo Album (REST, propuesto — contrato formal aún sin redactar)**
+**Photo Album (REST, 8083)** — `Contrato PhotoAlbum.md`. Incluye lo compartido
+con el usuario y `ordenPor=RECIENTES|ALFABETICO`.
+
+**Streaming (REST, 8083)**
 ```
-GET    /album/fotos?pagina=N
-GET    /album/fotos/buscar?criterioTexto=...
-GET    /album/fotos/{id}
-GET    /album/fotos/{id}/miniatura
-GET    /album/fotos/{id}/contenido
-POST   /album/indexar
-GET    /album/albumes
-POST   /album/albumes
-GET    /album/albumes/{id}
-POST   /album/albumes/{id}/fotos
-DELETE /album/albumes/{id}/fotos/{medioId}
-DELETE /album/albumes/{id}
+GET    /streaming/catalogo?pagina=N&ordenPor=RECIENTES|MAS_VISTOS|ALFABETICO
+GET    /streaming/buscar?criterioTexto=...
+GET    /streaming/{id}/sesion
+GET    /streaming/{id}/contenido          (Range)
+GET    /streaming/{id}/miniatura
+DELETE /streaming/{id}
 ```
 
-### 3.5 Tokens de desarrollo
-Formato del mock: `mock-token-<uid>-abc123`. Usuarios de prueba:
-`user1 / 1234`, `investigador / test`. Mock de Auth en Node.js, puerto 8080.
+**File Sync (gRPC 9090)** — `IniciarSync`, `SubirArchivo`, `DescargarArchivo`,
+`EliminarArchivo`, `EstadoSync` (`node-sync/proto/filesync/filesync.proto`).
 
-### 3.6 Entorno de desarrollo
-Windows, JDK 21, Android Studio instalado (solo para SDK y emulador), edición en
-VSCode. Gradle wrapper 8.6. Emulador ve el PC como `10.0.2.2`; celular físico
-necesita la IP Wi-Fi real (no las virtuales `192.168.56.x` de VirtualBox).
+**HPC (REST 8082 → RMI)** — `POST/GET /jobs`, `GET /jobs/{id}`,
+`GET /jobs/{id}/estado`, `DELETE /jobs/{id}`.
+
+### 3.5 Autenticación en desarrollo
+`herramientas/auth-local.js` (puerto 8081, ruta `/soap/user.php`) imita node-soap:
+login, validación, `obtenerUsuario` con `homeDirectory`, `validarAccesoServicio`
+con el mismo mapa que `despliegue/node-soap/directorio.ldif`.
+
+| Usuario | Clave | Perfil | Servicios |
+|---|---|---|---|
+| user1 | 1234 | investigadores | todos |
+| investigador | test | investigadores | todos |
+| estudiante | test | estudiantes | todos menos `hpc` |
+
+Tokens: `mock-token-<uid>-<hex>`. Cada servicio elige modo con
+`MODO_AUTENTICACION` (Node), `SYNC_AUTH_MODE` (Go), `AUTH_MODE` (Java):
+- `simulado`: acepta cualquier `mock-token-<uid>-...`, sin mapa de servicios.
+- `soap`: pregunta a Auth; solo valen tokens emitidos por él, y exige el mapa.
+
+### 3.6 Entorno de desarrollo (PC de Sergio)
+- Windows 11, JDK 21, Node 25, Python 3.11, PostgreSQL 18, Android SDK,
+  Gradle 9.7 (wrapper del móvil).
+- Herramientas portables en `%USERPROFILE%\sdk`: Go 1.22, protoc 25, Maven 3.9,
+  FFmpeg 8.1, OWASP ZAP 2.17 y `monitoreo\` (Prometheus, Grafana, exportadores).
+- **El Control inteligente de aplicaciones de Windows bloquea los ejecutables de
+  Go recién compilados** (incluido `go run` y `go test`). Por eso node-sync corre
+  en una VM Ubuntu de VirtualBox (`UbuntuServer1`, red NAT, reenvío de 9090 y
+  `--nat-localhostreachable1 on`); se compila en Windows con
+  `GOOS=linux go build` y se copia por `scp -P 2223`.
+- `despliegue/cluster-virtualbox/7-iniciar-servicios-windows.ps1` arranca todo
+  (`-HpcLocal`, `-ModoAuth soap`, `-Monitoreo`). Ver `docs/Guia_Cluster_VirtualBox_Local.md`.
+- Celular físico: IP Wi-Fi real del PC (no las `192.168.56.x`). Emulador: `10.0.2.2`.
 
 ---
 
@@ -247,14 +253,11 @@ necesita la IP Wi-Fi real (no las virtuales `192.168.56.x` de VirtualBox).
 - Cronograma del roadmap: 16 semanas, hito MVP al final de la semana 10.
 
 ### 4.2 Del profesor (comunicada en clase)
-- **Mínimo 4 nodos worker** en el clúster. El roadmap decía "2-3 nodos" para el
-  MVP: queda anulado. Total: 5 máquinas (1 maestro + 4 workers).
+- **Mínimo 4 nodos worker** en el clúster. Total: 5 máquinas (1 maestro + 4 workers).
 
 ---
 
 ## 5. Reparto de trabajo (del roadmap)
-
-Seis desarrolladores individuales. Se descartó una propuesta previa de 3 parejas.
 
 | Integrante | Responsabilidad | Depende de |
 |---|---|---|
@@ -265,143 +268,122 @@ Seis desarrolladores individuales. Se descartó una propuesta previa de 3 pareja
 | Dev E | Photo Album + Streaming | Contrato de Storage |
 | Dev F | Monitoring + Clientes + pruebas de integración | Contratos de todos |
 
-*No confirmado* si el reparto real del equipo coincide con esta tabla ni qué rol
-ocupa Sergio.
+*No confirmado* si el reparto real coincide con esta tabla.
 
 **Autores del informe:** Andrés Felipe Pinzón Camacho, Sergio Alejandro Sanabria
 Moreno, Angie Lorena Villareal Vásquez, Valentina Téllez Salazar, Fernando
-Cancelado Figueroa, Daniel Felipe Aguilar Latorre. (Angie elaboró la propuesta de
-arquitectura y el roadmap.)
+Cancelado Figueroa, Daniel Felipe Aguilar Latorre.
 
 ---
 
-## 6. Estado por servicio
+## 6. Estado por servicio y por requisito
 
 | Servicio | Estado |
 |---|---|
-| `node-repository` | ✅ funcionando (PostgreSQL, cuotas, permisos, versionado) |
-| `node-sync` | ✅ funcionando (gRPC/TLS, interceptor de auth) |
-| `node-web` | ✅ funcionando |
-| `RMIUPBCientifica` | ⚠️ gestor de trabajos OK; sin MPI real ni autenticación |
-| `node-media` | 🔨 código generado, sin probar en integración |
-| Cliente móvil Android | ⚠️ compila y corre contra mock; pantallas con datos simulados |
-| **Authentication (node-soap)** | ❌ **no existe** |
-| Monitoreo | ❌ no existe |
+| `node-repository` (Storage) | ✅ cuotas, permisos Unix + accesos, versionado, `/metrics`, respaldo GPG |
+| `node-shared-file` | ✅ compartir archivos y carpetas, con caducidad; Home desde el directorio |
+| `node-media` (Album + Streaming) | ✅ propio + compartido, orden, miniaturas y duración (FFmpeg), refresco automático del índice |
+| `node-sync` | ✅ gRPC por Storage, conflictos (MANTENER_AMBOS), borrados en ambos sentidos. En desarrollo corre en VM |
+| `node-web` | ✅ pasarela, CSP, límite de intentos de login, `/monitoreo/` |
+| `RMIUPBCientifica` | ⚠️ token + mapa de servicios, trabajos por usuario, métricas; **sin MPI real** |
+| `node-soap` (Auth) | ⚠️ código listo (SOAP + LDAP + MFA + `homeDirectory`); se despliega en la VM del equipo con `despliegue/node-soap/` |
+| `node-monitoreo` | ✅ Prometheus + Grafana + alertas (probado en el PC); falta la VM |
+| Cliente web | ✅ todos los servicios reales |
+| Cliente Android | ✅ todos los servicios reales; File Sync por Wi-Fi del servidor y horario |
+| Cliente escritorio | ✅ todos los servicios reales; File Sync con horario (mientras la app está abierta) |
 | `job-runner.jar` / MPI real | ❌ no existe |
-| Shared File | ✅ `node-shared-file/` (8085), proceso aparte en la VM node-repository, como `shared-file-svc` en el diagrama |
-| `fsagent` | ❌ no existe |
-| `respaldo-gpg.sh` | ❌ no existe |
+| `fsagent` (agente de escritorio aparte) | ❌ la sincronización la hace la app de escritorio |
+
+| Requisito | Estado |
+|---|---|
+| File Sync (copia síncrona, horario, Wi-Fi del móvil) | ✅ |
+| Shared File (permisos, Home común) | ✅ |
+| Photo Album / Streaming (Home, ordenar, usuarios autorizados) | ✅ |
+| API entre partes | ✅ contratos + adendas + Photo Album |
+| Perfiles en directorio (auth, autorización, mapa, árbol) | ⚠️ código listo; falta desplegar node-soap con OpenLDAP |
+| GPG en respaldos | ✅ `node-repository/respaldo/` |
+| Análisis de vulnerabilidades | ✅ `docs/seguridad/analisis-vulnerabilidades.md` (repetir en producción) |
+| Token / MFA | ✅ token en todos; MFA en node-soap (`mfa.php`) |
+| Monitoreo | ✅ `node-monitoreo/` |
+| Clúster HPC con MPI | ❌ ver 7.1 |
 
 ---
 
 ## 7. Pendientes críticos
 
-### 7.1 No existe Authentication Service
-Los tres servicios activos usan validadores simulados (`ValidadorToken.js` en
-Storage y node-media, `interceptor.go` en sync); RMI no valida nada. Todo el
-sistema está apoyado en tokens `mock-token-*`.
+### 7.1 No hay integración con el clúster MPI
+`gestor-cluster` ejecuta los trabajos con `ProcessBuilder(SHELL, "-c", comando)`
+en su propia máquina; `NUM_WORKERS = 3` son hilos locales. Falta `job-runner.jar`,
+lanzar con `mpirun` sobre el `hostfile` del clúster y devolver los resultados a
+Storage. **Es el núcleo del MVP.**
 
-Cuando llegue el servicio real, `validarToken` debe devolver **uid, roles y
-grupos**. Los grupos son imprescindibles: el modelo de permisos Unix de Storage
-evalúa el segmento "grupo" y hoy el mock se los inventa.
+### 7.2 El gestor ejecuta comandos con `bash -c`
+Ya exige token válido y que el perfil tenga `hpc`, y cada usuario solo ve sus
+trabajos. Pero ejecuta lo que el usuario mande en la máquina del gestor, que
+monta `/srv/home`. Contradice `Contrato_HPC` (habla de *código fuente y
+datasets*). Riesgo **Alto** asumido en el análisis de vulnerabilidades (V-11):
+ejecutar en el clúster con un usuario sin privilegios.
 
-### 7.2 node-sync escribe por NFS, saltándose Storage
-Con node-repository sirviendo, hay dos servicios escribiendo en `/srv/home` sin
-conocerse. Consecuencias: se saltan cuotas y permisos, y **un archivo subido por
-sync no existe para Storage**, así que Photo Album no lo verá.
-
-Opciones: (A) sync consume la API REST de Storage — la interfaz `Store` ya lo
-permite, basta un `StorageAPIStore`; (B) Storage reindexa periódicamente.
-Recomendada la A. **Sin decidir.**
-
-Detalle de diseño para la opción A: `Version`, `BumpVersion`, `LastSync` y
-`Touch` de la interfaz `Store` son estado de sincronización, no de
-almacenamiento; deben quedarse en PostgreSQL local de sync. Conviene separar la
-interfaz en `FileStore` y `SyncStateStore`.
-
-### 7.3 El gestor RMI ejecuta shell arbitrario sin autenticar
-`ProcessBuilder("bash", "-c", job.getComando())` con el comando enviado por el
-cliente, y sin auth en RMI ni en REST. Cualquiera con acceso al puerto ejecuta lo
-que quiera, y esa VM monta `/srv/home`. Contradice `Contrato_HPC`, que habla de
-*código fuente y datasets*, no de comandos.
-
-Además `listJobs` devuelve los trabajos de todos los usuarios.
-
-### 7.4 No hay integración con el clúster MPI
-`gestor-cluster` no menciona `mpirun`, `hostfile`, `hpc-master` ni `/srv/home`.
-Los `NUM_WORKERS = 3` son hilos locales de una VM. **El MVP del proyecto no está
-cubierto.** Falta `job-runner.jar`, la conexión RMI real con `hpc-master` y el
-retorno de resultados a Storage.
-
-### 7.5 Estado del gestor RMI solo en memoria
+### 7.3 Estado del gestor solo en memoria
 `ConcurrentHashMap`: al reiniciar se pierden trabajos encolados, históricos y
-resultados. Un trabajo HPC puede durar horas. Rompe el histórico de RF-12.
+resultados.
 
-### 7.6 Faltan contratos
-No existen `Contrato_PhotoAlbum` ni `Contrato_Monitoring`, aunque ambos servicios
-aparecen en los dos diagramas.
+### 7.4 node-soap sin desplegar
+El código está; falta montarlo en la VM del equipo con
+`despliegue/node-soap/desplegar-node-soap.sh` y pasar los servicios a
+`MODO_AUTENTICACION=soap` contra ella. Sin esto, en producción no hay directorio
+activo real.
 
 ---
 
 ## 8. Pendientes importantes
 
 **RMI**
-- Los resultados no llegan a Storage (se guardan como `String` en memoria).
-- `leerSalida` acumula sin límite → `OutOfMemoryError` tumba todo el servicio.
-  Debe ir a `/srv/home/trabajos/<id>/stdout.log`.
-- Sin timeout de ejecución: un trabajo colgado ocupa un worker para siempre.
-- Race en cancelación: `procesosActivos.put()` ocurre tras `pb.start()`; un
-  `cancelJob` en esa ventana marca CANCELLED pero el proceso sigue vivo.
-- Falta `getClusterStatus` (el contrato incluye `ObtenerEstadoCluster`).
+- Los resultados se guardan como `String` en memoria; `leerSalida` acumula sin
+  límite (un trabajo con mucha salida puede tumbar el gestor).
+- Sin timeout de ejecución.
+- Race en cancelación: `procesosActivos.put()` ocurre tras `pb.start()`.
+- Falta `ObtenerEstadoCluster` (node-web reenvía `/api/cluster`, job-api no la tiene).
 
 **sync**
-- Resolución de conflictos: gana siempre el cliente, el segundo dispositivo pisa
-  el trabajo del primero sin avisar. El roadmap lo marca como *decisión difícil
-  de revertir*.
-- `.sync-meta.json` no atómico, global y dentro del export NFS. Migrar a
-  PostgreSQL (el propio código lo tiene como TODO).
-- Campo `dispositivo` recibido pero no usado: el estado es por uid, no por
-  dispositivo.
-- Sin límite de tamaño de archivo; TLS solo advierte en vez de exigir.
+- Sin sesiones (`sesionId`), RegistrarDispositivo, ResolverConflicto interactivo
+  ni historial (ver adendas D).
+- El registro de versión y caché de hashes es un JSON local (`./estado/`); migrar a PostgreSQL.
+- La programación del escritorio solo corre con la app abierta (el token vive en memoria).
 
-**node-media**
-- La indexación es bajo demanda (`POST /album/indexar`); no hay eventos desde
-  Storage. Definir si la dispara el cliente o un cron.
+**node-media / Streaming**
+- Sin RegistrarVisualizacion ni historial; "más vistos" cuenta sesiones iniciadas.
+- El índice se refresca recorriendo el Home (como mucho una vez por minuto);
+  con Homes grandes convendría que Storage notifique altas y bajas.
 
 **Storage**
-- Falta la capa de replicación/metadatos que le atribuía la propuesta de
-  arquitectura. Hoy escribe en un solo lugar: es el SPOF que el propio análisis
-  de riesgos identificó.
-- Falta `respaldo-gpg.sh` (RNF-01). Necesita que el equipo defina la política.
+- Escribe en un solo lugar: es el SPOF que el análisis de riesgos identificó.
+- Los respaldos cifrados quedan en la misma VM: copiarlos fuera (ver
+  `node-repository/respaldo/README.md`). Falta definir quién custodia la llave privada.
 
 **Transversal**
-- Ningún servicio expone `/metrics` para Prometheus, aunque el diagrama dice que
-  todas las VMs exponen exporter en 9100.
-- Tráfico interno sin cifrar en 8083, 8084, 2049, 9100, 3000 y RMI 2099. RNF-02
-  exige documentar el riesgo asumido.
-
-**Puertos en desacuerdo con el diagrama**
-
-| Elemento | Código | Diagrama |
-|---|---|---|
-| RMI Registry | 1099 | 2099 |
-| job-api | 8080 HTTP | 8082 HTTPS |
-| syncd | 50051 | 9090 |
+- Tráfico interno sin cifrar (HTTP entre servicios, RMI, NFS): riesgo asumido V-14.
+- En el PC de desarrollo PostgreSQL y los servicios internos escuchan en la red
+  local (V-12, V-13); en producción, cortafuegos por VM.
 
 ---
 
 ## 9. Correcciones pendientes en los diagramas
 
 1. **Montaje NFS incompleto**: solo llega a `hpc-master`; MPI necesita que
-   **todos** los workers vean `/srv/home` o `mpirun` falla.
-2. **Faltan conexiones del móvil**: Android aparece solo con gRPC, pero ya hace
-   login SOAP y consume REST.
-3. **Storage sin base de datos**: agregar PostgreSQL a `node-repository`.
-4. **Mínimo de nodos**: actualizar de 2-3 a 4 workers.
+   **todos** los workers vean `/srv/home`.
+2. **Faltan conexiones del móvil**: Android aparece solo con gRPC, pero también
+   habla SOAP y REST.
+3. **Storage sin base de datos**: agregar PostgreSQL a `node-repository` (y a node-shared-file).
+4. **Mínimo de nodos**: 4 workers.
 5. **El Scheduler no aparece** en ningún diagrama.
 6. **Typos**: "Servicos de Aplicación", "Service implementaion".
 7. **Agrupación**: File Sync y MPI Jobs son servicios del producto según la
    Figura 1, pero aparecen en Servicios de Aplicación; Monitoreo al revés.
+8. **node-sync → node-repository** es HTTP/REST 8084, no NFS (decisión 2.6).
+9. **node-media → node-shared-file** (8085) no aparece.
+10. **Monitoreo**: los servicios exponen `/metrics` y el gestor `:9102`, además
+    del 9100 de cada VM; Grafana también se sirve por el portal (`/monitoreo/`).
 
 ---
 
@@ -416,43 +398,31 @@ aparecen en los dos diagramas.
 | RMI → Shared File | RMI → **clúster / trabajos MPI** |
 | gRPC → trabajos MPI | gRPC → **File Sync** |
 
-Afecta: el párrafo de "Protocolos de comunicación", la sección de RMI/CORBA, la
-de streaming adaptativo, y los objetivos específicos 3 y 4.
-
 **Falta el objetivo específico del núcleo**: ninguno plantea *desarrollar* el
 servicio HPC/MPI, solo documentarlo.
 
 ### 10.2 Importantes
-- Seis secciones vacías: Introducción, Marco conceptual, Metodología,
-  **Resultados**, Cronograma, Discusión y conclusiones.
-- Plantilla Springer sin limpiar: abstract y keywords genéricos, afiliación de
-  Heidelberg, secciones de ejemplo ("A Subsection Sample", Tabla 1, ecuación),
-  referencias placeholder.
-- Estilo de citación autor-año donde LNCS pide corchetes numerados.
-- Las ~15 fuentes citadas en el estado del arte no están en la lista de
-  referencias.
-- La sección de tolerancia a fallos dice que el proyecto "no detalla mecanismos
-  de replicación" — ya no es cierto — y menciona "el syllabus del curso", lo que
-  rompe el registro académico.
+- Secciones vacías: Introducción, Marco conceptual, Metodología, **Resultados**,
+  Cronograma, Discusión y conclusiones. Para Resultados sirven las pruebas
+  documentadas en los README y en `docs/seguridad/`.
+- Plantilla Springer sin limpiar; estilo de citación autor-año donde LNCS pide
+  corchetes numerados; fuentes citadas que no están en las referencias.
+- La sección de tolerancia a fallos menciona "el syllabus del curso".
 
 ### 10.3 Terminología
-Es **un clúster de 5 nodos**, nunca "5 clústeres". Los nodos son las máquinas;
-el clúster es el conjunto.
+Es **un clúster de 5 nodos**, nunca "5 clústeres".
 
 ---
 
 ## 11. Próximos pasos
 
-1. **Llevar al equipo la decisión de 7.2** (NFS vs API de Storage). Bloquea a
-   Photo Album y afecta a Storage y sync.
-2. **Zanjar los puertos** antes de que queden escritos en más clientes.
-3. **Redactar `Contrato_PhotoAlbum`**, tomando como base los endpoints del
-   punto 3.4.
-4. **Cerrar autenticación en RMI y quitar el shell arbitrario** (7.3).
-5. **Montar el clúster de 5 nodos** y empezar `job-runner.jar` (7.4) — es lo más
-   riesgoso técnicamente según el roadmap y lo que más trabajo queda.
-6. **Corregir el informe**, empezando por las tres atribuciones de protocolo.
-7. Probar node-media en integración con node-repository real.
+1. **Desplegar node-soap** en la VM del equipo (7.4) y pasar los servicios a `soap`.
+2. **Montar el clúster de 5 nodos y `job-runner.jar`** (7.1), y con ello quitar
+   el `bash -c` del gestor (7.2). Es lo más riesgoso y lo que más trabajo queda.
+3. Montar las VMs de producción (node-sync, node-monitoreo…) y **repetir el
+   análisis de vulnerabilidades en producción** (sección 5 del informe).
+4. Pasar a PDF las adendas de los contratos y corregir los diagramas (sección 9).
+5. **Corregir el informe**, empezando por las tres atribuciones de protocolo.
 
 ---
 
@@ -461,10 +431,11 @@ el clúster es el conjunto.
 - Español en nombres y comentarios.
 - Capas: `rutas/` (solo traduce protocolo ↔ dominio) → `dominio/` (reglas puras,
   sin HTTP/SQL/FS) → `datos/` (Repository) → `auth/` (Strategy).
-- Composition root único en `index.js` / `Main.java`.
+- Composition root único en `index.js` / `Main.java` / `main.go`.
 - Errores de dominio propios, traducidos a HTTP en un solo middleware.
 - El `uid` sale siempre del token validado, nunca del cuerpo del mensaje.
+- En SOA no se comparte código, se comparte contrato: módulos como
+  `ValidadorToken.js` o `metricas.js` son copias deliberadas en cada servicio.
+- Cambios en la VM de node-soap: dejar comentario **ANTES / AHORA** en el código.
 - Los repositorios de datos simulados usan un flag `usarDatosSimulados` para
   alternar a backend real sin tocar UI ni ViewModels.
-- Cada `Repository` lleva un comentario `>>> NOTA PARA EL PROGRAMADOR DEL
-  SERVIDOR <<<` con los endpoints que espera del servicio correspondiente.

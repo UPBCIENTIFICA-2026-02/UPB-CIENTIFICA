@@ -108,7 +108,8 @@ módulos.
 |---|---|---|
 | `2099` | `gestor-cluster` (Registry embebido) | Descubrimiento: resuelve el nombre `"JobService"` a un stub. No ejecuta lógica de negocio. |
 | `2100` | `gestor-cluster` (objeto remoto exportado) | Todas las invocaciones reales de método (`submitJob`, `getJob`, etc.) pasan por aquí. |
-| `8082` | `job-api` | HTTP REST hacia el nodo web / cliente externo. |
+| `8082` | `job-api` | HTTP REST hacia el nodo web / cliente externo (el diagrama dice HTTPS: pendiente). |
+| `9102` | `gestor-cluster` | `GET /metrics` para Prometheus (monitoreo): trabajos por estado, cola, tiempos de ejecución y de espera. Configurable con `METRICAS_PUERTO`. |
 
 ## 7. Cómo compilar
 
@@ -161,6 +162,11 @@ la forma `mock-token-<uid>-...`; el `<uid>` es el usuario al que se le atribuyen
 los trabajos. En producción hay que arrancar `gestor-cluster` con
 `AUTH_MODE=soap` y usar un token real emitido por `node-soap`.
 
+En modo `soap` el gestor exige además que el perfil del usuario tenga **`hpc`**
+en su mapa de servicios (`validarAccesoServicio` de node-soap, cacheado 1 min).
+Si no lo tiene, job-api responde **403** "Tu perfil no tiene acceso al servicio
+"hpc"" (p. ej. el usuario `estudiante` de auth-local).
+
 ```bash
 TOKEN="mock-token-jperez-demo"
 
@@ -197,8 +203,16 @@ curl -i http://localhost:8082/jobs
 | `GET` | `/jobs` | `listJobs` | `200` | — |
 | `DELETE` | `/jobs/{id}` | `cancelJob` | `200` | `404`, `409` |
 
-Todos los endpoints pueden además devolver `503` (gestor-cluster no
-disponible) o `500` (error interno inesperado).
+Todos los endpoints pueden además devolver `401` (sin token o inválido), `403`
+(perfil sin `hpc`), `503` (gestor-cluster o Auth no disponible) o `500` (error
+interno inesperado; el detalle queda solo en el registro del servidor). Una ruta
+inexistente responde `404 "Ruta no encontrada"` (antes respondía 500 con detalle
+interno).
+
+**Pendiente con el contrato:** `Contrato_HPC` envía `{ nombre, rutaCodigoFuente,
+rutaDataset, numeroProcesos, prioridad }` y define `ObtenerEstadoCluster`
+(`GET /cluster/estado`); job-api todavía pide `{ nombre, comando, prioridad }` y
+no tiene esa ruta. Ver `docs/TRASPASO.md` §7–8 del monorepo.
 
 ## 11. Flujo completo de una solicitud
 
@@ -225,6 +239,8 @@ disponible) o `500` (error interno inesperado).
 | `BindException: Address already in use` en `gestor-cluster` | Ya hay una instancia corriendo | Detén la instancia previa (`Ctrl+C` o `kill`) |
 | `404` inesperado al consultar un trabajo recién creado | Typo en el `id` copiado del `POST` | Verifica el campo `id` de la respuesta de creación |
 | `409` al cancelar | El trabajo ya terminó (`COMPLETED`/`FAILED`/`CANCELLED`) | Es el comportamiento esperado: no se puede cancelar un trabajo ya finalizado |
+| `403` en todo para un usuario | Modo `soap` y su perfil no tiene `hpc` | Es lo esperado; darle el servicio en `ou=services` de LDAP |
+| `job-api.jar` queda de ~17 KB tras `mvn package` | Se compiló con job-api corriendo (Windows no deja reemplazar el `.jar`) | Detener job-api y volver a compilar |
 
 ## 13. Solución de problemas
 

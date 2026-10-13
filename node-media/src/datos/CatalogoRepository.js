@@ -1,5 +1,15 @@
 const { v4: uuid } = require("uuid");
 const fsp = require("fs/promises");
+const { Conflicto } = require("../dominio/errores");
+
+/*
+ * Los ids de medios y álbumes son UUID. ANTES un id mal formado ("abc") llegaba
+ * a PostgreSQL, que lo rechazaba (22P02), y el cliente recibía 500. AHORA se
+ * trata como lo que es: algo que no existe (404). No se distingue de un id
+ * válido inexistente, para no revelar qué ids hay.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const esUuid = (v) => typeof v === "string" && UUID.test(v);
 
 /**
  * Predicado SQL equivalente a `puedeLeer()` de dominio/permisos.js.
@@ -69,6 +79,7 @@ class CatalogoRepository {
    * grupo no era accesible aunque Storage sí lo permitiera.
    */
   async buscarPorId(id, usuario) {
+    if (!esUuid(id)) return null;
     const { rows } = await this.pool.query(
       `SELECT * FROM medios
        WHERE id = $1 AND ${sqlVisible(2, 3)}`,
@@ -210,15 +221,22 @@ class CatalogoRepository {
   }
 
   async crearAlbum(propietario, nombre, descripcion) {
-    const { rows } = await this.pool.query(
-      `INSERT INTO albumes (id, propietario, nombre, descripcion)
-       VALUES ($1,$2,$3,$4) RETURNING *`,
-      [uuid(), propietario, nombre, descripcion || null]
-    );
-    return rows[0];
+    try {
+      const { rows } = await this.pool.query(
+        `INSERT INTO albumes (id, propietario, nombre, descripcion)
+         VALUES ($1,$2,$3,$4) RETURNING *`,
+        [uuid(), propietario, nombre, descripcion || null]
+      );
+      return rows[0];
+    } catch (e) {
+      // UNIQUE (propietario, nombre). ANTES: 500 ERROR_INTERNO. AHORA: 409.
+      if (e.code === "23505") throw new Conflicto(`Ya tienes un álbum llamado "${nombre}"`);
+      throw e;
+    }
   }
 
   async buscarAlbum(albumId, propietario) {
+    if (!esUuid(albumId)) return null;
     const { rows } = await this.pool.query(
       "SELECT * FROM albumes WHERE id = $1 AND propietario = $2",
       [albumId, propietario]
@@ -254,6 +272,7 @@ class CatalogoRepository {
   }
 
   async quitarDeAlbum(albumId, medioId) {
+    if (!esUuid(albumId) || !esUuid(medioId)) return false;
     const { rowCount } = await this.pool.query(
       "DELETE FROM album_medios WHERE album_id = $1 AND medio_id = $2",
       [albumId, medioId]
@@ -262,6 +281,7 @@ class CatalogoRepository {
   }
 
   async eliminarAlbum(albumId, propietario) {
+    if (!esUuid(albumId)) return false;
     const { rowCount } = await this.pool.query(
       "DELETE FROM albumes WHERE id = $1 AND propietario = $2",
       [albumId, propietario]
