@@ -759,7 +759,7 @@ antes de 1.1 porque no se puede exigir un token que todavía no se emite.
 - [ ] 4.2 — Versionar el WSDL como exige `Contrato_Auth`
 - [ ] 4.3 — Namespace propio para MFA, o unificar los dos WSDL
 - [ ] 4.4 — Crear `node-soap/despliegue/` con `.ldif`, `slapd.conf`, `soap-config.php.example`, *vhost* e `instalar.sh`
-- [ ] 4.5 — Decidir `user.php` vs `users.php` y alinear diagrama, WSDL y archivo
+- [x] 4.5 — Se mantiene `user.php`; el diagrama de despliegue v2 ya lo nombra así (con `sesion.php` y `mfa.php`)
 
 ---
 

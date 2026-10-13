@@ -49,4 +49,6 @@ VirtualBox: [`docs/Guia_Cluster_VirtualBox_Local.md`](docs/Guia_Cluster_VirtualB
 | [`docs/Guia_Cluster_VirtualBox_Local.md`](docs/Guia_Cluster_VirtualBox_Local.md) | Entorno completo en un PC |
 | [`docs/CORRECCIONES-node-soap.md`](docs/CORRECCIONES-node-soap.md) | Cambios del Authentication Service y qué hacer en su VM |
 | [`despliegue/`](despliegue/) | Scripts del clúster local y de la VM node-soap |
-| [`docs/arquitectura/`](docs/arquitectura/) | Diagramas de componentes y despliegue |
+| [`docs/arquitectura/`](docs/arquitectura/) | Documento de arquitectura v2 (`.docx` editable + `.pdf`) con la trazabilidad de los requisitos del enunciado, y diagramas de componentes y despliegue ([fuentes PlantUML](docs/arquitectura/fuentes/README.md)) |
+| `docs/Especificacion de requerimientos.docx` | Requerimientos RF-01..RF-26, alineados con el enunciado |
+| `docs/Informe.docx` (+ `.pdf`) | Artículo del proyecto; el `.docx` es la fuente editable |

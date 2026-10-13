@@ -117,3 +117,20 @@ Perfil = primer grupo del usuario en orden alfabético (como ya hacía `user.php
 ## I. Contrato nuevo
 
 - **Photo Album:** `Contrato PhotoAlbum.md` (no existía).
+
+## J. Alineación con los requisitos mínimos del enunciado
+
+Puntos en que los PDF se quedan cortos o contradicen el enunciado. Prevalece el
+enunciado; los PDF no se pueden editar (son imágenes), así que la corrección
+queda aquí.
+
+| Contrato | El PDF dice | El enunciado exige | Corrección | Estado |
+|---|---|---|---|---|
+| File Sync | Consumidores: escritorio "principalmente"; "móviles de forma opcional" | El móvil **debe** sincronizar al alcanzar la Wi-Fi de la red local del servidor; los portátiles al conectarse a la red interna, por cable o Wi-Fi | Escritorio (Windows/Linux) y móvil (Android o iOS) son consumidores obligatorios; `modo_disparo = AUTOMATICO_AL_CONECTAR` cubre ambos casos | Cumplido |
+| File Sync | — | "Mantener una versión del recurso en los servidores… cualquier cambio en uno de los recursos del cliente debe reflejarse en todas las copias" | Sincronización de tres vías (adenda D) | Cumplido |
+| Shared File | `nivelPermiso` "estilo Unix simplificado" | Compartir "respetando el código Unix de permisos de archivos y directorios" | Los niveles se aplican **sobre** los bits Unix de Storage (`rwxrwxrwx`, propietario/grupo/otros). Falta la operación `CambiarPermisosUnix` (el propietario fija el modo, p. ej. `rw-r-----` o `640`) y que la `x` de los directorios controle el recorrido | Parcial |
+| Photo Album | — (contrato nuevo) | "Buscar, clasificar y compartir imágenes tanto interna como externamente" | Interno: Shared File. Externo: `CrearEnlacePublico(fotoId, expiracion)` → enlace de solo lectura con caducidad, revocable, que no exige cuenta | Externo pendiente |
+| Streaming | Control de acceso por comparticiones | "Compartir videos para presentaciones empresariales" (público externo) | Mismo `CrearEnlacePublico` para videos, con reproducción por rangos | Pendiente |
+| HPC | `rutaCodigo`, `rutaDataset` (código y datasets) | "Recibirá el código fuente y los conjuntos de datos" | El PDF es correcto; la implementación todavía recibe `comando` (ver G y `TRASPASO.md` §7) | Pendiente |
+| HPC | Sin operaciones de nodos | Malla Grid que integre dispositivos "tanto desde su centro de cómputo como de forma externa" | Operaciones nuevas: `RegistrarNodo(host, capacidadProcesos, externo)` y `RetirarNodo(host)`, con permiso `hpcadmin`; `NodoCluster.origen = LABORATORIO \| EXTERNO`; `ObtenerEstadoCluster` los lista | Pendiente |
+| Todos | Consumidores "Web, Windows, Linux, Android, iOS" | Clientes nativos para Windows, Linux y Android **o** iOS | iOS no es obligatorio; en este periodo el cliente móvil es Android | — |

@@ -172,6 +172,23 @@ revocaron una compartición, deja de salir en el álbum aunque siga añadida.
 copia de propietario, grupo y permisos de Storage), `medios_compartidos` (qué
 medios ve cada usuario por compartición), `albumes`, `album_medios`.
 
+### 3.14 CrearEnlacePublico / RevocarEnlacePublico — **pendiente**
+
+El enunciado pide "compartir imágenes tanto interna como externamente". Lo
+interno lo cubre Shared File (las fotos compartidas aparecen en el álbum del
+destinatario). Para lo externo:
+
+| Operación | Ruta | Respuesta |
+|---|---|---|
+| CrearEnlacePublico | `POST /album/fotos/{id}/enlaces { expiracion }` | `201 { enlaceId, url, expiraEn }` |
+| RevocarEnlacePublico | `DELETE /album/enlaces/{enlaceId}` | `204` |
+| VerEnlacePublico | `GET /publico/{token}` (sin sesión) | La imagen, solo lectura |
+
+**Reglas:** solo puede crearlo quien tenga `LECTURA_ESCRITURA_COMPARTIR` sobre la
+foto; el token es aleatorio (no derivable del id); caduca (máximo configurable) y
+deja de servir si se revoca, si se borra la foto o si el dueño pierde el permiso.
+El mismo mecanismo sirve a Streaming para los videos de presentaciones.
+
 ## 5. Eventos
 
 No emite eventos: el sistema no tiene bus. La actividad se observa en el

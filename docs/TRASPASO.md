@@ -79,8 +79,8 @@ Se descartó SQLite (era la propuesta inicial de Storage).
 
 ### 2.5 node-media: dos fuentes de archivos tras una interfaz
 `FuenteMedios`: `storage-api` (**por defecto**, respeta cuotas y permisos) o
-`nfs` (lee `/srv/home`, como dibuja el diagrama, pero salta las reglas de
-Storage). Se usa `storage-api`.
+`nfs` (lee `/srv/home`; era la vía de la arquitectura v1 y salta las reglas de
+Storage). Se usa `storage-api` (decisión D3 del documento de arquitectura v2).
 
 ### 2.6 File Sync persiste a través de Storage (antes 7.2, **decidido**)
 node-sync ya no escribe en el NFS: `StorageStore` sube, baja y borra por la API
@@ -88,7 +88,7 @@ REST de Storage con el token del usuario. Lo sincronizado aparece en "Mis
 archivos", cuenta para la cuota, respeta permisos y queda versionado. Los hashes
 se cachean por (id de Storage, versión) en un JSON local de node-sync.
 `FSStore` (directo al disco) queda solo para pruebas (`-almacen=fs`).
-**Contradice el diagrama**, que dibuja node-sync → node-repository por NFSv4.
+El diagrama de despliegue v2 ya lo dibuja así (node-sync → node-repository por REST 8084, decisión D3).
 
 ### 2.7 Autorización por mapa de servicios (D2)
 Además de validar el token, cada servicio pregunta a Authentication
@@ -131,37 +131,44 @@ repositorios aparte: `FrontWebUPBCientifica`, `FrontUPBCientifica` (Android),
 Los desacuerdos del diagrama de antes (Registry 1099, job-api 8080, syncd 50051)
 **ya están resueltos** a 2099, 8082 y 9090. Queda que job-api va por HTTP.
 
-### 3.2 Nodos y artefactos (diagrama de despliegue)
+### 3.2 Nodos y artefactos (diagrama de despliegue v2)
 
-**VM node-soap** — OpenLDAP 2.5 slapd; Apache 2.4 + PHP 8 (`user.php`,
-`sesion.php`, `mfa.php`, `users.wsdl`). Despliegue: `despliegue/node-soap/`.
+Fuente: `docs/arquitectura/fuentes/despliegue.puml` (publicado como
+`DeploymentDiagram1.jpg.jpeg`) y el documento `Arquitectura-UPB-CIENTIFICA` (.docx/.pdf).
 
-**VM node-rmi** — JVM 17 (`gestor-cluster.jar`, `seguridad-rmi.policy`,
-`job-api.jar`).
+**VM node-web** — Nginx (TLS 443) + Node.js 20 (`servidor-web.js` 8080, SPA, `rutas-servicio.json`).
 
-**VM node-web** — Node.js 20 + Nginx (`servidor-web.js`, `rutas-servicio.json`).
+**VM node-soap** — OpenLDAP (`directorio.ldif`); Apache 2.4 + PHP 8 (`user.php`/`users.wsdl`,
+`sesion.php`, `mfa.php`/`mfa.wsdl`). Despliegue: `despliegue/node-soap/`.
 
-**VM node-repository** — Debian 12, NFSv4, GnuPG 2.4 (`upbc-respaldo.pub`,
-`cuotas.conf`, `/srv/home`, `shared-file-svc`, `respaldo-gpg.sh`).
+**VM node-repository** — Distributed Storage (8084) y `shared-file-svc` (8085) sobre
+PostgreSQL; `/srv/home` exportado por NFSv4 **solo al clúster**; `respaldo-gpg.sh` +
+`upbc-respaldo.pub`, con copia fuera del nodo.
 
-**VM node-sync** — Go 1.22 (`syncd`, `filesync.proto`).
+**VM node-media** — album + streaming (8083), FFmpeg, PostgreSQL (`catalogo_medios`).
 
-**VM node-media** — Debian 12, FFmpeg, PostgreSQL 15.
+**VM node-sync** — `syncd` (gRPC/TLS 9090, `filesync.proto`).
 
-**VM node-monitoreo** — Debian 12 (`prometheus`, `grafana-server`,
-`blackbox_exporter`). Instalación: `node-monitoreo/instalar-node-monitoreo.sh`.
+**VM node-rmi** — `gestor-cluster.jar` (Registry 2099 embebido, objetos 2100, métricas 9102),
+`job-api.jar` (8082), `seguridad-rmi.policy`.
 
-**Clúster HPC** — `hpc-master` + 4 `hpc-worker`, Debian 12, OpenMPI 4.1.
+**VM node-monitoreo** — Prometheus, Grafana (3000), blackbox_exporter.
 
-### 3.3 Interfaces del diagrama de componentes
-- Servicios del Producto: Shared File (`IArchivos`), Photo Album (`IAlbum`),
-  Streaming (`IStreaming`), Monitoreo (`IMetricas`)
-- Servicios de Aplicación: Portal Web (`IPortal`), Gestor del Clúster
-  (`ITrabajos`), Servicio de Usuarios (`IAutenticación`), Servicio de
-  Sincronización (`ISincronización`)
-- Recursos: Repositorio de Archivos (`IAlmacenamiento`), Ejecutor MPI
-  (`IEjecución`), Directorio de Usuarios (`IPerfiles`)
-- Clientes: Interfaz Web SPA, Agente de Escritorio, App Móvil
+**Clúster HPC (malla Grid)** — `hpc-master` (`job-runner.jar` *pendiente*, `hostfile`) +
+4 `hpc-worker` + equipos externos registrados; todos montan `/srv/home`.
+
+### 3.3 Diagrama de componentes v2
+
+Organizado como la Figura 1 del enunciado (`docs/arquitectura/fuentes/componentes.puml`):
+- **Consumidores:** navegador (SPA), aplicación de escritorio (Windows/Linux), aplicación Android.
+- **Bus de servicios:** Streaming, Photo Album, Shared File (REST), File Sync (gRPC),
+  MPI Jobs (RMI con fachada REST), Usuarios/Autenticación (SOAP).
+- **Servidores de aplicación:** SOAP Server PHP Users, Web Server JavaScript,
+  RMI Server Java Cluster, gRPC Server Go Sync.
+- **Implementación de servicios:** Streaming y Photo Album (node-media), Shared File,
+  Repository, Authentication (OpenLDAP), respaldo GPG.
+- **Clúster HPC:** planificador, job-runner (*pendiente*), nodos de cómputo + equipos externos.
+- **Monitoreo** transversal.
 
 ### 3.4 APIs
 
@@ -296,16 +303,22 @@ Cancelado Figueroa, Daniel Felipe Aguilar Latorre.
 
 | Requisito | Estado |
 |---|---|
-| File Sync (copia síncrona, horario, Wi-Fi del móvil) | ✅ |
-| Shared File (permisos, Home común) | ✅ |
-| Photo Album / Streaming (Home, ordenar, usuarios autorizados) | ✅ |
+| HPC: recibir código fuente y datasets y ejecutarlos con MPI | ❌ ver 7.1 |
+| Malla Grid: integrar equipos internos y externos | ❌ ver 7.5 |
+| Repositorio distribuido de archivos, fotos y videos | ✅ Storage |
+| File Sync (copia síncrona, horario, red interna por cable/Wi-Fi, Wi-Fi del móvil, versión en el servidor) | ✅ |
+| Shared File (carga por formulario, Home común con cuota) | ✅ |
+| Compartir respetando el código Unix de permisos | ⚠️ bits `rwx` aplicados; falta cambiarlos (7.5) |
+| Photo Album (web, explorar, buscar, ordenar, presentar) | ✅ |
+| Compartir imágenes **externamente** / videos para presentaciones | ⚠️ solo interno (7.5) |
+| Streaming (ordenar, difundir, control de acceso y permisos) | ✅ |
 | API entre partes | ✅ contratos + adendas + Photo Album |
 | Perfiles en directorio (auth, autorización, mapa, árbol) | ⚠️ código listo; falta desplegar node-soap con OpenLDAP |
 | GPG en respaldos | ✅ `node-repository/respaldo/` |
 | Análisis de vulnerabilidades | ✅ `docs/seguridad/analisis-vulnerabilidades.md` (repetir en producción) |
 | Token / MFA | ✅ token en todos; MFA en node-soap (`mfa.php`) |
 | Monitoreo | ✅ `node-monitoreo/` |
-| Clúster HPC con MPI | ❌ ver 7.1 |
+| Clientes nativos Windows, Linux, Android + web | ✅ (iOS no es obligatorio: "Android o iOS") |
 
 ---
 
@@ -333,6 +346,19 @@ El código está; falta montarlo en la VM del equipo con
 `despliegue/node-soap/desplegar-node-soap.sh` y pasar los servicios a
 `MODO_AUTENTICACION=soap` contra ella. Sin esto, en producción no hay directorio
 activo real.
+
+### 7.5 Requisitos del enunciado sin cubrir del todo
+Trazabilidad completa en la sección 10 del documento de arquitectura y en la
+adenda J de los contratos.
+- **Malla Grid:** el enunciado pide integrar computadoras, móviles e IoT "tanto
+  desde su centro de cómputo como de forma externa". Falta un registro de nodos
+  en el gestor (`RegistrarNodo`/`RetirarNodo`, permiso `hpcadmin`) y que el
+  planificador asigne procesos según su carga. La decisión D7 de la arquitectura
+  v1 ("fuera del alcance") quedó reemplazada.
+- **Compartir imágenes externamente** (y videos para presentaciones): enlace
+  público de solo lectura con caducidad (`Contrato PhotoAlbum.md` §3.14).
+- **Código Unix de permisos:** el propietario no puede cambiar los bits `rwx`
+  (falta `CambiarPermisosUnix`) y la `x` de los directorios no se evalúa.
 
 ---
 
@@ -368,49 +394,37 @@ activo real.
 
 ---
 
-## 9. Correcciones pendientes en los diagramas
+## 9. Diagramas (corregidos el 2026-10-13)
 
-1. **Montaje NFS incompleto**: solo llega a `hpc-master`; MPI necesita que
-   **todos** los workers vean `/srv/home`.
-2. **Faltan conexiones del móvil**: Android aparece solo con gRPC, pero también
-   habla SOAP y REST.
-3. **Storage sin base de datos**: agregar PostgreSQL a `node-repository` (y a node-shared-file).
-4. **Mínimo de nodos**: 4 workers.
-5. **El Scheduler no aparece** en ningún diagrama.
-6. **Typos**: "Servicos de Aplicación", "Service implementaion".
-7. **Agrupación**: File Sync y MPI Jobs son servicios del producto según la
-   Figura 1, pero aparecen en Servicios de Aplicación; Monitoreo al revés.
-8. **node-sync → node-repository** es HTTP/REST 8084, no NFS (decisión 2.6).
-9. **node-media → node-shared-file** (8085) no aparece.
-10. **Monitoreo**: los servicios exponen `/metrics` y el gestor `:9102`, además
-    del 9100 de cada VM; Grafana también se sirve por el portal (`/monitoreo/`).
+Los dos diagramas se rehicieron en PlantUML (`docs/arquitectura/fuentes/`) y se
+publicaron sobre los JPEG anteriores. Quedan resueltos los puntos que había aquí:
+NFS hacia todos los nodos del clúster, conexiones de los clientes nativos,
+PostgreSQL en node-repository y node-media, 4 workers, el planificador, los
+typos, la agrupación según la Figura 1, node-sync y node-media por REST 8084,
+node-media → Shared File 8085, rutas de monitoreo (9100, `/metrics`, 9102,
+`/monitoreo/`), `user.php` + `sesion.php` + `mfa.php`, Nginx 443, destino de
+respaldo y equipos externos de la malla. `job-runner.jar` aparece como
+*pendiente*. El documento de arquitectura pasó a la versión 2
+(`Arquitectura-UPB-CIENTIFICA.docx` editable + `.pdf`).
 
 ---
 
-## 10. Correcciones pendientes en el informe
+## 10. Informe y requerimientos (corregidos el 2026-10-13)
 
-### 10.1 Críticas
-**Tres protocolos mal atribuidos.** Los diagramas están bien; el texto no:
-
-| El informe dice | Lo correcto |
-|---|---|
-| SOAP → streaming | SOAP → **usuarios/autenticación** |
-| RMI → Shared File | RMI → **clúster / trabajos MPI** |
-| gRPC → trabajos MPI | gRPC → **File Sync** |
-
-**Falta el objetivo específico del núcleo**: ninguno plantea *desarrollar* el
-servicio HPC/MPI, solo documentarlo.
-
-### 10.2 Importantes
-- Secciones vacías: Introducción, Marco conceptual, Metodología, **Resultados**,
-  Cronograma, Discusión y conclusiones. Para Resultados sirven las pruebas
-  documentadas en los README y en `docs/seguridad/`.
-- Plantilla Springer sin limpiar; estilo de citación autor-año donde LNCS pide
-  corchetes numerados; fuentes citadas que no están en las referencias.
-- La sección de tolerancia a fallos menciona "el syllabus del curso".
-
-### 10.3 Terminología
-Es **un clúster de 5 nodos**, nunca "5 clústeres".
+- `docs/Informe.docx` (editable) + `Informe.pdf`: protocolos bien atribuidos
+  (SOAP → usuarios, RMI → clúster, gRPC → File Sync), periodo 2026-20,
+  objetivo específico del núcleo HPC/Grid, "carta descriptiva" en vez de
+  "syllabus", sección de Resultados con el estado real, cronograma y metodología
+  sin las atribuciones erróneas. El PDF anterior no tenía fuente editable; el
+  .docx es ahora la fuente.
+- `docs/Especificacion de requerimientos.docx`: RF-06/08/09/10 sin tecnologías
+  equivocadas; RF-03/04/05/07/08/13 con el texto del enunciado (red interna por
+  cable o Wi-Fi, versión en el servidor, Home común, búsqueda y compartición
+  interna y externa, tiempos de ejecución); RF-24 (Grid) sube a prioridad alta;
+  nuevos RF-25 (repositorio distribuido) y RF-26 (APIs). Word actualiza el
+  índice al abrir el documento.
+- Sigue pendiente en el informe: la plantilla Springer LNCS (estilo de citas
+  numeradas) y el cronograma ejecutado al cierre.
 
 ---
 
@@ -421,8 +435,8 @@ Es **un clúster de 5 nodos**, nunca "5 clústeres".
    el `bash -c` del gestor (7.2). Es lo más riesgoso y lo que más trabajo queda.
 3. Montar las VMs de producción (node-sync, node-monitoreo…) y **repetir el
    análisis de vulnerabilidades en producción** (sección 5 del informe).
-4. Pasar a PDF las adendas de los contratos y corregir los diagramas (sección 9).
-5. **Corregir el informe**, empezando por las tres atribuciones de protocolo.
+4. Implementar lo de 7.5 (Grid, compartir imágenes externamente, `chmod`) y pasar a PDF las adendas.
+5. Completar el informe con el cronograma ejecutado y llevarlo a la plantilla LNCS.
 
 ---
 

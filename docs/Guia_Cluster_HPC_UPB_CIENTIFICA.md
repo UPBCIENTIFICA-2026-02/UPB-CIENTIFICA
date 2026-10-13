@@ -46,17 +46,13 @@ indicación del profesor.)
 - NFSv4 puerto **2049** — montaje de `/srv/home` (viene de `node-repository`)
 - HTTP **9100** — `node_exporter` en cada nodo, leído por `node-monitoreo` (PASO 16)
 
-### ⚠️ Un vacío del diagrama que hay que resolver antes de empezar
+### Todos los nodos montan `/srv/home`
 
-El diagrama dibuja el montaje NFSv4 de `/srv/home` únicamente hacia `hpc-master`.
-**Pero MPI exige que TODOS los nodos vean el mismo binario en la misma ruta.**
-Si solo el maestro tiene el montaje, `mpirun` fallará con "No such file or
-directory" en los workers.
-
-Esta guía asume que **los 5 nodos montan `/srv/home`**. Conviene:
-1. Confirmarlo con el equipo (afecta a quien lleva Storage/repository).
-2. Corregir el diagrama de despliegue para que la línea NFSv4 llegue también a
-   `hpc-worker [1..N]`.
+**MPI exige que TODOS los nodos vean el mismo binario y el mismo dataset en la
+misma ruta.** Si solo el maestro tuviera el montaje, `mpirun` fallaría con "No
+such file or directory" en los workers. Por eso los 5 nodos montan `/srv/home`
+(y también cualquier equipo externo que se sume a la malla), como dibuja el
+diagrama de despliegue v2.
 
 ### Convención de nombres y direcciones usada en esta guía
 
@@ -707,12 +703,11 @@ Instala `prometheus-node-exporter` (puerto 9100) y abre ese puerto solo para
 
 1. **Número de nodos:** el roadmap dice "2-3 nodos" para el MVP; el profesor exigió
    mínimo 4 workers. Actualizar el roadmap y el acta de requerimientos.
-2. **Montaje NFS:** el diagrama de despliegue solo dibuja el montaje NFSv4 hacia
-   `hpc-master`. Debe llegar también a `hpc-worker [1..N]`, o `mpirun` no funciona.
+2. **Montaje NFS:** ✅ corregido en el diagrama v2 (llega a todos los nodos).
 3. **Terminología:** asegurarse de que el informe diga "un clúster de 5 nodos" y
    nunca "5 clústeres".
 4. **`trabajo.bin`:** el diagrama lo muestra como artefacto dentro de los workers.
    En realidad vive en `/srv/home` (compartido) y se ejecuta en los workers;
    conviene aclararlo o representarlo sobre el almacenamiento compartido.
-5. **Monitoreo:** el diagrama dibuja el 9100 desde "todas las VMs"; los nodos del
-   clúster también lo llevan, y el gestor publica además `:9102/metrics`.
+5. **Monitoreo:** ✅ corregido en el diagrama v2 (9100 en todos los nodos,
+   `/metrics` de los servicios y `:9102/metrics` del gestor).
