@@ -10,8 +10,12 @@
       node-repository  8084   Distributed Storage
       node-media       8083   Photo Album + Streaming
       node-shared-file 8085   Shared File (compartir archivos y carpetas)
-      node-sync        9090   File Sync (gRPC; guarda a traves de Storage)
       node-web         8080   Portal web (SPA)
+
+  node-sync (File Sync, gRPC 9090) NO se arranca aqui: corre en una VM Ubuntu
+  (el Control inteligente de aplicaciones de Windows bloquea los ejecutables
+  de Go recien compilados). VirtualBox reenvia el 9090 del PC a la VM, asi que
+  los clientes no cambian. Al final este script solo comprueba que responde.
 
   y deja apuntado el portal al job-api del cluster (hpc-master, 192.168.56.10:8082).
 
@@ -40,6 +44,11 @@
         Ojo: en soap solo valen los tokens que emite auth-local (inicia sesion),
         no cualquier "mock-token-<uid>-..." escrito a mano.
 
+.PARAMETER Monitoreo
+  Arranca tambien el modulo de monitoreo (Prometheus 9095, Grafana 3000,
+  exportadores): node-monitoreo\iniciar-monitoreo-windows.ps1. El tablero se
+  abre desde el portal en /monitoreo/.
+
 .PARAMETER HpcLocal
   Arranca gestor-cluster y job-api en este PC (necesita Java 17+ y los .jar
   compilados: mvn package en RMIUPBCientifica).
@@ -52,10 +61,19 @@
 param(
     [ValidateSet('simulado', 'soap')] [string] $ModoAuth = 'simulado',
     [string] $UrlTrabajos = 'http://192.168.56.10:8082',
-    [switch] $HpcLocal
+    [switch] $HpcLocal,
+    [switch] $Monitoreo
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Si algo falla, la ventana NO se cierra sola: se ve el error (antes, al
+# ejecutarlo con doble clic, se cerraba sin dejar leer que habia pasado).
+trap {
+    Write-Host "`nERROR: $_" -ForegroundColor Red
+    Read-Host 'Pulsa Enter para cerrar'
+    exit 1
+}
 
 $raiz    = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $urlAuth = 'http://127.0.0.1:8081/soap/user.php'
@@ -78,10 +96,6 @@ if (Test-Path (Join-Path $dirFront 'index.html')) {
 }
 
 if ($HpcLocal) { $UrlTrabajos = 'http://127.0.0.1:8082' }
-
-# Go para node-sync: el del PATH o el portable de %USERPROFILE%\sdk\go.
-$go = (Get-Command go -ErrorAction SilentlyContinue).Source
-if (-not $go) { $go = Join-Path $env:USERPROFILE 'sdk\go\bin\go.exe' }
 
 # FFmpeg para node-media (miniaturas y duracion de videos): el del PATH o el
 # portable de %USERPROFILE%\sdk\ffmpeg. Sin el, node-media funciona igual pero
@@ -112,14 +126,6 @@ $servicios = @(
        Cmd = 'npm start';
        Env = @{ MODO_AUTENTICACION = $ModoAuth; URL_AUTH_SOAP = $urlAuth; NAMESPACE_AUTH = $nsAuth;
                 MODO_DIRECTORIO = 'soap'; URL_STORAGE = 'http://127.0.0.1:8084' } },
-    # File Sync (node-sync): "go run" y no el binario compilado porque el
-    # Control inteligente de aplicaciones de Windows bloquea el syncd.exe recien
-    # compilado (no esta firmado). SYNC_ALMACEN=storage: guarda por la API de
-    # Storage con el token del usuario (cuota, permisos y versiones).
-    @{ Nombre = 'node-sync';       Puerto = 9090; Dir = (Join-Path $raiz 'node-sync');
-       Cmd = "& '$go' run ./cmd/syncd";
-       Env = @{ SYNC_ADDR = ':9090'; SYNC_ALMACEN = 'storage'; SYNC_STORAGE_URL = 'http://127.0.0.1:8084/storage';
-                SYNC_AUTH_MODE = $ModoAuth; SYNC_AUTH_URL = $urlAuth; SYNC_AUTH_NS = $nsAuth } },
     @{ Nombre = 'node-web';        Puerto = 8080; Dir = (Join-Path $raiz 'node-web');
        Cmd = 'npm start';
        # node-web no tiene .env: sin estas variables usa rutas-servicio.json,
@@ -160,7 +166,6 @@ Paso 'Comprobaciones previas'
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'No encuentro Node.js en el PATH.' }
 if (-not (Test-Path $ffmpeg)) { Write-Warning "No encuentro FFmpeg ($ffmpeg): node-media no generara miniaturas ni duracion." }
-if (-not (Test-Path $go)) { throw "No encuentro Go (node-sync). Instala Go 1.22 o descomprimelo en $env:USERPROFILE\sdk\go." }
 Write-Host "Node $(node --version)   |   autenticacion: $ModoAuth"
 Write-Host "Interfaz web servida desde: $dirInterfaz"
 
@@ -240,6 +245,13 @@ foreach ($s in $servicios | Where-Object { $_.Puerto -in 8083, 8084, 8085 }) {
     }
 }
 
+# File Sync: corre en la VM (VirtualBox reenvia el 9090). Solo se comprueba.
+if (PuertoOcupado 9090) {
+    Write-Host '  node-sync (VM) :9090 reenviado; si no sincroniza, revisa que syncd este arrancado en la VM' -ForegroundColor Green
+} else {
+    Write-Host '  node-sync :9090 NO responde: enciende la VM de node-sync (File Sync no funcionara)' -ForegroundColor Yellow
+}
+
 $cluster = $false
 try {
     $hostTrabajos = ([Uri] $UrlTrabajos).Host
@@ -254,6 +266,11 @@ if ($HpcLocal) {
     Write-Host '  job-api del cluster (192.168.56.10:8082) alcanzable' -ForegroundColor Green
 } else {
     Write-Host '  job-api del cluster NO responde: la pestana "Trabajos HPC" del portal fallara hasta que hpc-master este encendido (paso 6).' -ForegroundColor Yellow
+}
+
+if ($Monitoreo) {
+    Paso 'Monitoreo (Prometheus + Grafana)'
+    & (Join-Path $raiz 'node-monitoreo\iniciar-monitoreo-windows.ps1')
 }
 
 # --------------------------------------------------------------- resumen
@@ -273,9 +290,10 @@ Write-Host @"
      IP_PC_EN_WIFI  = "$ipWifi"
      USAR_MOCK_AUTH = false     (asi usa auth-local en el 8081)
 
+ Monitoreo (Grafana):         $(if ($Monitoreo) { "http://localhost:8080/monitoreo/  (admin / admin la primera vez)" } else { "no arrancado (usa -Monitoreo)" })
  HPC (job-api):               $(if ($HpcLocal) { "http://${ipWifi}:8082  (local)" } else { $UrlTrabajos })
  File Sync (gRPC):            ${ipWifi}:9090  (movil y escritorio)
-     Si el celular no conecta: permite el puerto 9090 en el Firewall de Windows.
+     (en la VM Ubuntu; si el celular no conecta, permite el 9090 en el Firewall)
 
  Usuarios:  user1 / 1234    investigador / test    estudiante / test
 =================================================================

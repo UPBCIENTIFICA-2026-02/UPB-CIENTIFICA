@@ -17,11 +17,23 @@ import morgan from 'morgan';
 import { config, resumenConfig } from './src/config.js';
 import { reenviar } from './src/pasarela.js';
 import { rutas } from './src/rutas.js';
+import { cabecerasSeguridad, bloquearOcultos } from './src/seguridad.js';
+import { crearMetricas } from './src/metricas.js';
 
 const app = express();
 
 app.disable('x-powered-by');
 app.set('trust proxy', 'loopback'); // Nginx, en la misma VM, pone X-Forwarded-*
+
+// Análisis de vulnerabilidades (G2): nada oculto (.git, .env...) sale por aquí,
+// y todas las respuestas llevan CSP, anti-clickjacking y nosniff. Ver src/seguridad.js.
+app.use(bloquearOcultos);
+
+// Monitoreo (M1): GET /metrics para Prometheus (ver src/metricas.js).
+const metricas = crearMetricas('node-web');
+app.use(metricas.middleware);
+app.get('/metrics', metricas.endpoint);
+app.use(cabecerasSeguridad(config.dirInterfaz));
 
 // El <video> manda el token en la URL (?access_token=...), porque no puede
 // poner cabeceras. Que no quede escrito en el registro de accesos.
@@ -40,6 +52,11 @@ app.use('/api/jobs',        reenviar(config.nodos.trabajos, '/jobs',      'HPC (
 app.use('/api/cluster',     reenviar(config.nodos.trabajos, '/cluster',   'HPC (job-api)'));
 app.use('/api/shared-file', reenviar(config.nodos.compartidos, '/shared-file', 'Shared File (node-repository)'));
 
+// Monitoreo (M1): Grafana bajo el mismo origen que el portal (/monitoreo/), así el
+// enlace "Monitoreo" del front no necesita la IP de node-monitoreo. Grafana se
+// configura con serve_from_sub_path y pone sus propias cabeceras de seguridad.
+app.use('/monitoreo', reenviar(config.nodos.monitoreo, '/monitoreo', 'Monitoreo (Grafana)'));
+
 // --- Lo que node-web traduce: inicio y cierre de sesión por SOAP -------------
 app.use('/api', express.json({ limit: '1mb' }), rutas);
 app.use('/api', (req, res) =>
@@ -57,7 +74,7 @@ if (!existsSync(join(config.dirInterfaz, 'index.html'))) {
   console.warn(`AVISO: no hay index.html en ${config.dirInterfaz}.`);
   console.warn('       Copia el front con  npm run interfaz  o define DIR_INTERFAZ.');
 }
-app.use(express.static(config.dirInterfaz));
+app.use(express.static(config.dirInterfaz, { dotfiles: 'ignore' }));
 
 app.use((req, res) => res.status(404).json({ error: 'NO_ENCONTRADO', mensaje: 'Ruta no encontrada' }));
 

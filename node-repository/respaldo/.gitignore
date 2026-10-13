@@ -1,0 +1,4 @@
+# Llaves de respaldo: la privada NUNCA va al repositorio (ver README).
+llaves-respaldo/
+*.privada.asc
+revocacion.asc

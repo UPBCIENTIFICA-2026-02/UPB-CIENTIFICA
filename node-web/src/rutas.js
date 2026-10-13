@@ -12,6 +12,7 @@
 
 import { Router } from 'express';
 import { login, logout } from './identidad.js';
+import { bloqueado, registrarFallo, registrarExito } from './limiteIntentos.js';
 
 export const rutas = Router();
 
@@ -30,10 +31,23 @@ rutas.post('/sesion', async (req, res) => {
     return res.status(400).json({ error: 'SOLICITUD_INVALIDA', mensaje: 'Escribe usuario y contraseña.' });
   }
 
+  // Freno a la fuerza bruta (G2): ver limiteIntentos.js.
+  const espera = bloqueado(req.ip, usuario);
+  if (espera > 0) {
+    res.set('Retry-After', String(espera));
+    return res.status(429).json({
+      error: 'DEMASIADOS_INTENTOS',
+      mensaje: `Demasiados intentos fallidos. Vuelve a intentarlo en ${Math.ceil(espera / 60)} min.`,
+    });
+  }
+
   try {
-    res.json(await login(usuario, secreto, origenCliente || 'web', codigoMfa));
+    const sesion = await login(usuario, secreto, origenCliente || 'web', codigoMfa);
+    registrarExito(req.ip, usuario);
+    res.json(sesion);
   } catch (e) {
     const estado = e.codigo || 503;
+    if (estado === 401) registrarFallo(req.ip, usuario);
     res.status(estado).json({
       error: estado === 401 ? 'CREDENCIALES_INVALIDAS' : 'AUTH_NO_DISPONIBLE',
       mensaje: e.message

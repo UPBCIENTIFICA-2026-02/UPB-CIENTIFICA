@@ -1,0 +1,29 @@
+# Reglas de registro: el mismo nombre para Windows (windows_exporter, PC de
+# desarrollo) y Linux (node_exporter, VMs). Así el tablero y las alertas no
+# necesitan saber qué sistema tiene cada nodo.
+groups:
+  - name: recursos
+    interval: 30s
+    rules:
+      - record: nodo:cpu_uso:porcentaje
+        expr: 100 * (1 - avg by (instance, nodo) (rate(windows_cpu_time_total{mode="idle"}[2m])))
+        labels: { so: windows }
+      - record: nodo:cpu_uso:porcentaje
+        expr: 100 * (1 - avg by (instance, nodo) (rate(node_cpu_seconds_total{mode="idle"}[2m])))
+        labels: { so: linux }
+      - record: nodo:memoria_uso:porcentaje
+        expr: 100 * (1 - windows_memory_available_bytes / windows_memory_physical_total_bytes)
+        labels: { so: windows }
+      - record: nodo:memoria_uso:porcentaje
+        expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+        labels: { so: linux }
+      - record: nodo:disco_uso:porcentaje
+        expr: >
+          label_replace(100 * (1 - windows_logical_disk_free_bytes{volume=~"[A-Z]:"}
+            / windows_logical_disk_size_bytes{volume=~"[A-Z]:"}), "volumen", "$1", "volume", "(.*)")
+        labels: { so: windows }
+      - record: nodo:disco_uso:porcentaje
+        expr: >
+          label_replace(100 * (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"}), "volumen", "$1", "mountpoint", "(.*)")
+        labels: { so: linux }

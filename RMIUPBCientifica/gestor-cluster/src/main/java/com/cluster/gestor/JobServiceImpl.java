@@ -9,6 +9,7 @@ import com.cluster.common.JobStatusTransition;
 import com.cluster.common.NoAutorizadoException;
 import com.cluster.gestor.auth.AuthNoDisponibleException;
 import com.cluster.gestor.auth.Usuario;
+import com.cluster.gestor.metricas.MetricasHpc;
 import com.cluster.gestor.auth.ValidadorSimulado;
 import com.cluster.gestor.auth.ValidadorToken;
 
@@ -83,6 +84,10 @@ public class JobServiceImpl implements JobService {
             }
     );
     private final ExecutorService workers = Executors.newFixedThreadPool(NUM_WORKERS);
+
+    /** Carga y tiempos de ejecución para el monitoreo (Prometheus, M1). */
+    private final MetricasHpc metricas = new MetricasHpc(
+            () -> java.util.List.copyOf(jobs.values()), cola::size, NUM_WORKERS);
     private final ValidadorToken validador;
     private volatile boolean detenido = false;
 
@@ -91,6 +96,10 @@ public class JobServiceImpl implements JobService {
         for (int i = 0; i < NUM_WORKERS; i++) {
             workers.submit(this::bucleWorker);
         }
+    }
+
+    public MetricasHpc metricas() {
+        return metricas;
     }
 
     /** Constructor de conveniencia para pruebas: usa el validador simulado. */
@@ -287,6 +296,7 @@ public class JobServiceImpl implements JobService {
                     job.setMensajeError("Código de salida " + codigoSalida + ": " + salida);
                 }
                 job.setFechaFin(Instant.now());
+                metricas.trabajoTerminado(job);
             }
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
@@ -297,6 +307,7 @@ public class JobServiceImpl implements JobService {
                     job.setEstado(JobStatus.FAILED);
                     job.setMensajeError("Error al ejecutar el comando: " + e.getMessage());
                     job.setFechaFin(Instant.now());
+                    metricas.trabajoTerminado(job);
                 }
             }
         } finally {

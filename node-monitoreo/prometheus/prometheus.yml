@@ -1,0 +1,64 @@
+# Prometheus en la VM node-monitoreo (producción). Nombres de host del
+# diagrama de despliegue: hay que resolverlos (DNS o /etc/hosts).
+# Cada VM lleva node_exporter en el 9100 (instalar-exportador.sh).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels: { entorno: produccion }
+
+rule_files:
+  - /etc/prometheus/reglas/*.yml
+
+scrape_configs:
+  - job_name: servicios
+    static_configs:
+      - targets: ['node-web:8080', 'node-media:8083', 'node-repository:8084', 'node-repository:8085']
+
+  - job_name: hpc
+    static_configs:
+      - targets: ['node-rmi:9102']
+        labels: { servicio: gestor-cluster }
+
+  - job_name: nodos
+    static_configs:
+      - { targets: ['node-web:9100'],        labels: { nodo: node-web } }
+      - { targets: ['node-soap:9100'],       labels: { nodo: node-soap } }
+      - { targets: ['node-rmi:9100'],        labels: { nodo: node-rmi } }
+      - { targets: ['node-repository:9100'], labels: { nodo: node-repository } }
+      - { targets: ['node-sync:9100'],       labels: { nodo: node-sync } }
+      - { targets: ['node-media:9100'],      labels: { nodo: node-media } }
+      - { targets: ['localhost:9100'],       labels: { nodo: node-monitoreo } }
+      - { targets: ['hpc-master:9100'],      labels: { nodo: hpc-master } }
+      - { targets: ['hpc-worker1:9100', 'hpc-worker2:9100', 'hpc-worker3:9100', 'hpc-worker4:9100'], labels: { nodo: hpc-worker } }
+
+  - job_name: disponibilidad_http
+    metrics_path: /probe
+    params: { module: [salud_http] }
+    static_configs:
+      - { targets: ['http://node-web:8080/salud'],         labels: { servicio: node-web } }
+      - { targets: ['http://node-repository:8084/health'], labels: { servicio: storage } }
+      - { targets: ['http://node-media:8083/health'],      labels: { servicio: media } }
+      - { targets: ['http://node-repository:8085/health'], labels: { servicio: shared-file } }
+    relabel_configs: &sonda
+      - { source_labels: [__address__], target_label: __param_target }
+      - { source_labels: [__param_target], target_label: instance }
+      - { target_label: __address__, replacement: 'localhost:9115' }
+
+  - job_name: disponibilidad_api
+    metrics_path: /probe
+    params: { module: [vivo_http] }
+    static_configs:
+      - { targets: ['http://node-rmi:8082/jobs'], labels: { servicio: job-api } }
+      # node-soap sirve el WSDL con GET: si responde, Auth está arriba.
+      - { targets: ['https://node-soap:8081/soap/user.php?wsdl'], labels: { servicio: auth } }
+    relabel_configs: *sonda
+
+  - job_name: disponibilidad_tcp
+    metrics_path: /probe
+    params: { module: [tcp] }
+    static_configs:
+      - { targets: ['node-rmi:2099'],        labels: { servicio: gestor-rmi } }
+      - { targets: ['node-sync:9090'],       labels: { servicio: file-sync } }
+      - { targets: ['node-soap:636'],        labels: { servicio: ldap } }
+      - { targets: ['node-repository:2049'], labels: { servicio: nfs } }
+    relabel_configs: *sonda

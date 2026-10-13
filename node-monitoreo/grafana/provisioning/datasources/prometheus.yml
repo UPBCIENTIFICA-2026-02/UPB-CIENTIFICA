@@ -1,0 +1,13 @@
+# Fuente de datos de Grafana. PROMETHEUS_URL lo define quien arranca Grafana
+# (http://127.0.0.1:9095 en desarrollo, http://localhost:9090 en node-monitoreo).
+apiVersion: 1
+datasources:
+  - name: Prometheus UPB-CIENTIFICA
+    uid: prometheus-upbc
+    type: prometheus
+    access: proxy
+    url: ${PROMETHEUS_URL}
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s

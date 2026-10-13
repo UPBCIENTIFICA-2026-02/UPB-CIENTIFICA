@@ -67,9 +67,24 @@ public class GlobalExceptionHandler {
                 "El servicio gestor-cluster no está disponible en este momento: " + e.getMessage());
     }
 
+    /**
+     * Ruta inexistente. ANTES caía en el manejador genérico de abajo: 500 con
+     * "No static resource ..." (hallazgo del análisis de vulnerabilidades, G2).
+     */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> manejarRutaInexistente(Exception e) {
+        return construir(HttpStatus.NOT_FOUND, "Ruta no encontrada");
+    }
+
+    /**
+     * Cualquier otra excepción. ANTES devolvía e.getMessage() al cliente, que
+     * puede contener detalles internos (rutas, clases, SQL). AHORA el detalle va
+     * solo al registro del servidor y el cliente recibe un mensaje genérico.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> manejarErrorInterno(Exception e) {
-        return construir(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno inesperado: " + e.getMessage());
+        org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class).error("Error no controlado", e);
+        return construir(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno inesperado");
     }
 
     private ResponseEntity<ErrorResponse> construir(HttpStatus status, String mensaje) {

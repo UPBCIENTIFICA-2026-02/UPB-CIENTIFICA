@@ -10,6 +10,7 @@ const { crearValidador } = require("./auth/ValidadorToken");
 const { crearMiddlewareAutenticacion } = require("./middleware/autenticacion");
 const { manejoErrores } = require("./middleware/manejoErrores");
 const { crearRutasAlmacenamiento } = require("./rutas/almacenamiento");
+const { crearMetricas } = require("./metricas");
 
 /** Composition root: único lugar donde se instancian y conectan las dependencias. */
 async function construirAplicacion() {
@@ -23,6 +24,38 @@ async function construirAplicacion() {
     const validador = crearValidador(config);
 
     const app = express();
+    // G2: no anunciar la tecnología del servidor (hallazgo del análisis de vulnerabilidades).
+    app.disable("x-powered-by");
+
+    // Monitoreo (M1): GET /metrics para Prometheus (ver src/metricas.js).
+    const metricas = crearMetricas("storage", (registro, client) => {
+        new client.Gauge({
+            name: "almacenamiento_bytes_usados",
+            help: "Bytes ocupados en el repositorio central, por usuario (última versión de cada archivo).",
+            labelNames: ["usuario"],
+            registers: [registro],
+            async collect() {
+                this.reset();
+                for (const { propietario, total } of await metadatos.espacioPorUsuario()) {
+                    this.set({ usuario: propietario }, total);
+                }
+            },
+        });
+        new client.Gauge({
+            name: "almacenamiento_cuota_bytes",
+            help: "Cuota de almacenamiento de cada usuario con archivos.",
+            labelNames: ["usuario"],
+            registers: [registro],
+            async collect() {
+                this.reset();
+                for (const { propietario } of await metadatos.espacioPorUsuario()) {
+                    this.set({ usuario: propietario }, cuotas.cuotaDe(propietario));
+                }
+            },
+        });
+    });
+    app.use(metricas.middleware);
+    app.get("/metrics", metricas.endpoint);
     app.use(express.json());
 
     // Sonda de salud: la usará node-monitoreo. Verifica también la BD.

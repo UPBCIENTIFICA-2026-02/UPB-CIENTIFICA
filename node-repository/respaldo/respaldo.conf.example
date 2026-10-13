@@ -1,0 +1,8 @@
+# /etc/upbc/respaldo.conf — configuración de respaldo-gpg.sh (copiar y ajustar).
+# Sin secretos: la URL de las bases se lee de los .env de los servicios.
+LLAVE_PUBLICA=/etc/upbc/upbc-respaldo.pub
+RAIZ_ALMACENAMIENTO=/srv/home
+DESTINO=/var/backups/upbc
+RETENCION_DIAS=14
+ENV_STORAGE=/opt/upbc/node-repository/.env
+ENV_SHARED=/opt/upbc/node-shared-file/.env

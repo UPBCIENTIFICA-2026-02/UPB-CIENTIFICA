@@ -1,0 +1,60 @@
+# Prometheus en el PC de desarrollo (todo en 127.0.0.1; node-sync en la VM,
+# con el 9090 reenviado). Lo arranca iniciar-monitoreo-windows.ps1.
+# Para producción: prometheus.yml (mismos trabajos, con los nombres de las VMs).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels: { entorno: desarrollo }
+
+rule_files:
+  - reglas/*.yml
+
+scrape_configs:
+  # Tráfico, errores y latencia de cada servicio (cada uno pone su etiqueta `servicio`).
+  - job_name: servicios
+    static_configs:
+      - targets: ['127.0.0.1:8080', '127.0.0.1:8083', '127.0.0.1:8084', '127.0.0.1:8085']
+
+  # Carga del clúster HPC y tiempos de ejecución (gestor-cluster).
+  - job_name: hpc
+    static_configs:
+      - targets: ['127.0.0.1:9102']
+        labels: { servicio: gestor-cluster }
+
+  # CPU, memoria, disco y red del equipo.
+  - job_name: nodos
+    static_configs:
+      - targets: ['127.0.0.1:9182']
+        labels: { nodo: pc-desarrollo }
+
+  # Disponibilidad: sondas HTTP.
+  - job_name: disponibilidad_http
+    metrics_path: /probe
+    params: { module: [salud_http] }
+    static_configs:
+      - { targets: ['http://127.0.0.1:8080/salud'],  labels: { servicio: node-web } }
+      - { targets: ['http://127.0.0.1:8084/health'], labels: { servicio: storage } }
+      - { targets: ['http://127.0.0.1:8083/health'], labels: { servicio: media } }
+      - { targets: ['http://127.0.0.1:8085/health'], labels: { servicio: shared-file } }
+      - { targets: ['http://127.0.0.1:8081/'],       labels: { servicio: auth } }
+    relabel_configs: &sonda
+      - { source_labels: [__address__], target_label: __param_target }
+      - { source_labels: [__param_target], target_label: instance }
+      - { target_label: __address__, replacement: '127.0.0.1:9115' }
+
+  - job_name: disponibilidad_api
+    metrics_path: /probe
+    params: { module: [vivo_http] }
+    static_configs:
+      - { targets: ['http://127.0.0.1:8082/jobs'], labels: { servicio: job-api } }
+    relabel_configs: *sonda
+
+  # Disponibilidad: servicios que no son HTTP.
+  - job_name: disponibilidad_tcp
+    metrics_path: /probe
+    params: { module: [tcp] }
+    static_configs:
+      - { targets: ['127.0.0.1:2099'], labels: { servicio: gestor-rmi } }
+      - { targets: ['127.0.0.1:9090'], labels: { servicio: file-sync } }
+      - { targets: ['127.0.0.1:5432'], labels: { servicio: postgresql } }
+    relabel_configs: *sonda

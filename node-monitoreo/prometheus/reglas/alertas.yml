@@ -1,0 +1,91 @@
+# Alertas configurables del sistema (requisito de Monitoreo).
+#
+# CÓMO CONFIGURARLAS: cada umbral es el número al final de `expr` y el tiempo
+# que debe mantenerse está en `for`. Se editan aquí y se recargan sin
+# reiniciar:  curl -X POST http://<prometheus>/-/reload
+# Grafana las muestra en Alerting > Alert rules (origen: Prometheus) y en el
+# panel "Alertas activas" del tablero. Desde Grafana también se pueden crear
+# alertas nuevas sobre cualquier métrica, sin tocar este archivo.
+groups:
+  - name: disponibilidad
+    rules:
+      - alert: ServicioCaido
+        expr: probe_success == 0
+        for: 1m
+        labels: { severidad: critica }
+        annotations:
+          resumen: "{{ $labels.servicio }} no responde"
+          descripcion: "La sonda a {{ $labels.instance }} falla desde hace más de 1 minuto."
+
+      - alert: ExportadorSinDatos
+        expr: up == 0
+        for: 2m
+        labels: { severidad: aviso }
+        annotations:
+          resumen: "Prometheus no puede leer {{ $labels.job }} en {{ $labels.instance }}"
+
+  - name: recursos
+    rules:
+      - alert: CPUAlta
+        expr: nodo:cpu_uso:porcentaje > 90
+        for: 5m
+        labels: { severidad: aviso }
+        annotations:
+          resumen: "CPU al {{ $value | printf \"%.0f\" }}% en {{ $labels.instance }}"
+
+      - alert: MemoriaAlta
+        expr: nodo:memoria_uso:porcentaje > 90
+        for: 5m
+        labels: { severidad: aviso }
+        annotations:
+          resumen: "Memoria al {{ $value | printf \"%.0f\" }}% en {{ $labels.instance }}"
+
+      - alert: DiscoCasiLleno
+        expr: nodo:disco_uso:porcentaje > 90
+        for: 10m
+        labels: { severidad: critica }
+        annotations:
+          resumen: "Disco {{ $labels.volumen }} al {{ $value | printf \"%.0f\" }}% en {{ $labels.instance }}"
+
+  - name: almacenamiento
+    rules:
+      - alert: CuotaCasiLlena
+        expr: almacenamiento_bytes_usados / almacenamiento_cuota_bytes > 0.9
+        for: 5m
+        labels: { severidad: aviso }
+        annotations:
+          resumen: "{{ $labels.usuario }} usa el {{ $value | humanizePercentage }} de su cuota"
+
+  - name: hpc
+    rules:
+      - alert: ColaHPCLarga
+        expr: hpc_cola_longitud > 10
+        for: 5m
+        labels: { severidad: aviso }
+        annotations:
+          resumen: "{{ $value }} trabajos HPC esperando worker desde hace 5 minutos"
+
+      - alert: TrabajosHPCFallando
+        expr: increase(hpc_trabajos_terminados_total{resultado="FAILED"}[15m]) > 3
+        labels: { severidad: aviso }
+        annotations:
+          resumen: "{{ $value | printf \"%.0f\" }} trabajos HPC fallidos en 15 minutos"
+
+  - name: servicios-http
+    rules:
+      - alert: ErroresHTTP5xx
+        expr: >
+          sum by (servicio) (rate(http_peticiones_total{estado=~"5.."}[5m]))
+            / sum by (servicio) (rate(http_peticiones_total[5m])) > 0.05
+        for: 5m
+        labels: { severidad: critica }
+        annotations:
+          resumen: "{{ $labels.servicio }}: {{ $value | humanizePercentage }} de respuestas con error 5xx"
+
+      - alert: LatenciaAlta
+        expr: >
+          histogram_quantile(0.95, sum by (servicio, le) (rate(http_peticion_duracion_segundos_bucket[5m]))) > 2
+        for: 10m
+        labels: { severidad: aviso }
+        annotations:
+          resumen: "{{ $labels.servicio }}: el 5% de las peticiones tarda más de {{ $value | printf \"%.1f\" }} s"

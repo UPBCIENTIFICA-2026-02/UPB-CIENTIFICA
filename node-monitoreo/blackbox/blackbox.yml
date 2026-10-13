@@ -1,0 +1,24 @@
+# Sondas de disponibilidad (blackbox_exporter). Una sola forma de medir si un
+# servicio está arriba, sea HTTP, SOAP, RMI o gRPC.
+modules:
+  # /health de los servicios Node y /salud de node-web: 200 y nada más.
+  salud_http:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [200]
+      preferred_ip_protocol: ip4
+  # Servicios que responden pero exigen token (job-api): 401/403 también es "vivo".
+  vivo_http:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [200, 401, 403]
+      preferred_ip_protocol: ip4
+      no_follow_redirects: true
+  # RMI (2099), gRPC de node-sync (9090), PostgreSQL, LDAPS: basta con aceptar la conexión.
+  tcp:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: ip4

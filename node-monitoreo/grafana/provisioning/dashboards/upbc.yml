@@ -1,0 +1,9 @@
+# Carga los tableros de node-monitoreo/grafana/tableros (UPBC_TABLEROS).
+apiVersion: 1
+providers:
+  - name: UPB-CIENTIFICA
+    folder: UPB-CIENTÍFICA
+    type: file
+    allowUiUpdates: true
+    options:
+      path: ${UPBC_TABLEROS}

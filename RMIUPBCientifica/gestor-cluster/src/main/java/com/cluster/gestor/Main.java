@@ -71,6 +71,11 @@ public final class Main {
         System.out.println("[gestor-cluster] Objeto remoto JobService exportado en el puerto " + PUERTO_OBJETO_REMOTO);
 
         registry.rebind(NOMBRE_SERVICIO, stub);
+
+        // Monitoreo (M1): carga de trabajos y tiempos de ejecución para Prometheus.
+        int puertoMetricas = Integer.parseInt(System.getenv().getOrDefault("METRICAS_PUERTO", "9102"));
+        servicio.metricas().servir(puertoMetricas);
+        System.out.println("[gestor-cluster] Métricas Prometheus en http://0.0.0.0:" + puertoMetricas + "/metrics");
         System.out.println("[gestor-cluster] Servicio registrado en el Registry como '" + NOMBRE_SERVICIO + "'");
 
         Registry registryFinal = registry;

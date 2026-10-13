@@ -1,4 +1,5 @@
 const express = require("express");
+const { crearMetricas } = require("./metricas");
 const config = require("./config");
 
 const { crearPool, aplicarEsquema } = require("./datos/db");
@@ -31,6 +32,13 @@ async function construirAplicacion() {
     const validador = crearValidador(config);
 
     const app = express();
+    // G2: no anunciar la tecnología del servidor (hallazgo del análisis de vulnerabilidades).
+    app.disable("x-powered-by");
+
+    // Monitoreo (M1): GET /metrics para Prometheus (ver src/metricas.js).
+    const metricas = crearMetricas("media");
+    app.use(metricas.middleware);
+    app.get("/metrics", metricas.endpoint);
     app.use(express.json());
 
     app.get("/health", async (_req, res) => {

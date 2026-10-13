@@ -131,6 +131,15 @@ class MetadatosRepository {
         return rowCount > 0;
     }
 
+    /** Para el monitoreo: [{ propietario, total }] de todos los usuarios con archivos. */
+    async espacioPorUsuario() {
+        const { rows } = await this.pool.query(
+        `SELECT propietario, COALESCE(SUM(tamano_bytes), 0)::BIGINT AS total
+        FROM nodos WHERE tipo = 'archivo' GROUP BY propietario`
+        );
+        return rows.map((r) => ({ propietario: r.propietario, total: Number(r.total) }));
+    }
+
     async espacioUsado(propietario) {
         const { rows } = await this.pool.query(
         `SELECT COALESCE(SUM(tamano_bytes), 0)::BIGINT AS total

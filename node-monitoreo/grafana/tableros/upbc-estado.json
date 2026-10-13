@@ -1,0 +1,1168 @@
+{
+ "uid": "upbc-estado",
+ "title": "UPB-CIENTÍFICA — Estado del sistema",
+ "description": "Monitoreo integral: disponibilidad, recursos, clúster HPC, almacenamiento y tráfico.",
+ "tags": [
+  "upbc"
+ ],
+ "timezone": "browser",
+ "refresh": "10s",
+ "schemaVersion": 39,
+ "version": 1,
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "editable": true,
+ "graphTooltip": 1,
+ "panels": [
+  {
+   "type": "row",
+   "title": "Disponibilidad de los servicios",
+   "id": 1,
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "stat",
+   "title": "Estado ahora",
+   "id": 2,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 24,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "max by (servicio) (probe_success)",
+     "legendFormat": "{{servicio}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "1": {
+         "text": "Arriba",
+         "color": "green"
+        },
+        "0": {
+         "text": "Caído",
+         "color": "red"
+        }
+       }
+      }
+     ]
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "orientation": "vertical"
+   },
+   "description": "Sondas de blackbox_exporter: HTTP a /health, TCP a RMI, gRPC y PostgreSQL."
+  },
+  {
+   "type": "bargauge",
+   "title": "Disponibilidad en el periodo elegido",
+   "id": 3,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 5,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "100 * avg by (servicio) (avg_over_time(probe_success[$__range]))",
+     "legendFormat": "{{servicio}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 95
+       },
+       {
+        "color": "green",
+        "value": 99
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     },
+     "min": 0,
+     "max": 100,
+     "decimals": 2
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "orientation": "horizontal",
+    "displayMode": "gradient"
+   },
+   "description": "Reporte histórico: porcentaje del tiempo que cada servicio respondió (cambia el rango arriba a la derecha)."
+  },
+  {
+   "type": "table",
+   "title": "Alertas activas",
+   "id": 4,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 5,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "ALERTS{alertstate=\"firing\"}",
+     "legendFormat": "",
+     "refId": "A",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "align": "auto"
+     },
+     "noValue": "Sin alertas activas"
+    },
+    "overrides": []
+   },
+   "options": {
+    "showHeader": true
+   },
+   "description": "Reglas de node-monitoreo/prometheus/reglas/alertas.yml que se están cumpliendo ahora.",
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value": true,
+       "__name__": true,
+       "job": true,
+       "alertstate": true,
+       "entorno": true
+      },
+      "renameByName": {
+       "alertname": "Alerta",
+       "severidad": "Severidad",
+       "servicio": "Servicio",
+       "instance": "Origen"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "row",
+   "title": "Recursos de la infraestructura",
+   "id": 5,
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 13,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "gauge",
+   "title": "CPU",
+   "id": 6,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 14,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "max by (instance) (nodo:cpu_uso:porcentaje)",
+     "legendFormat": "{{instance}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 70
+       },
+       {
+        "color": "red",
+        "value": 90
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     },
+     "min": 0,
+     "max": 100
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   }
+  },
+  {
+   "type": "gauge",
+   "title": "Memoria",
+   "id": 7,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 14,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "max by (instance) (nodo:memoria_uso:porcentaje)",
+     "legendFormat": "{{instance}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 70
+       },
+       {
+        "color": "red",
+        "value": 90
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     },
+     "min": 0,
+     "max": 100
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "Almacenamiento en disco",
+   "id": 8,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 14,
+    "w": 12,
+    "h": 6
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "max by (instance, volumen) (nodo:disco_uso:porcentaje)",
+     "legendFormat": "{{instance}} {{volumen}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 70
+       },
+       {
+        "color": "red",
+        "value": 90
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     },
+     "min": 0,
+     "max": 100
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "orientation": "horizontal",
+    "displayMode": "gradient"
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "CPU y memoria en el tiempo",
+   "id": 9,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 20,
+    "w": 24,
+    "h": 7
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "max by (instance) (nodo:cpu_uso:porcentaje)",
+     "legendFormat": "CPU {{instance}}",
+     "refId": "A"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "max by (instance) (nodo:memoria_uso:porcentaje)",
+     "legendFormat": "Memoria {{instance}}",
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "type": "row",
+   "title": "Clúster HPC: carga y tiempos de ejecución",
+   "id": 10,
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 27,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "stat",
+   "title": "En cola",
+   "id": 11,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 28,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "hpc_cola_longitud",
+     "legendFormat": "",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "graphMode": "none",
+    "colorMode": "value"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Ejecutando",
+   "id": 12,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 4,
+    "y": 28,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "hpc_trabajos{estado=\"RUNNING\"}",
+     "legendFormat": "",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "graphMode": "none",
+    "colorMode": "value"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Completados (periodo)",
+   "id": 13,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 28,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "round(increase(hpc_trabajos_terminados_total{resultado=\"COMPLETED\"}[$__range]))",
+     "legendFormat": "",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "graphMode": "none",
+    "colorMode": "value"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Fallidos (periodo)",
+   "id": 14,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 28,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "round(increase(hpc_trabajos_terminados_total{resultado=\"FAILED\"}[$__range]))",
+     "legendFormat": "",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "graphMode": "none",
+    "colorMode": "value"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Duración media",
+   "id": 15,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 28,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "increase(hpc_trabajo_duracion_segundos_sum[$__range]) / increase(hpc_trabajo_duracion_segundos_count[$__range])",
+     "legendFormat": "",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "graphMode": "none",
+    "colorMode": "value"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Duración p95",
+   "id": 16,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 20,
+    "y": 28,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le) (increase(hpc_trabajo_duracion_segundos_bucket[$__range])))",
+     "legendFormat": "",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "graphMode": "none",
+    "colorMode": "value"
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Trabajos por estado",
+   "id": 17,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 32,
+    "w": 12,
+    "h": 7
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "hpc_trabajos{estado=~\"QUEUED|RUNNING\"}",
+     "legendFormat": "{{estado}}",
+     "refId": "A"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "hpc_cola_longitud",
+     "legendFormat": "cola",
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "lineInterpolation": "stepAfter",
+      "fillOpacity": 15
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "type": "timeseries",
+   "title": "Tiempo de ejecución y de espera (p50 / p95)",
+   "id": 18,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 32,
+    "w": 12,
+    "h": 7
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "histogram_quantile(0.5, sum by (le) (rate(hpc_trabajo_duracion_segundos_bucket[$__rate_interval])))",
+     "legendFormat": "ejecución p50",
+     "refId": "A"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(hpc_trabajo_duracion_segundos_bucket[$__rate_interval])))",
+     "legendFormat": "ejecución p95",
+     "refId": "B"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(hpc_trabajo_espera_segundos_bucket[$__rate_interval])))",
+     "legendFormat": "espera en cola p95",
+     "refId": "C"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "type": "row",
+   "title": "Repositorio central (Storage)",
+   "id": 19,
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 39,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "bargauge",
+   "title": "Uso de la cuota por usuario",
+   "id": 20,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 40,
+    "w": 12,
+    "h": 7
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "100 * almacenamiento_bytes_usados / almacenamiento_cuota_bytes",
+     "legendFormat": "{{usuario}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 70
+       },
+       {
+        "color": "red",
+        "value": 90
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     },
+     "min": 0,
+     "max": 100,
+     "decimals": 1
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "orientation": "horizontal",
+    "displayMode": "gradient"
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Espacio ocupado",
+   "id": 21,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 40,
+    "w": 12,
+    "h": 7
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "sum(almacenamiento_bytes_usados)",
+     "legendFormat": "total",
+     "refId": "A"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "almacenamiento_bytes_usados",
+     "legendFormat": "{{usuario}}",
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "type": "row",
+   "title": "Tráfico de los servicios",
+   "id": 22,
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 47,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "Peticiones por segundo",
+   "id": 23,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 48,
+    "w": 8,
+    "h": 7
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "sum by (servicio) (rate(http_peticiones_total[$__rate_interval]))",
+     "legendFormat": "{{servicio}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "type": "timeseries",
+   "title": "Errores 5xx",
+   "id": 24,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 48,
+    "w": 8,
+    "h": 7
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "sum by (servicio) (rate(http_peticiones_total{estado=~\"5..\"}[$__rate_interval])) / sum by (servicio) (rate(http_peticiones_total[$__rate_interval]))",
+     "legendFormat": "{{servicio}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "noValue": "Sin errores 5xx"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "type": "timeseries",
+   "title": "Tiempo de respuesta p95",
+   "id": 25,
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus-upbc"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 48,
+    "w": 8,
+    "h": 7
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "histogram_quantile(0.95, sum by (servicio, le) (rate(http_peticion_duracion_segundos_bucket[$__rate_interval])))",
+     "legendFormat": "{{servicio}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {}
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "annotations": {
+  "list": []
+ }
+}
