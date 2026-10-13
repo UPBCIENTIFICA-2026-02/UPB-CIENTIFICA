@@ -66,10 +66,11 @@ Windows.
 
 ### Por qué el gestor va en el maestro y no en una VM `node-rmi`
 
-`job-runner.jar` todavía no existe. Hoy el gestor ejecuta el comando de cada
-trabajo con `bash -c` en la máquina donde corre. Si corre en `hpc-master` como
-`mpiuser`, un trabajo `mpirun --hostfile …` se reparte de verdad entre los tres
-nodos. Es el puente más corto entre el portal y el clúster con el código actual.
+Para ahorrar una VM. En el CCA el gestor y `job-api` van en `node-rmi` y
+`job-runner` en `hpc-master`; aquí los tres comparten el maestro (job-runner
+en 2199/2200 para no chocar con el gestor). El trabajo es código fuente +
+dataset del Home: el gestor los descarga de Storage (Windows) y `job-runner` los
+compila con `mpicc` y los lanza con `mpirun` en los tres nodos.
 
 ### Sobre las 3 máquinas
 
@@ -88,10 +89,7 @@ profesor y actualizar esos dos documentos.
 | Fotos y Streaming: propio + compartido, orden, miniaturas, visor y reproductor dentro de la app (las tres) | ✅ | node-media (FFmpeg) |
 | Sincronización · móvil (carpeta del teléfono, al llegar al Wi-Fi del servidor, horario) | ✅ | node-sync (VM) → node-repository |
 | Sincronización · escritorio (carpeta del PC, manual / al conectar / cada hora / diaria) | ✅ | node-sync (VM) → node-repository |
-| HPC · app y escritorio (enviar con comando, lista, detalle, cancelar) | ✅ (sin tarjeta de carga: `job-api` no tiene `/cluster/estado`) | job-api → gestor (clúster, o este PC con `-HpcLocal`) |
-| HPC · web: lista y cancelar | ✅ | job-api → gestor |
-| HPC · web: enviar desde el formulario | ❌ el front usa `Contrato_HPC` (código fuente + dataset) y `job-api` todavía pide un comando; se envía por API (paso 9) | — |
-| HPC · web: tarjeta del clúster | ❌ `job-api` no tiene `/cluster/estado` | — |
+| HPC (las tres): enviar código + dataset del Home, procesos, tiempo y prioridad; estado del clúster; registros; resultado en "Resultados HPC"; cancelar y reintentar | ✅ | job-api → gestor → job-runner (`mpirun` en los nodos; en el PC con `-HpcLocal`, mpirun simulado) |
 | Monitoreo (Grafana, desde el portal en `/monitoreo/`) | ✅ con `-Monitoreo` | node-monitoreo |
 | Mapa de servicios (`estudiante` sin HPC → 403) | ✅ con `-ModoAuth soap` | auth-local + cada servicio |
 
@@ -329,25 +327,29 @@ cd ..\despliegue\cluster-virtualbox
 ```powershell
 scp ..\..\RMIUPBCientifica\gestor-cluster\target\gestor-cluster.jar `
     ..\..\RMIUPBCientifica\job-api\target\job-api.jar `
+    ..\..\RMIUPBCientifica\job-runner\target\job-runner.jar `
+    ..\..\RMIUPBCientifica\job-runner\ejemplos\pi.c `
     6-desplegar-gestor.sh hpc-master:
 ssh hpc-master "sudo bash 6-desplegar-gestor.sh"
 ```
 
-Instala los dos como servicios de `systemd` (arrancan solos al encender el
-maestro) y hace una prueba completa: envía un trabajo a `job-api` y comprueba
-que termina habiendo corrido en los tres nodos.
+Instala `job-runner`, `gestor-cluster` y `job-api` como servicios de `systemd`
+(arrancan solos al encender el maestro) y hace una prueba completa: sube
+`ejemplos/pi.c` a Storage, lo envía a `job-api` con tantos procesos como slots
+tenga el hostfile y comprueba que se compiló y corrió en los tres nodos.
 
 ```
   OK  sin token -> 401 (la autenticación está activa)
-  OK  trabajo enviado: 3f1c…
-  estado final: COMPLETED
-  OK  REST -> RMI -> mpirun -> 3 nodos: el gestor está conectado al clúster
+  OK  pi.c subido al Home de mpiuser en Storage
+  OK  trabajo enviado: 3f1c… (6 procesos)
+  estado final: COMPLETADO
+  OK  Storage -> gestor (RMI) -> job-runner -> mpicc + mpirun en 3 nodos -> resultado en el Home
 ```
 
-> ⚠️ El gestor ejecuta **cualquier** comando que le mande un usuario autenticado
-> (con `hpc` en su perfil), como `mpiuser`, en el clúster. Es aceptable aquí; en
-> producción es el pendiente 7.2 de TRASPASO (riesgo V-11 del análisis de
-> vulnerabilidades), que resuelve `job-runner.jar`.
+> La prueba necesita Storage (Windows, `192.168.56.1:8084`) arrancado con el
+> paso 7 y el 8084 abierto en el firewall. El código del usuario corre en el
+> clúster como `mpiuser`, sin shell (riesgo V-11 corregido; ver el análisis de
+> vulnerabilidades).
 
 ---
 
@@ -417,14 +419,25 @@ La combinación habitual:
 .\7-iniciar-servicios-windows.ps1 -HpcLocal -ModoAuth soap -Monitoreo
 ```
 
-**HPC sin las VMs.** Con `-HpcLocal` el script arranca también `gestor-cluster`
-(RMI 2099) y `job-api` (8082) en Windows, y apunta el portal a ese job-api.
-Necesita los `.jar` compilados y Git Bash: los trabajos se ejecutan en el PC con
-`bash -c`, no en el clúster MPI. Sirve para probar la pestaña HPC de la app y
-del portal.
+**HPC sin las VMs.** Con `-HpcLocal` el script arranca también `job-runner`
+(2199), `gestor-cluster` (RMI 2099) y `job-api` (8082) en Windows, y apunta el
+portal a ese job-api. En Windows no hay OpenMPI: ese job-runner usa un mpirun
+**simulado** (lanza N copias del programa con `OMPI_COMM_WORLD_RANK/SIZE`, sin
+comunicación entre procesos) y solo ejecuta programas `.py`. Sirve para probar
+las tres interfaces de HPC.
 
 ```powershell
 .\7-iniciar-servicios-windows.ps1 -HpcLocal
+```
+
+**HPC con OpenMPI real sin el clúster.** En una VM Ubuntu (por ejemplo la de
+node-sync), `despliegue/cluster-virtualbox/ejecutor-vm-ubuntu.sh` instala
+OpenMPI y `job-runner` en los puertos 2299/2300; VirtualBox los reenvía al PC
+(`VBoxManage controlvm <vm> natpf1 "jobrunner-registry,tcp,127.0.0.1,2299,,2299"`
+y lo mismo con 2300). Luego:
+
+```powershell
+.\7-iniciar-servicios-windows.ps1 -HpcLocal -EjecutorHpc 127.0.0.1:2299
 ```
 
 > **Qué es `auth-local`.** Un Authentication Service de pruebas
@@ -566,36 +579,33 @@ peticiones `Range` que atraviesan node-web → node-media → node-repository).
 Con `-Monitoreo`, el botón **Monitoreo** de Inicio abre Grafana en `/monitoreo/`
 (`admin` / `admin` la primera vez).
 
-### HPC: lo que funciona y lo que no
+### HPC
 
-La pestaña **HPC** lista los trabajos y deja cancelarlos. Su **formulario de
-envío todavía no funciona**: el front sigue `Contrato_HPC` (elige código fuente
-y dataset en Storage y el número de procesos), pero `job-api` aún pide un
-comando. Al enviar verás *"comando: El comando del trabajo es obligatorio"*.
-La tarjeta de estado del clúster tampoco: `job-api` no tiene `/cluster/estado`.
+1. En **Mis archivos**, sube `RMIUPBCientifica/job-runner/ejemplos/pi.c` (o
+   `estadisticas.c` + `numeros.csv`) a una carpeta, p. ej. `Proyectos`.
+2. En **HPC → Nuevo trabajo**: nombre, elige el código (y el dataset), 6
+   procesos, tiempo máximo y prioridad. Enviar.
+3. La tarjeta pasa de *En cola* a *Ejecutando* (con los nodos asignados) y a
+   *Completado*. **Ver registros** muestra lo que imprimió cada rango, y el
+   resultado queda en **Mis archivos → Resultados HPC**.
 
-Mientras tanto, se envía por la pasarela con el contrato que `job-api` sí
-acepta hoy:
+La tarjeta del clúster muestra los procesos en uso, los nodos y si `job-runner`
+responde. Por API (lo mismo que hacen las apps):
 
 ```powershell
 $s = Invoke-RestMethod -Method Post http://localhost:8080/api/sesion `
        -ContentType 'application/json' -Body '{"usuario":"investigador","contrasena":"test"}'
 $h = @{ Authorization = "Bearer $($s.token)" }
 
-Invoke-RestMethod -Method Post http://localhost:8080/api/jobs -Headers $h `
-  -ContentType 'application/json' `
-  -Body '{"nombre":"hola-cluster","comando":"mpirun -np 6 --hostfile /srv/home/hostfile /srv/home/mpi/hola.bin","prioridad":5}'
+Invoke-RestMethod -Method Post http://localhost:8080/api/jobs -Headers $h -ContentType 'application/json' `
+  -Body '{"nombreTrabajo":"pi","rutaCodigo":"/Proyectos/pi.c","numeroProcesos":6,"tiempoMaximoEjecucion":300}'
+Invoke-RestMethod http://localhost:8080/api/jobs -Headers $h | Format-List nombreTrabajo, estado, nodosAsignados, rutaResultado
+Invoke-RestMethod http://localhost:8080/api/cluster/estado -Headers $h
 ```
 
-Abre la pestaña **HPC**: el trabajo aparece y pasa de *En cola* a *Completado*.
-Para ver qué imprimió:
-
-```powershell
-Invoke-RestMethod http://localhost:8080/api/jobs -Headers $h | Format-List nombre, estado, resultado
-```
-
-El recorrido completo fue: **front web → node-web (pasarela) → job-api (REST)
-→ gestor-cluster (RMI) → `mpirun` → los tres nodos**.
+El recorrido completo: **front → node-web (pasarela) → job-api (REST) →
+gestor-cluster (RMI) → Storage (código y dataset) → job-runner (RMI) → `mpicc`
++ `mpirun` → los tres nodos → resultado de vuelta al Home**.
 
 Cada usuario solo ve sus propios trabajos: si entras con `user1`, no verás el de
 `investigador`.
@@ -688,16 +698,18 @@ Y cierra las ventanas de los servicios. El monitoreo corre oculto: deténlo con
 | Fotos o videos sin miniatura | Media arrancó sin FFmpeg | Script 7 lo busca en `%USERPROFILE%\sdk\ffmpeg`; reabrir node-media |
 | Storage o Media no abren su puerto | No existen las bases | Paso 7.1 |
 | Web · HPC: *"No hay respuesta de HPC (job-api)"* | Maestro apagado o `job-api` caído | `ssh hpc-master "systemctl status upbc-job-api"` |
-| Web · HPC al enviar: *"comando: El comando del trabajo es obligatorio"* | El formulario usa `Contrato_HPC` y `job-api` todavía no | Enviar por API (paso 9) |
+| HPC: los trabajos se quedan *En cola* y la tarjeta dice *Sin job-runner* | job-runner caído o mal apuntado | `ssh hpc-master "systemctl status upbc-job-runner"`; en el PC, la ventana `job-runner` de `-HpcLocal` |
+| HPC: *"No se encontró el código … (HPC-001)"* | La ruta no es relativa a tu Home | Elegirlo con el selector, o `/Carpeta/archivo.c` |
 | Web: no deja entrar, *"El servicio de identidad no responde"* | auth-local no está corriendo | Revisar su ventana |
 | Web: se ve la interfaz vieja o una página en blanco | node-web sirve otra carpeta | Mira la línea `Interfaz:` al arrancar node-web; `npm run interfaz` en `node-web` |
 | App: *Failed to connect to /192.168.20.31:8081* | Firewall, IP Wi-Fi cambió, o `USAR_MOCK_AUTH = true` | Paso 7.2; `ipconfig`; paso 8.1 |
 | App: *"Usuario o contraseña incorrectos"* | Credenciales | Mira el motivo exacto en la ventana de auth-local |
-| Trabajo en `FALLIDO` | El comando falló en el clúster | `journalctl -u upbc-gestor -n 50` en el maestro |
+| Trabajo en `FALLIDO` | No compiló (HPC-004) o `mpirun` terminó con error | **Ver registros** en la app; `journalctl -u upbc-job-runner -n 50` en el maestro |
 
 Logs útiles en el maestro:
 
 ```powershell
+ssh hpc-master "journalctl -u upbc-job-runner -f"
 ssh hpc-master "journalctl -u upbc-gestor -f"
 ssh hpc-master "journalctl -u upbc-job-api -f"
 ```
@@ -708,17 +720,12 @@ ssh hpc-master "journalctl -u upbc-job-api -f"
 
 Conviene tenerlo claro para no buscar errores donde no los hay:
 
-- **Los archivos de Storage y el `/srv/home` del clúster no son el mismo
-  disco.** Storage guarda en `node-repository/almacen-pruebas` de Windows; el
-  clúster usa `/srv/home` de `hpc-master`. Un trabajo no puede leer un archivo
-  subido por la app. Unirlos es parte de lo que debe hacer `job-runner.jar`
-  (recibir los datos desde Storage; TRASPASO §7.1).
-- **El formulario HPC del front web no envía trabajos** hasta que `job-api`
-  adopte el contrato de `Contrato_HPC` (código fuente + dataset + procesos) y
-  exponga `/cluster/estado`. Por eso el paso 9 envía por API.
-- **La app móvil envía trabajos con un comando**, que es lo que acepta hoy
-  `job-api`. Cuando `job-api` adopte `Contrato_HPC`, la app tendrá que cambiar
-  su formulario igual que el portal.
+- **Storage y el `/srv/home` del clúster no son el mismo disco.** No hace
+  falta: el gestor descarga el código y el dataset de Storage por su API y
+  `job-runner` los escribe en `/srv/home/.hpc-trabajos` (compartido por NFS con
+  los workers); el resultado vuelve a Storage por la API.
+- **Los trabajos corren como `mpiuser`**, no con la identidad del usuario (los
+  nodos no son clientes LDAP; RF-20).
 - **La programación de la sincronización del escritorio** solo corre con la app
   abierta y la sesión iniciada (el token vive en memoria); no hay `fsagent`.
 - **node-soap real**: aquí lo sustituye auth-local. Para la VM del equipo:

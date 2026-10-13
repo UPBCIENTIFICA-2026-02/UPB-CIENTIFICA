@@ -63,13 +63,29 @@ groups:
         for: 5m
         labels: { severidad: aviso }
         annotations:
-          resumen: "{{ $value }} trabajos HPC esperando worker desde hace 5 minutos"
+          resumen: "{{ $value }} trabajos HPC esperando nodos libres desde hace 5 minutos"
 
       - alert: TrabajosHPCFallando
-        expr: increase(hpc_trabajos_terminados_total{resultado="FAILED"}[15m]) > 3
+        expr: sum(increase(hpc_trabajos_terminados_total{resultado=~"FALLIDO|FALLIDO_TIMEOUT"}[15m])) > 3
         labels: { severidad: aviso }
         annotations:
           resumen: "{{ $value | printf \"%.0f\" }} trabajos HPC fallidos en 15 minutos"
+
+      # Evento NodoEnFalla de Contrato_HPC: un nodo de la malla no responde por SSH.
+      - alert: NodoHPCEnFalla
+        expr: sum(hpc_nodos{estado="EN_FALLA"}) > 0
+        for: 2m
+        labels: { severidad: critica }
+        annotations:
+          resumen: "{{ $value }} nodo(s) de la malla HPC en falla; sus procesos se reasignan"
+
+      # Sin job-runner (hpc-master) los trabajos se quedan en cola.
+      - alert: EjecutorHPCDesconectado
+        expr: hpc_ejecutor_conectado == 0
+        for: 2m
+        labels: { severidad: critica }
+        annotations:
+          resumen: "El gestor no alcanza a job-runner en hpc-master: los trabajos HPC no se ejecutan"
 
   - name: servicios-http
     rules:

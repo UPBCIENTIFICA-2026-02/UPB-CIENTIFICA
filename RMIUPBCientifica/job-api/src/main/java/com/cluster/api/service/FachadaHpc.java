@@ -2,96 +2,100 @@ package com.cluster.api.service;
 
 import com.cluster.api.exception.RmiNoDisponibleException;
 import com.cluster.api.rmi.RmiClient;
-import com.cluster.common.EstadoInvalidoException;
-import com.cluster.common.Job;
-import com.cluster.common.JobNoEncontradoException;
-import com.cluster.common.JobService;
-import com.cluster.common.JobStatus;
+import com.cluster.common.ErrorHpc;
+import com.cluster.common.EstadoCluster;
+import com.cluster.common.EstadoTrabajo;
 import com.cluster.common.NoAutorizadoException;
+import com.cluster.common.NodoCluster;
+import com.cluster.common.Prioridad;
+import com.cluster.common.RespuestaEnvio;
+import com.cluster.common.ResultadoTrabajo;
+import com.cluster.common.ServicioHpc;
+import com.cluster.common.SolicitudTrabajo;
+import com.cluster.common.TrabajoHpc;
 import org.springframework.stereotype.Service;
 
 import java.rmi.RemoteException;
 import java.util.List;
 
 /**
- * Capa de servicio de job-api. Encapsula el patrón "obtener stub + invocar +
- * traducir fallo de infraestructura" para que ni el Controller ni nada fuera
- * de este paquete tenga que lidiar con {@link RemoteException} directamente.
+ * Capa de servicio de job-api: obtiene el stub, invoca y convierte los fallos
+ * de infraestructura (RemoteException) en {@link RmiNoDisponibleException}
+ * (503). Las excepciones de negocio ({@link ErrorHpc}, {@link NoAutorizadoException})
+ * pasan tal cual para que GlobalExceptionHandler las traduzca.
  *
- * Las excepciones de DOMINIO ({@link JobNoEncontradoException},
- * {@link EstadoInvalidoException}, {@link NoAutorizadoException}) se dejan
- * propagar tal cual: son parte del contrato de negocio y el Controller las
- * declara explícitamente para que {@code GlobalExceptionHandler} las traduzca a
- * 404/409/401/403.
- *
- * El token viaja como primer argumento de cada método, igual que en el contrato
- * RMI. job-api no lo interpreta: solo lo reenvía.
+ * El token se reenvía como primer argumento, igual que en el contrato RMI;
+ * job-api no lo interpreta.
  */
 @Service
-public class JobFacadeService {
+public class FachadaHpc {
 
     private final RmiClient rmiClient;
 
-    public JobFacadeService(RmiClient rmiClient) {
+    public FachadaHpc(RmiClient rmiClient) {
         this.rmiClient = rmiClient;
     }
 
-    public String submitJob(String token, String nombre, String comando, int prioridad)
-            throws NoAutorizadoException {
-        return invocar(servicio -> servicio.submitJob(token, nombre, comando, prioridad));
+    @FunctionalInterface
+    private interface Llamada<T> {
+        T ejecutar(ServicioHpc s) throws RemoteException, NoAutorizadoException, ErrorHpc;
     }
 
-    public JobStatus getJobStatus(String token, String jobId)
-            throws JobNoEncontradoException, NoAutorizadoException {
-        return invocarConDominio(servicio -> servicio.getJobStatus(token, jobId));
-    }
-
-    public Job getJob(String token, String jobId)
-            throws JobNoEncontradoException, NoAutorizadoException {
-        return invocarConDominio(servicio -> servicio.getJob(token, jobId));
-    }
-
-    public List<Job> listJobs(String token) throws NoAutorizadoException {
-        return invocar(servicio -> servicio.listJobs(token));
-    }
-
-    public boolean cancelJob(String token, String jobId)
-            throws JobNoEncontradoException, EstadoInvalidoException, NoAutorizadoException {
-        JobService servicio = rmiClient.obtenerServicio();
-        try {
-            return servicio.cancelJob(token, jobId);
-        } catch (RemoteException e) {
-            throw new RmiNoDisponibleException("Fallo de comunicación RMI al cancelar el trabajo " + jobId, e);
-        }
-    }
-
-    // --- utilidades internas para no repetir el manejo de RemoteException ---
-
-    private interface LlamadaSinDominio<T> {
-        T ejecutar(JobService servicio) throws RemoteException, NoAutorizadoException;
-    }
-
-    private interface LlamadaConDominio<T> {
-        T ejecutar(JobService servicio)
-                throws RemoteException, JobNoEncontradoException, NoAutorizadoException;
-    }
-
-    private <T> T invocar(LlamadaSinDominio<T> llamada) throws NoAutorizadoException {
-        JobService servicio = rmiClient.obtenerServicio();
+    private <T> T invocar(Llamada<T> llamada) throws NoAutorizadoException, ErrorHpc {
+        ServicioHpc servicio = rmiClient.obtenerServicio();
         try {
             return llamada.ejecutar(servicio);
         } catch (RemoteException e) {
-            throw new RmiNoDisponibleException("Fallo de comunicación RMI con gestor-cluster", e);
+            Throwable causa = e.getCause() != null && e.getCause() instanceof RemoteException ? e.getCause() : e;
+            throw new RmiNoDisponibleException(causa.getMessage(), e);
         }
     }
 
-    private <T> T invocarConDominio(LlamadaConDominio<T> llamada)
-            throws JobNoEncontradoException, NoAutorizadoException {
-        JobService servicio = rmiClient.obtenerServicio();
-        try {
-            return llamada.ejecutar(servicio);
-        } catch (RemoteException e) {
-            throw new RmiNoDisponibleException("Fallo de comunicación RMI con gestor-cluster", e);
-        }
+    public RespuestaEnvio enviar(String token, SolicitudTrabajo s) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.enviarTrabajo(token, s));
+    }
+
+    public TrabajoHpc consultar(String token, String id) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.consultarTrabajo(token, id));
+    }
+
+    public List<TrabajoHpc> listar(String token, EstadoTrabajo filtro) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.listarTrabajosUsuario(token, filtro));
+    }
+
+    public ResultadoTrabajo resultado(String token, String id) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.obtenerResultado(token, id));
+    }
+
+    public String logs(String token, String id) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.obtenerLogsTrabajo(token, id));
+    }
+
+    public TrabajoHpc cancelar(String token, String id) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.cancelarTrabajo(token, id));
+    }
+
+    public TrabajoHpc definirPrioridad(String token, String id, Prioridad p) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.definirPrioridadTrabajo(token, id, p));
+    }
+
+    public RespuestaEnvio reintentar(String token, String id) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.reintentarTrabajo(token, id));
+    }
+
+    public EstadoCluster estadoCluster(String token) throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.obtenerEstadoCluster(token));
+    }
+
+    public NodoCluster registrarNodo(String token, String host, int capacidad, boolean externo)
+            throws NoAutorizadoException, ErrorHpc {
+        return invocar(x -> x.registrarNodo(token, host, capacidad, externo));
+    }
+
+    public void retirarNodo(String token, String host) throws NoAutorizadoException, ErrorHpc {
+        invocar(x -> {
+            x.retirarNodo(token, host);
+            return null;
+        });
     }
 }

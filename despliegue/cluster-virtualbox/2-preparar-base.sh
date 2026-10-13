@@ -39,7 +39,7 @@ paso "Instalando paquetes (OpenMPI, NFS, Java 17, compiladores)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
-    openmpi-bin openmpi-common libopenmpi-dev build-essential \
+    openmpi-bin openmpi-common libopenmpi-dev build-essential python3-mpi4py \
     nfs-common nfs-kernel-server \
     openjdk-17-jre-headless \
     openssh-server sudo curl rsync ca-certificates

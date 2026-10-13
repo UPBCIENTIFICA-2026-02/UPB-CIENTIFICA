@@ -100,6 +100,31 @@ Perfil = primer grupo del usuario en orden alfabético (como ya hacía `user.php
 
 ## G. HPC (`Contrato HPC.pdf`)
 
+**Implementación del contrato (2026-10-13).** La interfaz RMI pasó de `JobService`
+(`submitJob(token, nombre, comando, prioridad)`) a **`ServicioHpc`** con las
+operaciones del contrato; job-api las expone en REST (ver `RMIUPBCientifica/README.md` §3):
+`POST /jobs` (EnviarTrabajo: `nombreTrabajo`, `rutaCodigo`, `rutaDataset`,
+`numeroProcesos`, `tiempoMaximoEjecucion`, `prioridad` BAJA/NORMAL/ALTA,
+`parametrosEjecucion`), `GET /jobs[?estado=]`, `GET /jobs/{id}`, `/estado`,
+`/resultado`, `/logs`, `DELETE /jobs/{id}`, `PUT /jobs/{id}/prioridad`,
+`POST /jobs/{id}/reintento`, `GET /cluster/estado`, y las operaciones nuevas de
+la malla `POST /cluster/nodos` y `DELETE /cluster/nodos/{host}`. Errores con el
+código del contrato en el cuerpo (`codigo: "HPC-001"`…).
+
+Decisiones que el contrato dejaba abiertas:
+- `rutaCodigo`/`rutaDataset` aceptan una ruta relativa al Home **o** el id de Storage.
+- Permiso `hpc:prioridad-alta` = servicio **`hpcadmin`** del mapa de servicios
+  (también para registrar nodos). `ou=services` y auth-local lo dan a `investigadores`.
+- Scheduler ↔ MPI (interno): RMI entre el gestor y `job-runner` (`EjecutorMpi`),
+  consultando el estado (sin callback), para no abrir conexiones de hpc-master hacia node-rmi.
+- `progreso` siempre `null`: OpenMPI no informa avance.
+- Errores nuevos: HPC-108 (cambiar la prioridad de un trabajo que no está EN_COLA),
+  HPC-301/302 (nodo no válido / inexistente), HPC-400 (datos no válidos).
+- El resultado queda en `Resultados HPC/<nombre>-<id8>/` del Home: `salida.txt`,
+  `errores.txt`, `compilacion.txt` y lo que el programa escriba en su directorio.
+
+Antes de esta implementación:
+
 - `403` si el perfil no tiene `hpc` en su mapa de servicios (antes cualquier usuario autenticado podía).
 - job-api: una ruta inexistente responde `404 "Ruta no encontrada"` (antes `500` con detalle interno) y los errores no previstos ya no devuelven el mensaje de la excepción.
 - Métricas del gestor para el monitoreo en `:9102/metrics`: `hpc_trabajos{estado}`,
@@ -131,6 +156,6 @@ queda aquí.
 | Shared File | `nivelPermiso` "estilo Unix simplificado" | Compartir "respetando el código Unix de permisos de archivos y directorios" | Los niveles se aplican **sobre** los bits Unix de Storage (`rwxrwxrwx`, propietario/grupo/otros). Falta la operación `CambiarPermisosUnix` (el propietario fija el modo, p. ej. `rw-r-----` o `640`) y que la `x` de los directorios controle el recorrido | Parcial |
 | Photo Album | — (contrato nuevo) | "Buscar, clasificar y compartir imágenes tanto interna como externamente" | Interno: Shared File. Externo: `CrearEnlacePublico(fotoId, expiracion)` → enlace de solo lectura con caducidad, revocable, que no exige cuenta | Externo pendiente |
 | Streaming | Control de acceso por comparticiones | "Compartir videos para presentaciones empresariales" (público externo) | Mismo `CrearEnlacePublico` para videos, con reproducción por rangos | Pendiente |
-| HPC | `rutaCodigo`, `rutaDataset` (código y datasets) | "Recibirá el código fuente y los conjuntos de datos" | El PDF es correcto; la implementación todavía recibe `comando` (ver G y `TRASPASO.md` §7) | Pendiente |
-| HPC | Sin operaciones de nodos | Malla Grid que integre dispositivos "tanto desde su centro de cómputo como de forma externa" | Operaciones nuevas: `RegistrarNodo(host, capacidadProcesos, externo)` y `RetirarNodo(host)`, con permiso `hpcadmin`; `NodoCluster.origen = LABORATORIO \| EXTERNO`; `ObtenerEstadoCluster` los lista | Pendiente |
+| HPC | `rutaCodigo`, `rutaDataset` (código y datasets) | "Recibirá el código fuente y los conjuntos de datos" | Implementado como dice el PDF (adenda G) | Cumplido; validar con OpenMPI real |
+| HPC | Sin operaciones de nodos | Malla Grid que integre dispositivos "tanto desde su centro de cómputo como de forma externa" | Operaciones nuevas: `RegistrarNodo(host, capacidadProcesos, externo)` y `RetirarNodo(host)`, con permiso `hpcadmin`; `NodoCluster.origen = LABORATORIO \| EXTERNO`; `ObtenerEstadoCluster` los lista | Implementado (`POST/DELETE /cluster/nodos`); probar con un equipo externo real |
 | Todos | Consumidores "Web, Windows, Linux, Android, iOS" | Clientes nativos para Windows, Linux y Android **o** iOS | iOS no es obligatorio; en este periodo el cliente móvil es Android | — |

@@ -1,18 +1,29 @@
 package com.cluster.api;
 
-import com.cluster.api.controller.JobController;
-import com.cluster.api.service.JobFacadeService;
-import com.cluster.common.EstadoInvalidoException;
-import com.cluster.common.Job;
-import com.cluster.common.JobNoEncontradoException;
-import com.cluster.common.JobStatus;
-import org.springframework.http.HttpHeaders;
+import com.cluster.api.controller.ClusterController;
+import com.cluster.api.controller.TrabajoController;
+import com.cluster.api.exception.RmiNoDisponibleException;
+import com.cluster.api.service.FachadaHpc;
+import com.cluster.common.ErrorHpc;
+import com.cluster.common.EstadoTrabajo;
+import com.cluster.common.NoAutorizadoException;
+import com.cluster.common.Prioridad;
+import com.cluster.common.RespuestaEnvio;
+import com.cluster.common.SolicitudTrabajo;
+import com.cluster.common.TrabajoHpc;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -20,113 +31,131 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Prueba la capa HTTP de forma aislada (sin RMI real), verificando que cada
- * respuesta de JobFacadeService se traduzca al código HTTP correcto.
+ * Capa HTTP aislada (sin RMI): cada respuesta o excepción de la fachada se
+ * traduce al código HTTP y al cuerpo del contrato.
  */
-@WebMvcTest(JobController.class)
-class JobControllerTest {
+@WebMvcTest({TrabajoController.class, ClusterController.class})
+class TrabajoControllerTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private MockMvc mvc;
 
     @MockBean
-    private JobFacadeService jobFacadeService;
+    private FachadaHpc hpc;
 
-    /** El controlador solo exige que venga un Bearer; validarlo es cosa del gestor. */
     private static final String BEARER = "Bearer mock-token-jperez-pruebas";
+    private static final String CUERPO = """
+            {"nombreTrabajo":"pi","rutaCodigo":"/Proyectos/pi.c","rutaDataset":"/Proyectos/datos.csv",
+             "numeroProcesos":4,"tiempoMaximoEjecucion":120,"prioridad":"BAJA","parametrosEjecucion":{"n":"1000"}}""";
 
-    @Test
-    void crearTrabajoRetorna201ConId() throws Exception {
-        when(jobFacadeService.submitJob(anyString(), anyString(), anyString(), anyInt())).thenReturn("id-123");
-
-        mockMvc.perform(post("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER)
-                        .contentType("application/json")
-                        .content("{\"nombre\":\"prueba\",\"comando\":\"echo hola\",\"prioridad\":5}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value("id-123"));
+    private static TrabajoHpc trabajo(EstadoTrabajo estado) {
+        TrabajoHpc t = new TrabajoHpc("id-1", "jperez",
+                new SolicitudTrabajo("pi", "/Proyectos/pi.c", null, 4, 120, Prioridad.NORMAL, Map.of()), null);
+        t.setEstado(estado);
+        return t;
     }
 
     @Test
-    void crearTrabajoSinNombreRetorna400() throws Exception {
-        mockMvc.perform(post("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER)
-                        .contentType("application/json")
-                        .content("{\"comando\":\"echo hola\",\"prioridad\":5}"))
+    void enviarTrabajoDevuelve201YPasaLosCamposDelContrato() throws Exception {
+        when(hpc.enviar(anyString(), any())).thenReturn(
+                new RespuestaEnvio("id-1", EstadoTrabajo.PENDIENTE, 1, Instant.now(), null));
+
+        mvc.perform(post("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER)
+                        .contentType("application/json").content(CUERPO))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.trabajoId").value("id-1"))
+                .andExpect(jsonPath("$.estadoInicial").value("PENDIENTE"))
+                .andExpect(jsonPath("$.posicionEstimadaCola").value(1));
+
+        ArgumentCaptor<SolicitudTrabajo> s = ArgumentCaptor.forClass(SolicitudTrabajo.class);
+        verify(hpc).enviar(eq("mock-token-jperez-pruebas"), s.capture());
+        assertEquals("/Proyectos/pi.c", s.getValue().getRutaCodigo());
+        assertEquals("/Proyectos/datos.csv", s.getValue().getRutaDataset());
+        assertEquals(4, s.getValue().getNumeroProcesos());
+        assertEquals(Prioridad.BAJA, s.getValue().getPrioridad());
+        assertEquals(Map.of("n", "1000"), s.getValue().getParametrosEjecucion());
+    }
+
+    @Test
+    void sinCamposObligatoriosEs400() throws Exception {
+        mvc.perform(post("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER)
+                        .contentType("application/json").content("{\"nombreTrabajo\":\"x\",\"numeroProcesos\":0}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void obtenerTrabajoInexistenteRetorna404() throws Exception {
-        when(jobFacadeService.getJob(anyString(), eq("no-existe"))).thenThrow(new JobNoEncontradoException("no-existe"));
-
-        mockMvc.perform(get("/jobs/no-existe").header(HttpHeaders.AUTHORIZATION, BEARER))
-                .andExpect(status().isNotFound());
+    void prioridadDesconocidaEs400() throws Exception {
+        mvc.perform(post("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER).contentType("application/json")
+                        .content(CUERPO.replace("BAJA", "URGENTE")))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void obtenerTrabajoExistenteRetorna200() throws Exception {
-        Job job = new Job("id-1", "prueba", "echo hola", 5);
-        when(jobFacadeService.getJob(anyString(), eq("id-1"))).thenReturn(job);
+    void sinTokenEs401() throws Exception {
+        mvc.perform(get("/jobs")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(hpc);
+    }
 
-        mockMvc.perform(get("/jobs/id-1").header(HttpHeaders.AUTHORIZATION, BEARER))
+    @Test
+    void losErroresDelContratoSeTraducenConSuCodigo() throws Exception {
+        when(hpc.enviar(anyString(), any())).thenThrow(
+                new ErrorHpc(ErrorHpc.Codigo.CODIGO_NO_ENCONTRADO, "No se encontró el código"));
+        mvc.perform(post("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER).contentType("application/json").content(CUERPO))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.codigo").value("HPC-001"));
+
+        when(hpc.cancelar(anyString(), eq("id-1"))).thenThrow(
+                new ErrorHpc(ErrorHpc.Codigo.NO_CANCELABLE, "ya terminó"));
+        mvc.perform(delete("/jobs/id-1").header(HttpHeaders.AUTHORIZATION, BEARER))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.codigo").value("HPC-105"));
+
+        doThrow(new ErrorHpc(ErrorHpc.Codigo.PROCESOS_EXCEDEN_CUOTA, "cuota")).when(hpc).enviar(anyString(), any());
+        mvc.perform(post("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER).contentType("application/json").content(CUERPO))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.codigo").value("HPC-003"));
+    }
+
+    @Test
+    void consultarYEstado() throws Exception {
+        when(hpc.consultar(anyString(), eq("id-1"))).thenReturn(trabajo(EstadoTrabajo.EJECUTANDO));
+        mvc.perform(get("/jobs/id-1").header(HttpHeaders.AUTHORIZATION, BEARER))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("id-1"))
-                .andExpect(jsonPath("$.estado").value("QUEUED"));
+                .andExpect(jsonPath("$.estado").value("EJECUTANDO"))
+                .andExpect(jsonPath("$.numeroProcesos").value(4));
+        mvc.perform(get("/jobs/id-1/estado").header(HttpHeaders.AUTHORIZATION, BEARER))
+                .andExpect(jsonPath("$.trabajoId").value("id-1"))
+                .andExpect(jsonPath("$.estado").value("EJECUTANDO"));
     }
 
     @Test
-    void obtenerEstadoRetorna200() throws Exception {
-        when(jobFacadeService.getJobStatus(anyString(), eq("id-1"))).thenReturn(JobStatus.RUNNING);
-
-        mockMvc.perform(get("/jobs/id-1/estado").header(HttpHeaders.AUTHORIZATION, BEARER))
+    void cancelarDevuelveElEstadoFinal() throws Exception {
+        when(hpc.cancelar(anyString(), eq("id-1"))).thenReturn(trabajo(EstadoTrabajo.CANCELADO));
+        mvc.perform(delete("/jobs/id-1").header(HttpHeaders.AUTHORIZATION, BEARER))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.estado").value("RUNNING"));
+                .andExpect(jsonPath("$.estadoFinal").value("CANCELADO"));
     }
 
     @Test
-    void cancelarTrabajoEnEstadoTerminalRetorna409() throws Exception {
-        when(jobFacadeService.cancelJob(anyString(), eq("id-1"))).thenThrow(new EstadoInvalidoException("id-1", JobStatus.COMPLETED));
+    void perfilSinPermisoEs403YGestorCaidoEs503() throws Exception {
+        when(hpc.listar(anyString(), any())).thenThrow(new NoAutorizadoException("sin hpc", false));
+        mvc.perform(get("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER)).andExpect(status().isForbidden());
 
-        mockMvc.perform(delete("/jobs/id-1").header(HttpHeaders.AUTHORIZATION, BEARER))
-                .andExpect(status().isConflict());
+        when(hpc.estadoCluster(anyString())).thenThrow(new RmiNoDisponibleException("caído", null));
+        mvc.perform(get("/cluster/estado").header(HttpHeaders.AUTHORIZATION, BEARER))
+                .andExpect(status().isServiceUnavailable());
     }
 
     @Test
-    void cancelarTrabajoValidoRetorna200() throws Exception {
-        when(jobFacadeService.cancelJob(anyString(), eq("id-1"))).thenReturn(true);
-
-        mockMvc.perform(delete("/jobs/id-1").header(HttpHeaders.AUTHORIZATION, BEARER))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cancelado").value(true));
+    void registrarNodoValidaElCuerpo() throws Exception {
+        mvc.perform(post("/cluster/nodos").header(HttpHeaders.AUTHORIZATION, BEARER)
+                        .contentType("application/json").content("{\"host\":\"\",\"capacidadProcesos\":0}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void listarTrabajosRetorna200() throws Exception {
-        when(jobFacadeService.listJobs(anyString())).thenReturn(java.util.List.of(new Job("id-1", "a", "echo a", 1)));
-
-        mockMvc.perform(get("/jobs").header(HttpHeaders.AUTHORIZATION, BEARER))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("id-1"));
-    }
-
-    // --- autenticación ---
-
-    @Test
-    void listarTrabajosSinCabeceraRetorna401() throws Exception {
-        mockMvc.perform(get("/jobs"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void crearTrabajoSinCabeceraRetorna401() throws Exception {
-        mockMvc.perform(post("/jobs")
-                        .contentType("application/json")
-                        .content("{\"nombre\":\"prueba\",\"comando\":\"echo hola\",\"prioridad\":5}"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void cabeceraSinPrefijoBearerRetorna401() throws Exception {
-        mockMvc.perform(get("/jobs").header(HttpHeaders.AUTHORIZATION, "mock-token-jperez-pruebas"))
-                .andExpect(status().isUnauthorized());
+    void rutaInexistenteEs404() throws Exception {
+        mvc.perform(get("/no-existe").header(HttpHeaders.AUTHORIZATION, BEARER)).andExpect(status().isNotFound());
     }
 }

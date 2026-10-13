@@ -197,10 +197,4 @@ docs/
 
 ## Pendiente
 
-- **HPC: el front y job-api no usan el mismo contrato.** El front sigue
-  `Contrato_HPC` (`POST /jobs` con `rutaCodigoFuente`, `rutaDataset`,
-  `numeroProcesos`) y espera `GET /cluster/estado`; job-api todavía pide un
-  `comando` y no tiene esa ruta. La pasarela reenvía igual, así que el arreglo
-  es solo en job-api. Mientras, el formulario de envío del front no funciona;
-  listar y cancelar sí.
 - **Certificado.** El script genera uno autofirmado; hay que reemplazarlo por el del CCA.

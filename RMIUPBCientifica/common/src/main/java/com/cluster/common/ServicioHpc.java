@@ -5,81 +5,68 @@ import java.rmi.RemoteException;
 import java.util.List;
 
 /**
- * Contrato RMI del gestor del clúster.
+ * Contrato RMI del HPC Service (Contrato_HPC, interfaz HPCServiceRemote).
  *
- * Se publica como objeto remoto mediante
- * {@code UnicastRemoteObject.exportObject(impl, 2100)} y se registra en el
- * Registry con el nombre {@code "JobService"}.
+ * Se publica con {@code UnicastRemoteObject.exportObject(impl, 2100)} y se
+ * registra en el Registry (2099) como {@code "ServicioHpc"}.
  *
- * -------------------------------------------------------------------------
- * AUTENTICACIÓN (cambio de contrato)
+ * ANTES ({@code JobService}): submitJob(token, nombre, comando, prioridad 1-10)
+ * y el gestor ejecutaba ese comando con {@code bash -c} en su propia máquina.
+ * AHORA el trabajo es código fuente y dataset del Home del usuario; el gestor
+ * los valida contra Storage, los planifica (prioridad con envejecimiento),
+ * asigna nodos según su carga y los ejecuta con mpirun en el clúster a través
+ * de job-runner ({@link EjecutorMpi}). El resultado vuelve al Home.
  *
- * Todos los métodos reciben ahora el token de sesión como PRIMER parámetro.
- * Antes ninguno lo recibía: el servicio no tenía forma de saber quién llamaba,
- * así que cualquiera con acceso al puerto 2100 podía enviar trabajos, verlos
- * todos y cancelar los de los demás. Y como el contrato no tenía un hueco para
- * la identidad, no se podía arreglar sin tocarlo.
- *
- * El uid sale SIEMPRE del token validado, nunca de un parámetro aparte: un
- * cliente no puede afirmar quién es.
- *
- * Al cambiar esta interfaz hay que recompilar los tres módulos (common,
- * gestor-cluster y job-api), porque `common` se comparte como dependencia.
- * -------------------------------------------------------------------------
+ * Todos los métodos reciben el token como primer parámetro: el uid sale SIEMPRE
+ * de él, nunca de un argumento aparte. Errores de negocio: {@link ErrorHpc}
+ * (códigos HPC-xxx del contrato); identidad: {@link NoAutorizadoException}.
  */
-public interface JobService extends Remote {
+public interface ServicioHpc extends Remote {
 
-    /**
-     * Encola un trabajo a nombre del usuario dueño del token.
-     *
-     * @param token     token de sesión emitido por Authentication Service
-     * @throws RemoteException si ocurre un fallo de comunicación RMI
-     * @throws NoAutorizadoException si el token es inválido
-     * @throws IllegalArgumentException (no checked, puede propagarse por RMI) si
-     *         el nombre o el comando están vacíos, o la prioridad está fuera de rango
-     */
-    String submitJob(String token, String nombre, String comando, int prioridad)
+    /** EnviarTrabajo (§3.1). Valida token, código/dataset en Storage y cuota de cómputo; encola. */
+    RespuestaEnvio enviarTrabajo(String token, SolicitudTrabajo solicitud)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
+
+    /** ConsultarEstadoTrabajo (§3.2): el trabajo completo (estado, nodos, error...). */
+    TrabajoHpc consultarTrabajo(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
+
+    /** ListarTrabajosUsuario (§3.5). {@code filtroEstado} puede ser null. */
+    List<TrabajoHpc> listarTrabajosUsuario(String token, EstadoTrabajo filtroEstado)
+            throws RemoteException, NoAutorizadoException;
+
+    /** ObtenerResultado (§3.3): solo la ruta en el Home, nunca el contenido. */
+    ResultadoTrabajo obtenerResultado(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
+
+    /** ObtenerLogsTrabajo (§3.5): salida estándar y de error (las últimas líneas). */
+    String obtenerLogsTrabajo(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
+
+    /** CancelarTrabajo (§3.4). Si está ejecutando, termina los procesos MPI y libera los nodos. */
+    TrabajoHpc cancelarTrabajo(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
+
+    /** DefinirPrioridadTrabajo (§3.6). Solo si sigue EN_COLA; ALTA exige "hpcadmin". */
+    TrabajoHpc definirPrioridadTrabajo(String token, String trabajoId, Prioridad nuevaPrioridad)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
+
+    /** ReintentarTrabajo (§3.6). Crea un trabajo nuevo enlazado al fallido. */
+    RespuestaEnvio reintentarTrabajo(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
+
+    /** ObtenerEstadoCluster + ObtenerEstadoCola (§3.9). */
+    EstadoCluster obtenerEstadoCluster(String token)
             throws RemoteException, NoAutorizadoException;
 
     /**
-     * Estado de un trabajo propio.
-     *
-     * @throws RemoteException si ocurre un fallo de comunicación RMI
-     * @throws JobNoEncontradoException si no existe un trabajo con ese id
-     * @throws NoAutorizadoException si el token es inválido o el trabajo es de otro
+     * Suma un equipo a la malla (Grid). Exige "hpcadmin" en el mapa de servicios.
+     * El equipo debe tener OpenMPI, la llave SSH del clúster y /srv/home montado.
      */
-    JobStatus getJobStatus(String token, String jobId)
-            throws RemoteException, JobNoEncontradoException, NoAutorizadoException;
+    NodoCluster registrarNodo(String token, String host, int capacidadProcesos, boolean externo)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
 
-    /**
-     * Trabajo completo, si es del usuario del token.
-     *
-     * @throws RemoteException si ocurre un fallo de comunicación RMI
-     * @throws JobNoEncontradoException si no existe un trabajo con ese id
-     * @throws NoAutorizadoException si el token es inválido o el trabajo es de otro
-     */
-    Job getJob(String token, String jobId)
-            throws RemoteException, JobNoEncontradoException, NoAutorizadoException;
-
-    /**
-     * Trabajos DEL USUARIO del token.
-     *
-     * Antes devolvía los de todos los usuarios, sin filtro alguno.
-     *
-     * @throws RemoteException si ocurre un fallo de comunicación RMI
-     * @throws NoAutorizadoException si el token es inválido
-     */
-    List<Job> listJobs(String token) throws RemoteException, NoAutorizadoException;
-
-    /**
-     * Cancela un trabajo propio.
-     *
-     * @throws RemoteException si ocurre un fallo de comunicación RMI
-     * @throws JobNoEncontradoException si no existe un trabajo con ese id
-     * @throws EstadoInvalidoException si el trabajo ya está en un estado terminal
-     * @throws NoAutorizadoException si el token es inválido o el trabajo es de otro
-     */
-    boolean cancelJob(String token, String jobId)
-            throws RemoteException, JobNoEncontradoException, EstadoInvalidoException,
-            NoAutorizadoException;
+    /** Retira un nodo de la malla. Los trabajos que ya lo usan terminan normalmente. */
+    void retirarNodo(String token, String host)
+            throws RemoteException, NoAutorizadoException, ErrorHpc;
 }

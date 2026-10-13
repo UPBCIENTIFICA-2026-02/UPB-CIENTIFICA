@@ -578,48 +578,39 @@ justamente las mitigaciones que ya identificó la propuesta de arquitectura.
 
 ## PASO 12 — Dejar el entorno listo para `job-runner.jar`
 
-El clúster ya funciona a mano. El siguiente paso es que `job-runner.jar` (en
-`hpc-master`) haga lo mismo de forma programática cuando llegue un trabajo desde
-`node-rmi`.
+El clúster ya funciona a mano. `job-runner.jar` (en `hpc-master`) hace lo mismo
+de forma programática cada vez que el gestor del clúster (`node-rmi`) le entrega
+un trabajo:
 
-> **Estado actual (2026-10-13).** `job-runner.jar` todavía no existe. Mientras
-> tanto, el gestor del clúster (`RMIUPBCientifica/gestor-cluster`) se despliega
-> **en `hpc-master` como `mpiuser`** y ejecuta el comando de cada trabajo con
-> `bash -c`, así que un trabajo `mpirun --hostfile /srv/home/hostfile …` sí se
-> reparte entre los nodos (lo automatiza `despliegue/cluster-virtualbox/6-desplegar-gestor.sh`).
-> El gestor ya exige token válido y que el perfil tenga `hpc` en su mapa de
-> servicios, y cada usuario solo ve sus trabajos; aun así, ejecutar comandos
-> arbitrarios es un riesgo alto asumido (TRASPASO §7.2, V-11) que `job-runner.jar`
-> debe eliminar.
-
-Lo que ese `.jar` tendrá que hacer, en esencia:
-
-1. Recibir del HPC Service el código fuente y el dataset del usuario.
-2. Escribirlos en `/srv/home/trabajos/<id-trabajo>/`.
-3. Compilar: `mpicc fuente.c -o trabajo.bin` (el `trabajo.bin` del diagrama).
-4. Invocar:
+1. Recibe por RMI el código fuente y el dataset (el gestor los descargó de
+   Storage con el token del usuario) y la asignación de nodos del planificador.
+2. Los escribe en `/srv/home/.hpc-trabajos/<id>/` (compartido por NFS) junto
+   con un `hostfile` solo con los nodos asignados.
+3. Compila: `mpicc -O2 -o programa codigo.c -lm` (o `mpicxx`; los `.py` usan mpi4py).
+4. Lanza, **sin shell**:
    ```
-   mpirun -np <N> --hostfile /srv/home/hostfile /srv/home/trabajos/<id>/trabajo.bin
+   mpirun --hostfile <dir>/hostfile -np <N> <dir>/programa <dir>/<dataset> clave=valor…
    ```
-5. Capturar salida estándar y error, y el código de salida.
-6. Dejar los resultados en `/srv/home/trabajos/<id>/resultados/`.
-7. Notificar el estado al HPC Service.
+5. Guarda `salida.txt`, `errores.txt`, `compilacion.txt`, corta por tiempo
+   máximo y devuelve los archivos al gestor, que los sube al Home del usuario
+   (`Resultados HPC/<nombre>-<id>/`).
 
-**Prueba desde Java** que la invocación funciona, antes de integrar nada:
+**Despliegue en el laboratorio** (servicios `systemd`, como `mpiuser`; OpenMPI
+no corre como root):
 
-```java
-ProcessBuilder pb = new ProcessBuilder(
-    "mpirun", "-np", "8",
-    "--hostfile", "/srv/home/hostfile",
-    "/srv/home/hola.bin"
-);
-pb.redirectErrorStream(true);
-Process p = pb.start();
-// leer p.getInputStream() y p.waitFor()
-```
+| Máquina | Servicio | Variables clave |
+|---|---|---|
+| `hpc-master` | `job-runner.jar` (Registry 2099, objeto 2100) | `DIR_TRABAJOS=/srv/home/.hpc-trabajos`, `MPIRUN_OPCIONES=--mca btl_tcp_if_include <red del clúster>`, `-Djava.rmi.server.hostname=<IP de hpc-master>` |
+| `node-rmi` | `gestor-cluster.jar` + `job-api.jar` | `EJECUTOR_HOST=hpc-master`, `EJECUTOR_PUERTO=2099`, `HPC_NODOS=hpc-master:2,hpc-worker1:2,…,hpc-worker4:2`, `URL_STORAGE=http://node-repository:8084`, `AUTH_MODE=soap` |
 
-> Ejecuta esto **como `mpiuser`**, no como root. OpenMPI se niega a correr como
-> root por defecto.
+`despliegue/cluster-virtualbox/6-desplegar-gestor.sh` deja los tres en
+`hpc-master` (job-runner en 2199/2200) y prueba `ejemplos/pi.c` en todos los
+nodos; sirve de plantilla para los dos `.service` del laboratorio. Ver
+`RMIUPBCientifica/README.md`.
+
+**Equipos externos de la malla:** con OpenMPI, la llave SSH de `mpiuser` y
+`/srv/home` montado, se suman con `POST /cluster/nodos {"host": "...",
+"capacidadProcesos": N}` (perfil con `hpcadmin`).
 
 ---
 

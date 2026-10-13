@@ -2,142 +2,157 @@ package com.cluster.common;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
- * Representa un trabajo gestionado por {@code gestor-cluster}.
+ * Entidad TrabajoHPC (Contrato_HPC §4). Viaja por valor por RMI: el gestor
+ * nunca entrega la instancia viva sino {@link #copia()}, para que serializarla
+ * no se cruce con un hilo que la está modificando.
  *
- * Este objeto viaja por valor a través de RMI (implementa {@link Serializable}),
- * por lo que cada invocación remota que lo retorna entrega una copia
- * serializada/deserializada, nunca una referencia compartida entre JVMs.
- *
- * Se declara {@code serialVersionUID} explícito porque {@code common} se
- * compila una única vez y se comparte como dependencia entre
- * {@code gestor-cluster} y {@code job-api}; fijar el UID evita
- * {@code InvalidClassException} si en el futuro ambos módulos se despliegan
- * con versiones ligeramente distintas del artefacto {@code common}.
- *
- * Cada atributo tiene un uso concreto en el contrato de {@link JobService}:
- * no se agregan campos sin una razón de negocio.
+ * ANTES era {@code Job}: nombre + comando de shell + resultado como texto en
+ * memoria. Ahora el trabajo es código y dataset de Storage, y el resultado
+ * queda en el Home del usuario (aquí solo su ruta).
  */
-public class Job implements Serializable {
+public class TrabajoHpc implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private final String id;
-    private final String nombre;
-    private final String comando;
-    private final int prioridad;
-    /**
-     * uid del usuario que envió el trabajo, tomado del token validado.
-     *
-     * Sin este campo no había forma de filtrar {@code listJobs} por usuario ni
-     * de impedir que alguien cancelara el trabajo de otro: el contrato no
-     * registraba de quién era cada trabajo.
-     */
+    /** uid del token validado; nunca sale del cuerpo de la petición. */
     private final String propietario;
-    private volatile JobStatus estado;
-    private final Instant fechaCreacion;
-    private volatile Instant fechaInicio;
-    private volatile Instant fechaFin;
-    private volatile String resultado;
-    private volatile String mensajeError;
+    private final String nombreTrabajo;
+    private final String rutaCodigo;
+    private final String rutaDataset;
+    private final int numeroProcesos;
+    private final int tiempoMaximoEjecucion;
+    private final LinkedHashMap<String, String> parametrosEjecucion;
+    private final String trabajoOriginalId;
+    private final Instant fechaEnvio;
 
-    public Job(String id, String nombre, String comando, int prioridad, String propietario) {
-        this.id = Objects.requireNonNull(id, "id no puede ser nulo");
-        this.nombre = Objects.requireNonNull(nombre, "nombre no puede ser nulo");
-        this.comando = Objects.requireNonNull(comando, "comando no puede ser nulo");
-        this.prioridad = prioridad;
-        this.propietario = Objects.requireNonNull(propietario, "propietario no puede ser nulo");
-        this.estado = JobStatus.QUEUED;
-        this.fechaCreacion = Instant.now();
+    /** Nodos de Storage a los que se resolvieron rutaCodigo y rutaDataset al validar. */
+    private String codigoId;
+    private String nombreCodigo;
+    private String datasetId;
+    private String nombreDataset;
+
+    private Prioridad prioridad;
+    private EstadoTrabajo estado = EstadoTrabajo.PENDIENTE;
+    private Instant fechaInicio;
+    private Instant fechaFin;
+    private List<String> nodosAsignados = new ArrayList<>();
+    private Integer codigoSalida;
+    private String rutaResultado;
+    private long tamanoResultadoBytes;
+    private boolean resultadoIncompleto;
+    private String mensajeError;
+    /** Se calcula al responder; no es estado del trabajo. */
+    private int posicionCola;
+
+    public TrabajoHpc(String id, String propietario, SolicitudTrabajo s, String trabajoOriginalId) {
+        this.id = Objects.requireNonNull(id, "id");
+        this.propietario = Objects.requireNonNull(propietario, "propietario");
+        this.nombreTrabajo = s.getNombreTrabajo();
+        this.rutaCodigo = s.getRutaCodigo();
+        this.rutaDataset = s.getRutaDataset();
+        this.numeroProcesos = s.getNumeroProcesos();
+        this.tiempoMaximoEjecucion = s.getTiempoMaximoEjecucion();
+        this.prioridad = s.getPrioridad();
+        this.parametrosEjecucion = new LinkedHashMap<>(s.getParametrosEjecucion());
+        this.trabajoOriginalId = trabajoOriginalId;
+        this.fechaEnvio = Instant.now();
     }
 
-    /**
-     * Constructor sin propietario, solo para pruebas del modelo.
-     *
-     * El servicio SIEMPRE usa el constructor de cinco argumentos: el propietario
-     * sale del token validado, nunca del cuerpo de la petición.
-     */
-    public Job(String id, String nombre, String comando, int prioridad) {
-        this(id, nombre, comando, prioridad, "desconocido");
+    private TrabajoHpc(TrabajoHpc o) {
+        this.id = o.id;
+        this.propietario = o.propietario;
+        this.nombreTrabajo = o.nombreTrabajo;
+        this.rutaCodigo = o.rutaCodigo;
+        this.rutaDataset = o.rutaDataset;
+        this.numeroProcesos = o.numeroProcesos;
+        this.tiempoMaximoEjecucion = o.tiempoMaximoEjecucion;
+        this.parametrosEjecucion = new LinkedHashMap<>(o.parametrosEjecucion);
+        this.trabajoOriginalId = o.trabajoOriginalId;
+        this.fechaEnvio = o.fechaEnvio;
+        this.codigoId = o.codigoId;
+        this.nombreCodigo = o.nombreCodigo;
+        this.datasetId = o.datasetId;
+        this.nombreDataset = o.nombreDataset;
+        this.prioridad = o.prioridad;
+        this.estado = o.estado;
+        this.fechaInicio = o.fechaInicio;
+        this.fechaFin = o.fechaFin;
+        this.nodosAsignados = new ArrayList<>(o.nodosAsignados);
+        this.codigoSalida = o.codigoSalida;
+        this.rutaResultado = o.rutaResultado;
+        this.tamanoResultadoBytes = o.tamanoResultadoBytes;
+        this.resultadoIncompleto = o.resultadoIncompleto;
+        this.mensajeError = o.mensajeError;
+        this.posicionCola = o.posicionCola;
     }
 
-    public String getId() {
-        return id;
+    /** Instantánea para entregar por RMI o persistir. */
+    public synchronized TrabajoHpc copia() {
+        return new TrabajoHpc(this);
     }
 
-    public String getNombre() {
-        return nombre;
+    /** Solicitud equivalente, para ReintentarTrabajo (§3.6: usa el código ACTUAL). */
+    public SolicitudTrabajo comoSolicitud() {
+        return new SolicitudTrabajo(nombreTrabajo, rutaCodigo, rutaDataset, numeroProcesos,
+                tiempoMaximoEjecucion, prioridad, parametrosEjecucion);
     }
 
-    public String getComando() {
-        return comando;
-    }
-
-    public int getPrioridad() {
-        return prioridad;
-    }
-
-    public String getPropietario() {
-        return propietario;
-    }
-
-    /** true si el uid dado es el dueño del trabajo. */
     public boolean esDe(String uid) {
         return propietario.equals(uid);
     }
 
-    public JobStatus getEstado() {
-        return estado;
-    }
+    public String getId() { return id; }
+    public String getPropietario() { return propietario; }
+    public String getNombreTrabajo() { return nombreTrabajo; }
+    public String getRutaCodigo() { return rutaCodigo; }
+    public String getRutaDataset() { return rutaDataset; }
+    public int getNumeroProcesos() { return numeroProcesos; }
+    public int getTiempoMaximoEjecucion() { return tiempoMaximoEjecucion; }
+    public Map<String, String> getParametrosEjecucion() { return new LinkedHashMap<>(parametrosEjecucion); }
+    public String getTrabajoOriginalId() { return trabajoOriginalId; }
+    public Instant getFechaEnvio() { return fechaEnvio; }
 
-    public void setEstado(JobStatus estado) {
-        this.estado = estado;
-    }
+    public String getCodigoId() { return codigoId; }
+    public String getNombreCodigo() { return nombreCodigo; }
+    public void setCodigo(String id, String nombre) { this.codigoId = id; this.nombreCodigo = nombre; }
+    public String getDatasetId() { return datasetId; }
+    public String getNombreDataset() { return nombreDataset; }
+    public void setDataset(String id, String nombre) { this.datasetId = id; this.nombreDataset = nombre; }
 
-    public Instant getFechaCreacion() {
-        return fechaCreacion;
-    }
-
-    public Instant getFechaInicio() {
-        return fechaInicio;
-    }
-
-    public void setFechaInicio(Instant fechaInicio) {
-        this.fechaInicio = fechaInicio;
-    }
-
-    public Instant getFechaFin() {
-        return fechaFin;
-    }
-
-    public void setFechaFin(Instant fechaFin) {
-        this.fechaFin = fechaFin;
-    }
-
-    public String getResultado() {
-        return resultado;
-    }
-
-    public void setResultado(String resultado) {
-        this.resultado = resultado;
-    }
-
-    public String getMensajeError() {
-        return mensajeError;
-    }
-
-    public void setMensajeError(String mensajeError) {
-        this.mensajeError = mensajeError;
-    }
+    public Prioridad getPrioridad() { return prioridad; }
+    public void setPrioridad(Prioridad prioridad) { this.prioridad = prioridad; }
+    public EstadoTrabajo getEstado() { return estado; }
+    public void setEstado(EstadoTrabajo estado) { this.estado = estado; }
+    public Instant getFechaInicio() { return fechaInicio; }
+    public void setFechaInicio(Instant fechaInicio) { this.fechaInicio = fechaInicio; }
+    public Instant getFechaFin() { return fechaFin; }
+    public void setFechaFin(Instant fechaFin) { this.fechaFin = fechaFin; }
+    public List<String> getNodosAsignados() { return new ArrayList<>(nodosAsignados); }
+    public void setNodosAsignados(List<String> nodos) { this.nodosAsignados = new ArrayList<>(nodos); }
+    public Integer getCodigoSalida() { return codigoSalida; }
+    public void setCodigoSalida(Integer codigoSalida) { this.codigoSalida = codigoSalida; }
+    public String getRutaResultado() { return rutaResultado; }
+    public void setRutaResultado(String rutaResultado) { this.rutaResultado = rutaResultado; }
+    public long getTamanoResultadoBytes() { return tamanoResultadoBytes; }
+    public void setTamanoResultadoBytes(long bytes) { this.tamanoResultadoBytes = bytes; }
+    public boolean isResultadoIncompleto() { return resultadoIncompleto; }
+    public void setResultadoIncompleto(boolean incompleto) { this.resultadoIncompleto = incompleto; }
+    public String getMensajeError() { return mensajeError; }
+    public void setMensajeError(String mensajeError) { this.mensajeError = mensajeError; }
+    public int getPosicionCola() { return posicionCola; }
+    public void setPosicionCola(int posicionCola) { this.posicionCola = posicionCola; }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Job)) return false;
-        Job job = (Job) o;
-        return id.equals(job.id);
+        return o instanceof TrabajoHpc t && id.equals(t.id);
     }
 
     @Override
@@ -147,7 +162,6 @@ public class Job implements Serializable {
 
     @Override
     public String toString() {
-        return "Job{id='" + id + "', nombre='" + nombre + "', estado=" + estado
-                + ", prioridad=" + prioridad + "}";
+        return "TrabajoHpc{id='" + id + "', nombre='" + nombreTrabajo + "', estado=" + estado + "}";
     }
 }

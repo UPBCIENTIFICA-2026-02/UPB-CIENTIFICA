@@ -1,51 +1,36 @@
 package com.cluster.api.dto;
 
-import jakarta.validation.constraints.Max;
+import com.cluster.common.Prioridad;
+import com.cluster.common.SolicitudTrabajo;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+import java.util.Map;
 
 /**
- * Cuerpo esperado en {@code POST /jobs}. La validación de formato (campos
- * obligatorios, rango de prioridad) ocurre aquí, en la capa HTTP, ANTES de
- * cruzar la frontera RMI; la validación semántica adicional vive en
- * {@code gestor-cluster} (JobServiceImpl), como segunda línea de defensa.
+ * Cuerpo de POST /jobs: los campos de EnviarTrabajo en Contrato_HPC §3.1.
+ * Validación de formato aquí; las reglas de negocio (cuota, límite de tiempo,
+ * que el código exista) las aplica el gestor.
+ *
+ * ANTES: { nombre, comando, prioridad 1-10 }.
  */
-public class SubmitJobRequest {
+public record SolicitudTrabajoRequest(
+        @NotBlank(message = "nombreTrabajo es obligatorio")
+        @Size(max = 128, message = "nombreTrabajo admite hasta 128 caracteres")
+        String nombreTrabajo,
+        @NotBlank(message = "rutaCodigo es obligatorio (ruta en tu Home o id de Storage)")
+        String rutaCodigo,
+        String rutaDataset,
+        @Min(value = 1, message = "numeroProcesos mínimo es 1")
+        int numeroProcesos,
+        @Min(value = 1, message = "tiempoMaximoEjecucion mínimo es 1 segundo")
+        int tiempoMaximoEjecucion,
+        String prioridad,
+        Map<String, String> parametrosEjecucion) {
 
-    @NotBlank(message = "El nombre del trabajo es obligatorio")
-    private String nombre;
-
-    @NotBlank(message = "El comando del trabajo es obligatorio")
-    private String comando;
-
-    @Min(value = 1, message = "La prioridad mínima es 1")
-    @Max(value = 10, message = "La prioridad máxima es 10")
-    private int prioridad = 5;
-
-    public SubmitJobRequest() {
-    }
-
-    public String getNombre() {
-        return nombre;
-    }
-
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
-
-    public String getComando() {
-        return comando;
-    }
-
-    public void setComando(String comando) {
-        this.comando = comando;
-    }
-
-    public int getPrioridad() {
-        return prioridad;
-    }
-
-    public void setPrioridad(int prioridad) {
-        this.prioridad = prioridad;
+    public SolicitudTrabajo aSolicitud() {
+        return new SolicitudTrabajo(nombreTrabajo, rutaCodigo, rutaDataset, numeroProcesos,
+                tiempoMaximoEjecucion, Prioridad.desde(prioridad), parametrosEjecucion);
     }
 }

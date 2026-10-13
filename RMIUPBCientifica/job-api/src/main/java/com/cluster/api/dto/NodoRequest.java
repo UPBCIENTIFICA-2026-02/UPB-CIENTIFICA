@@ -1,15 +1,20 @@
 package com.cluster.api.dto;
 
-/** Respuesta de {@code POST /jobs}: solo el identificador generado. */
-public class JobIdResponse {
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 
-    private final String id;
+/**
+ * POST /cluster/nodos — suma un equipo a la malla (Grid). {@code externo}
+ * por defecto true: lo normal es registrar equipos de fuera del laboratorio.
+ */
+public record NodoRequest(
+        @NotBlank(message = "host es obligatorio") String host,
+        @Min(value = 1, message = "capacidadProcesos mínimo es 1")
+        @Max(value = 256, message = "capacidadProcesos máximo es 256") int capacidadProcesos,
+        Boolean externo) {
 
-    public JobIdResponse(String id) {
-        this.id = id;
-    }
-
-    public String getId() {
-        return id;
+    public boolean esExterno() {
+        return externo == null || externo;
     }
 }

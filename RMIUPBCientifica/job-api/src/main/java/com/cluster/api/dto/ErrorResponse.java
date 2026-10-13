@@ -2,33 +2,13 @@ package com.cluster.api.dto;
 
 import java.time.Instant;
 
-/** Cuerpo de error uniforme para todas las respuestas HTTP de error. */
-public class ErrorResponse {
+/**
+ * Cuerpo de error uniforme. {@code codigo} es el código de Contrato_HPC
+ * (HPC-001...) cuando el error viene del gestor; null en los demás.
+ */
+public record ErrorResponse(Instant timestamp, int status, String error, String codigo, String mensaje) {
 
-    private final Instant timestamp = Instant.now();
-    private final int status;
-    private final String error;
-    private final String mensaje;
-
-    public ErrorResponse(int status, String error, String mensaje) {
-        this.status = status;
-        this.error = error;
-        this.mensaje = mensaje;
-    }
-
-    public Instant getTimestamp() {
-        return timestamp;
-    }
-
-    public int getStatus() {
-        return status;
-    }
-
-    public String getError() {
-        return error;
-    }
-
-    public String getMensaje() {
-        return mensaje;
+    public ErrorResponse(int status, String error, String codigo, String mensaje) {
+        this(Instant.now(), status, error, codigo, mensaje);
     }
 }

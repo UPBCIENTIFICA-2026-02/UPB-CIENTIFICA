@@ -2,48 +2,77 @@ package com.cluster.common;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class JobTest {
+class TrabajoHpcTest {
 
-    @Test
-    void unTrabajoNuevoEmpiezaEnEstadoQueued() {
-        Job job = new Job("id-1", "prueba", "echo hola", 5);
-        assertEquals(JobStatus.QUEUED, job.getEstado());
-        assertNotNull(job.getFechaCreacion());
-        assertNull(job.getFechaInicio());
-        assertNull(job.getFechaFin());
+    private static SolicitudTrabajo solicitud() {
+        return new SolicitudTrabajo("pi", "/Proyectos/pi.c", "", 4, 120,
+                null, Map.of("iteraciones", "1000"));
     }
 
     @Test
-    void jobEsSerializableParaViajarPorRmi() throws IOException, ClassNotFoundException {
-        Job original = new Job("id-2", "job-serializable", "echo test", 3);
-        original.setEstado(JobStatus.COMPLETED);
-        original.setResultado("salida de prueba");
+    void unTrabajoNuevoEstaPendienteYConPrioridadNormal() {
+        TrabajoHpc t = new TrabajoHpc("id-1", "investigador", solicitud(), null);
+        assertEquals(EstadoTrabajo.PENDIENTE, t.getEstado());
+        assertEquals(Prioridad.NORMAL, t.getPrioridad());
+        assertNull(t.getRutaDataset(), "un dataset vacío es 'sin dataset'");
+        assertNotNull(t.getFechaEnvio());
+        assertTrue(t.esDe("investigador"));
+        assertFalse(t.esDe("estudiante"));
+    }
+
+    @Test
+    void laCopiaNoComparteEstadoConElOriginal() {
+        TrabajoHpc t = new TrabajoHpc("id-1", "investigador", solicitud(), null);
+        t.setNodosAsignados(List.of("hpc-worker1"));
+        TrabajoHpc copia = t.copia();
+        t.setEstado(EstadoTrabajo.EJECUTANDO);
+        t.setNodosAsignados(List.of("hpc-worker2"));
+        assertEquals(EstadoTrabajo.PENDIENTE, copia.getEstado());
+        assertEquals(List.of("hpc-worker1"), copia.getNodosAsignados());
+    }
+
+    @Test
+    void viajaPorRmiSerializado() throws Exception {
+        TrabajoHpc original = new TrabajoHpc("id-2", "investigador", solicitud(), "id-1");
+        original.setEstado(EstadoTrabajo.COMPLETADO);
+        original.setRutaResultado("/Resultados HPC/pi-id-2");
 
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         try (ObjectOutputStream oos = new ObjectOutputStream(buffer)) {
             oos.writeObject(original);
         }
-
-        Job reconstruido;
+        TrabajoHpc leido;
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(buffer.toByteArray()))) {
-            reconstruido = (Job) ois.readObject();
+            leido = (TrabajoHpc) ois.readObject();
         }
-
-        assertEquals(original.getId(), reconstruido.getId());
-        assertEquals(original.getEstado(), reconstruido.getEstado());
-        assertEquals(original.getResultado(), reconstruido.getResultado());
-        assertNotSame(original, reconstruido, "Tras (de)serializar debe ser una copia, no la misma referencia");
+        assertEquals(original, leido);
+        assertEquals(EstadoTrabajo.COMPLETADO, leido.getEstado());
+        assertEquals("/Resultados HPC/pi-id-2", leido.getRutaResultado());
+        assertEquals("id-1", leido.getTrabajoOriginalId());
+        assertEquals(Map.of("iteraciones", "1000"), leido.getParametrosEjecucion());
     }
 
     @Test
-    void dosJobsConElMismoIdSonIguales() {
-        Job a = new Job("mismo-id", "a", "echo a", 1);
-        Job b = new Job("mismo-id", "b", "echo b", 2);
-        assertEquals(a, b);
-        assertEquals(a.hashCode(), b.hashCode());
+    void elReintentoConservaLaSolicitud() {
+        SolicitudTrabajo s = new TrabajoHpc("id-1", "investigador", solicitud(), null).comoSolicitud();
+        assertEquals("/Proyectos/pi.c", s.getRutaCodigo());
+        assertEquals(4, s.getNumeroProcesos());
+        assertEquals(120, s.getTiempoMaximoEjecucion());
+    }
+
+    @Test
+    void prioridadDesdeTexto() {
+        assertEquals(Prioridad.NORMAL, Prioridad.desde(null));
+        assertEquals(Prioridad.ALTA, Prioridad.desde(" alta "));
+        assertThrows(IllegalArgumentException.class, () -> Prioridad.desde("URGENTE"));
     }
 }

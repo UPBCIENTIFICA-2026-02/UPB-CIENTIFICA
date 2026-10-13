@@ -1,132 +1,64 @@
-package com.cluster.gestor;
+package com.cluster.gestor.rmi;
 
-import com.cluster.common.EstadoInvalidoException;
-import com.cluster.common.Job;
-import com.cluster.common.JobNoEncontradoException;
-import com.cluster.common.JobService;
-import com.cluster.common.JobStatus;
-import com.cluster.common.JobStatusTransition;
+import com.cluster.common.ErrorHpc;
+import com.cluster.common.EstadoCluster;
+import com.cluster.common.EstadoTrabajo;
 import com.cluster.common.NoAutorizadoException;
+import com.cluster.common.NodoCluster;
+import com.cluster.common.Prioridad;
+import com.cluster.common.RespuestaEnvio;
+import com.cluster.common.ResultadoTrabajo;
+import com.cluster.common.ServicioHpc;
+import com.cluster.common.SolicitudTrabajo;
+import com.cluster.common.TrabajoHpc;
 import com.cluster.gestor.auth.AuthNoDisponibleException;
 import com.cluster.gestor.auth.Usuario;
-import com.cluster.gestor.metricas.MetricasHpc;
-import com.cluster.gestor.auth.ValidadorSimulado;
 import com.cluster.gestor.auth.ValidadorToken;
+import com.cluster.gestor.dominio.Almacenamiento;
+import com.cluster.gestor.dominio.GestorTrabajos;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /**
- * DECISIONES DE CONCURRENCIA (ver justificación completa en el README):
- *      {@link ConcurrentHashMap} para el registro {@code id -> Job}: múltiples
- *       hilos RMI (uno por invocación entrante) leen/escriben por distintas
- *       claves de forma segura sin bloquear todo el mapa.
- *      {@link PriorityBlockingQueue} para la cola de pendientes: es thread-safe
- *       por diseño y permite a los workers bloquearse eficientemente en
- *       {@code take()} sin hacer polling activo cuando no hay trabajos.
- *      {@link ExecutorService} con un pool fijo de workers: desacopla la
- *       recepción de la invocación RMI (que debe retornar rápido) de la
- *       ejecución real del comando, que puede tardar.
- *      {@code synchronized(job)} puntual: la transición de estado de UN
- *       trabajo individual (leer estado, validar, escribir) debe ser atómica
- *       frente a operaciones concurrentes sobre ESE MISMO trabajo (por
- *       ejemplo, un worker marcándolo RUNNING justo cuando llega un
- *       cancelJob). Sincronizar sobre la instancia del Job, y no sobre todo
- *       el servicio, permite que operaciones sobre trabajos distintos avancen
- *       en paralelo sin contención.
+ * Capa de presentación RMI del servicio HPC: valida el token, exige el servicio
+ * en el mapa de servicios del perfil y delega en {@link GestorTrabajos}. No
+ * contiene reglas de negocio.
  *
- * AUTENTICACIÓN: cada método valida el token antes de hacer nada, y el uid del
- * usuario sale de ahí. Antes no había validación de ningún tipo: cualquiera con
- * acceso al puerto podía enviar trabajos, listar los de todos y cancelarlos.
+ * ANTES ({@code JobServiceImpl}) esta clase validaba, encolaba y ejecutaba
+ * cada comando con {@code bash -c} en la máquina del gestor. La ejecución pasó
+ * a job-runner en el clúster y la lógica a {@code dominio/}.
  *
- * PENDIENTE CONOCIDO (no se toca en este cambio): {@link #ejecutarComando}
- * sigue lanzando el comando con {@code bash -c}. Con la autenticación puesta ya
- * no lo puede hacer cualquiera, pero un usuario autenticado sigue ejecutando
- * shell arbitrario con los permisos del servicio, en una VM que monta
- * /srv/home. Restringirlo a invocaciones de mpirun depende del diseño de
- * job-runner.jar, que todavía no existe, y de que el equipo acuerde qué se
- * puede enviar: código fuente y datasets según Contrato_HPC, no comandos.
+ * Permisos (mapa de servicios de Authentication):
+ *   hpc      — usar el servicio (enviar, consultar, cancelar sus trabajos)
+ *   hpcadmin — prioridad ALTA ("hpc:prioridad-alta" del contrato) y
+ *              registrar/retirar nodos de la malla
  */
-public class JobServiceImpl implements JobService {
+public final class ServicioHpcRmi implements ServicioHpc {
 
-    private static final int NUM_WORKERS = 3;
+    private static final String SERVICIO = "hpc";
+    private static final String SERVICIO_ADMIN = "hpcadmin";
 
-    /**
-     * Intérprete con el que se lanza cada comando. En hpc-master es "bash".
-     * En Windows (pruebas locales) "bash" resuelve a C:WindowsSystem32ash.exe,
-     * el de WSL, que sin una distribución Linux instalada deja los trabajos
-     * colgados o fallidos; allí se define SHELL_TRABAJOS con la ruta de Git Bash.
-     */
-    private static final String SHELL = System.getenv().getOrDefault("SHELL_TRABAJOS", "bash");
-
-    private final ConcurrentHashMap<String, Job> jobs = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Process> procesosActivos = new ConcurrentHashMap<>();
-    private final PriorityBlockingQueue<Job> cola = new PriorityBlockingQueue<>(
-            64,
-            (a, b) -> {
-                int porPrioridad = Integer.compare(b.getPrioridad(), a.getPrioridad());
-                if (porPrioridad != 0) {
-                    return porPrioridad;
-                }
-                return a.getFechaCreacion().compareTo(b.getFechaCreacion());
-            }
-    );
-    private final ExecutorService workers = Executors.newFixedThreadPool(NUM_WORKERS);
-
-    /** Carga y tiempos de ejecución para el monitoreo (Prometheus, M1). */
-    private final MetricasHpc metricas = new MetricasHpc(
-            () -> java.util.List.copyOf(jobs.values()), cola::size, NUM_WORKERS);
     private final ValidadorToken validador;
-    private volatile boolean detenido = false;
+    private final GestorTrabajos gestor;
 
-    public JobServiceImpl(ValidadorToken validador) {
+    public ServicioHpcRmi(ValidadorToken validador, GestorTrabajos gestor) {
         this.validador = validador;
-        for (int i = 0; i < NUM_WORKERS; i++) {
-            workers.submit(this::bucleWorker);
-        }
-    }
-
-    public MetricasHpc metricas() {
-        return metricas;
-    }
-
-    /** Constructor de conveniencia para pruebas: usa el validador simulado. */
-    public JobServiceImpl() {
-        this(new ValidadorSimulado());
+        this.gestor = gestor;
     }
 
     /**
-     * Valida el token y devuelve el usuario.
-     *
-     * Un fallo de Auth se envuelve en RemoteException para no ampliar el
-     * contrato con una excepción más: job-api ya traduce RemoteException a 503,
-     * que es exactamente lo que corresponde cuando Auth no responde.
+     * Valida el token y el servicio "hpc". Un fallo de Auth se envuelve en
+     * RemoteException: job-api ya la traduce a 503, que es lo correcto cuando
+     * Authentication no responde.
      */
     private Usuario autenticar(String token) throws RemoteException, NoAutorizadoException {
         Usuario usuario;
         try {
             usuario = validador.validar(token);
-        } catch (AuthNoDisponibleException e) {
-            throw new RemoteException(e.getMessage(), e);
-        }
-        if (usuario == null) {
-            throw NoAutorizadoException.tokenInvalido();
-        }
-        // D2: el perfil tiene que tener "hpc" en su mapa de servicios autorizados.
-        // sinIdentidad=false: hay identidad pero no alcanza, job-api responde 403.
-        try {
+            if (usuario == null) {
+                throw NoAutorizadoException.tokenInvalido();
+            }
             if (!validador.autorizarServicio(usuario, SERVICIO)) {
                 throw new NoAutorizadoException(
                         "Tu perfil no tiene acceso al servicio \"" + SERVICIO + "\"", false);
@@ -134,212 +66,109 @@ public class JobServiceImpl implements JobService {
         } catch (AuthNoDisponibleException e) {
             throw new RemoteException(e.getMessage(), e);
         }
+        gestor.recordarToken(usuario.uid(), token);
         return usuario;
     }
 
-    /** Nombre de este servicio en el mapa de servicios autorizados del directorio. */
-    private static final String SERVICIO = "hpc";
+    private boolean esAdmin(Usuario u) throws RemoteException {
+        try {
+            return validador.autorizarServicio(u, SERVICIO_ADMIN);
+        } catch (AuthNoDisponibleException e) {
+            throw new RemoteException(e.getMessage(), e);
+        }
+    }
+
+    private static RemoteException storageCaido(Almacenamiento.NoDisponible e) {
+        return new RemoteException("Distributed Storage no disponible: " + e.getMessage(), e);
+    }
 
     @Override
-    public String submitJob(String token, String nombre, String comando, int prioridad)
+    public RespuestaEnvio enviarTrabajo(String token, SolicitudTrabajo solicitud)
+            throws RemoteException, NoAutorizadoException, ErrorHpc {
+        Usuario u = autenticar(token);
+        if (solicitud == null) {
+            throw new ErrorHpc(ErrorHpc.Codigo.DATOS_INVALIDOS, "Falta la solicitud");
+        }
+        boolean alta = solicitud.getPrioridad() == Prioridad.ALTA && esAdmin(u);
+        try {
+            return gestor.enviar(u.uid(), token, solicitud, alta, null, null);
+        } catch (Almacenamiento.NoDisponible e) {
+            throw storageCaido(e);
+        }
+    }
+
+    @Override
+    public TrabajoHpc consultarTrabajo(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc {
+        return gestor.consultar(autenticar(token).uid(), trabajoId);
+    }
+
+    @Override
+    public List<TrabajoHpc> listarTrabajosUsuario(String token, EstadoTrabajo filtroEstado)
             throws RemoteException, NoAutorizadoException {
-        Usuario usuario = autenticar(token);
-
-        if (nombre == null || nombre.isBlank()) {
-            throw new IllegalArgumentException("El nombre del trabajo no puede estar vacío");
-        }
-        if (comando == null || comando.isBlank()) {
-            throw new IllegalArgumentException("El comando del trabajo no puede estar vacío");
-        }
-        if (prioridad < 1 || prioridad > 10) {
-            throw new IllegalArgumentException("La prioridad debe estar entre 1 y 10");
-        }
-
-        String id = UUID.randomUUID().toString();
-        Job job = new Job(id, nombre, comando, prioridad, usuario.uid());
-        jobs.put(id, job);
-        cola.put(job);
-        return id;
+        return gestor.listar(autenticar(token).uid(), filtroEstado);
     }
 
     @Override
-    public JobStatus getJobStatus(String token, String jobId)
-            throws RemoteException, JobNoEncontradoException, NoAutorizadoException {
-        return buscarPropioOFallar(autenticar(token), jobId).getEstado();
+    public ResultadoTrabajo obtenerResultado(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc {
+        return gestor.resultado(autenticar(token).uid(), trabajoId);
     }
 
     @Override
-    public Job getJob(String token, String jobId)
-            throws RemoteException, JobNoEncontradoException, NoAutorizadoException {
-        return buscarPropioOFallar(autenticar(token), jobId);
-    }
-
-    /**
-     * Trabajos del usuario del token.
-     *
-     * Antes devolvía {@code jobs.values()} completo, es decir los trabajos de
-     * todos los usuarios del sistema.
-     */
-    @Override
-    public List<Job> listJobs(String token) throws RemoteException, NoAutorizadoException {
-        Usuario usuario = autenticar(token);
-        List<Job> propios = new ArrayList<>();
-        for (Job job : jobs.values()) {
-            if (job.esDe(usuario.uid())) {
-                propios.add(job);
-            }
-        }
-        return propios;
+    public String obtenerLogsTrabajo(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc {
+        return gestor.logs(autenticar(token).uid(), trabajoId);
     }
 
     @Override
-    public boolean cancelJob(String token, String jobId)
-            throws RemoteException, JobNoEncontradoException, EstadoInvalidoException,
-            NoAutorizadoException {
-        Job job = buscarPropioOFallar(autenticar(token), jobId);
-
-        synchronized (job) {
-            JobStatus actual = job.getEstado();
-
-            if (!JobStatusTransition.esValida(actual, JobStatus.CANCELLED)) {
-                throw new EstadoInvalidoException(jobId, actual);
-            }
-
-            if (actual == JobStatus.QUEUED) {
-                cola.remove(job);
-            } else if (actual == JobStatus.RUNNING) {
-                Process proceso = procesosActivos.get(jobId);
-                if (proceso != null) {
-                    proceso.destroyForcibly();
-                }
-            }
-
-            job.setEstado(JobStatus.CANCELLED);
-            job.setFechaFin(Instant.now());
-            return true;
-        }
+    public TrabajoHpc cancelarTrabajo(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc {
+        return gestor.cancelar(autenticar(token).uid(), trabajoId);
     }
 
-    /**
-     * Busca un trabajo y comprueba que sea del usuario.
-     *
-     * Se responde 404 (JobNoEncontradoException) y no 403 cuando el trabajo
-     * existe pero es de otro: así no se revela qué identificadores existen.
-     */
-    private Job buscarPropioOFallar(Usuario usuario, String jobId)
-            throws JobNoEncontradoException {
-        if (jobId == null || jobId.isBlank()) {
-            throw new IllegalArgumentException("El id del trabajo no puede estar vacío");
-        }
-        Job job = jobs.get(jobId);
-        if (job == null || !job.esDe(usuario.uid())) {
-            throw new JobNoEncontradoException(jobId);
-        }
-        return job;
+    @Override
+    public TrabajoHpc definirPrioridadTrabajo(String token, String trabajoId, Prioridad nuevaPrioridad)
+            throws RemoteException, NoAutorizadoException, ErrorHpc {
+        Usuario u = autenticar(token);
+        boolean alta = nuevaPrioridad == Prioridad.ALTA && esAdmin(u);
+        return gestor.definirPrioridad(u.uid(), trabajoId, nuevaPrioridad, alta);
     }
 
-    /**
-     * Bucle ejecutado por cada hilo worker: toma trabajos de la cola y los
-     * ejecuta uno a uno. Un fallo al procesar un trabajo NUNCA debe tumbar el
-     * hilo worker completo (y con él, la disponibilidad del servidor RMI para
-     * los demás trabajos), por lo que cualquier excepción inesperada se
-     * captura y registra sin interrumpir el bucle.
-     */
-    private void bucleWorker() {
-        while (!detenido && !Thread.currentThread().isInterrupted()) {
-            try {
-                Job job = cola.take();
-
-                boolean debeEjecutar;
-                synchronized (job) {
-                    if (job.getEstado() == JobStatus.QUEUED) {
-                        job.setEstado(JobStatus.RUNNING);
-                        job.setFechaInicio(Instant.now());
-                        debeEjecutar = true;
-                    } else {
-                        debeEjecutar = false;
-                    }
-                }
-
-                if (debeEjecutar) {
-                    ejecutarComando(job);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            } catch (Exception e) {
-                System.err.println("[gestor-cluster] Error inesperado en worker: " + e.getMessage());
-            }
-        }
-    }
-
-    private void ejecutarComando(Job job) {
-        Process proceso = null;
+    @Override
+    public RespuestaEnvio reintentarTrabajo(String token, String trabajoId)
+            throws RemoteException, NoAutorizadoException, ErrorHpc {
+        Usuario u = autenticar(token);
         try {
-            ProcessBuilder pb = new ProcessBuilder(SHELL, "-c", job.getComando());
-            pb.redirectErrorStream(true);
-            proceso = pb.start();
-            procesosActivos.put(job.getId(), proceso);
-
-            String salida = leerSalida(proceso);
-            int codigoSalida = proceso.waitFor();
-
-            synchronized (job) {
-                if (job.getEstado() == JobStatus.CANCELLED) {
-                    return;
-                }
-                if (codigoSalida == 0) {
-                    job.setEstado(JobStatus.COMPLETED);
-                    job.setResultado(salida);
-                } else {
-                    job.setEstado(JobStatus.FAILED);
-                    job.setMensajeError("Código de salida " + codigoSalida + ": " + salida);
-                }
-                job.setFechaFin(Instant.now());
-                metricas.trabajoTerminado(job);
-            }
-        } catch (IOException | InterruptedException e) {
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-            synchronized (job) {
-                if (job.getEstado() != JobStatus.CANCELLED) {
-                    job.setEstado(JobStatus.FAILED);
-                    job.setMensajeError("Error al ejecutar el comando: " + e.getMessage());
-                    job.setFechaFin(Instant.now());
-                    metricas.trabajoTerminado(job);
-                }
-            }
-        } finally {
-            procesosActivos.remove(job.getId());
+            return gestor.reintentar(u.uid(), token, trabajoId, esAdmin(u));
+        } catch (Almacenamiento.NoDisponible e) {
+            throw storageCaido(e);
         }
     }
 
-    private String leerSalida(Process proceso) throws IOException {
-        StringBuilder salida = new StringBuilder();
-        try (BufferedReader lector = new BufferedReader(
-                new InputStreamReader(proceso.getInputStream(), StandardCharsets.UTF_8))) {
-            String linea;
-            while ((linea = lector.readLine()) != null) {
-                salida.append(linea).append(System.lineSeparator());
-            }
-        }
-        return salida.toString().trim();
+    @Override
+    public EstadoCluster obtenerEstadoCluster(String token) throws RemoteException, NoAutorizadoException {
+        autenticar(token);
+        return gestor.estadoCluster();
     }
 
-    /**
-     * Libera los recursos internos (workers y procesos activos). Debe
-     * invocarse desde el shutdown hook de {@link Main} antes de que la JVM
-     * termine.
-     */
-    public void shutdown() {
-        detenido = true;
-        workers.shutdownNow();
-        try {
-            workers.awaitTermination(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+    @Override
+    public NodoCluster registrarNodo(String token, String host, int capacidadProcesos, boolean externo)
+            throws RemoteException, NoAutorizadoException, ErrorHpc {
+        exigirAdmin(autenticar(token));
+        return gestor.registrarNodo(host, capacidadProcesos, externo);
+    }
+
+    @Override
+    public void retirarNodo(String token, String host) throws RemoteException, NoAutorizadoException, ErrorHpc {
+        exigirAdmin(autenticar(token));
+        gestor.retirarNodo(host);
+    }
+
+    private void exigirAdmin(Usuario u) throws RemoteException, NoAutorizadoException {
+        if (!esAdmin(u)) {
+            throw new NoAutorizadoException(
+                    "Tu perfil no puede administrar los nodos de la malla (servicio \"" + SERVICIO_ADMIN + "\")", false);
         }
-        procesosActivos.values().forEach(Process::destroyForcibly);
     }
 }

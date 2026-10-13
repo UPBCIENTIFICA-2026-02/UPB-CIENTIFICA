@@ -154,7 +154,7 @@ PostgreSQL; `/srv/home` exportado por NFSv4 **solo al clúster**; `respaldo-gpg.
 
 **VM node-monitoreo** — Prometheus, Grafana (3000), blackbox_exporter.
 
-**Clúster HPC (malla Grid)** — `hpc-master` (`job-runner.jar` *pendiente*, `hostfile`) +
+**Clúster HPC (malla Grid)** — `hpc-master` (`job-runner.jar`, `hostfile`) +
 4 `hpc-worker` + equipos externos registrados; todos montan `/srv/home`.
 
 ### 3.3 Diagrama de componentes v2
@@ -167,7 +167,7 @@ Organizado como la Figura 1 del enunciado (`docs/arquitectura/fuentes/componente
   RMI Server Java Cluster, gRPC Server Go Sync.
 - **Implementación de servicios:** Streaming y Photo Album (node-media), Shared File,
   Repository, Authentication (OpenLDAP), respaldo GPG.
-- **Clúster HPC:** planificador, job-runner (*pendiente*), nodos de cómputo + equipos externos.
+- **Clúster HPC:** planificador, job-runner (mpicc + mpirun), nodos de cómputo + equipos externos.
 - **Monitoreo** transversal.
 
 ### 3.4 APIs
@@ -292,19 +292,19 @@ Cancelado Figueroa, Daniel Felipe Aguilar Latorre.
 | `node-media` (Album + Streaming) | ✅ propio + compartido, orden, miniaturas y duración (FFmpeg), refresco automático del índice |
 | `node-sync` | ✅ gRPC por Storage, conflictos (MANTENER_AMBOS), borrados en ambos sentidos. En desarrollo corre en VM |
 | `node-web` | ✅ pasarela, CSP, límite de intentos de login, `/monitoreo/` |
-| `RMIUPBCientifica` | ⚠️ token + mapa de servicios, trabajos por usuario, métricas; **sin MPI real** |
+| `RMIUPBCientifica` | ✅ Contrato_HPC: código fuente + dataset de Storage, cola con envejecimiento, asignación por carga, job-runner con `mpirun`, resultado al Home, registro de nodos externos, estado persistente, métricas. Probado con mpirun simulado en el PC; falta la prueba en el clúster de 5 nodos (paso 6) |
 | `node-soap` (Auth) | ⚠️ código listo (SOAP + LDAP + MFA + `homeDirectory`); se despliega en la VM del equipo con `despliegue/node-soap/` |
 | `node-monitoreo` | ✅ Prometheus + Grafana + alertas (probado en el PC); falta la VM |
 | Cliente web | ✅ todos los servicios reales |
 | Cliente Android | ✅ todos los servicios reales; File Sync por Wi-Fi del servidor y horario |
 | Cliente escritorio | ✅ todos los servicios reales; File Sync con horario (mientras la app está abierta) |
-| `job-runner.jar` / MPI real | ❌ no existe |
+| `job-runner.jar` | ✅ compila y lanza `mpirun`; ejemplos en `job-runner/ejemplos/` |
 | `fsagent` (agente de escritorio aparte) | ❌ la sincronización la hace la app de escritorio |
 
 | Requisito | Estado |
 |---|---|
-| HPC: recibir código fuente y datasets y ejecutarlos con MPI | ❌ ver 7.1 |
-| Malla Grid: integrar equipos internos y externos | ❌ ver 7.5 |
+| HPC: recibir código fuente y datasets y ejecutarlos con MPI | ✅ en código; ⚠️ validar en el clúster real (7.1) |
+| Malla Grid: integrar equipos internos y externos | ✅ `POST /cluster/nodos` (hpcadmin); ⚠️ probar con un equipo externo real |
 | Repositorio distribuido de archivos, fotos y videos | ✅ Storage |
 | File Sync (copia síncrona, horario, red interna por cable/Wi-Fi, Wi-Fi del móvil, versión en el servidor) | ✅ |
 | Shared File (carga por formulario, Home común con cuota) | ✅ |
@@ -324,22 +324,26 @@ Cancelado Figueroa, Daniel Felipe Aguilar Latorre.
 
 ## 7. Pendientes críticos
 
-### 7.1 No hay integración con el clúster MPI
-`gestor-cluster` ejecuta los trabajos con `ProcessBuilder(SHELL, "-c", comando)`
-en su propia máquina; `NUM_WORKERS = 3` son hilos locales. Falta `job-runner.jar`,
-lanzar con `mpirun` sobre el `hostfile` del clúster y devolver los resultados a
-Storage. **Es el núcleo del MVP.**
+### 7.1 Validar el servicio HPC en el clúster real
+El pipeline de Contrato_HPC está implementado (2026-10-13): el gestor resuelve y
+descarga código y dataset de Storage con el token del usuario, los planifica
+(prioridad con envejecimiento), asigna nodos según su carga y los entrega a
+`job-runner` en hpc-master, que compila con `mpicc`/`mpicxx` y lanza `mpirun`;
+el resultado vuelve a "Resultados HPC/" del Home. Ya no hay `bash -c` (V-11).
+Probado de punta a punta en el PC con un mpirun simulado (14/14 por la pasarela,
+más las pruebas de cada cliente). **Falta** ejecutarlo con OpenMPI real:
+`despliegue/cluster-virtualbox/6-desplegar-gestor.sh` (clúster de 5 nodos) o
+`ejecutor-vm-ubuntu.sh` (una VM).
 
-### 7.2 El gestor ejecuta comandos con `bash -c`
-Ya exige token válido y que el perfil tenga `hpc`, y cada usuario solo ve sus
-trabajos. Pero ejecuta lo que el usuario mande en la máquina del gestor, que
-monta `/srv/home`. Contradice `Contrato_HPC` (habla de *código fuente y
-datasets*). Riesgo **Alto** asumido en el análisis de vulnerabilidades (V-11):
-ejecutar en el clúster con un usuario sin privilegios.
+### 7.2 Identidad de los trabajos en el clúster
+Los trabajos corren como `mpiuser` (sin privilegios, solo en el clúster). Para
+que corran con la identidad real del usuario, los nodos deben ser clientes LDAP
+(punto abierto 4 del documento de arquitectura, RF-20).
 
-### 7.3 Estado del gestor solo en memoria
-`ConcurrentHashMap`: al reiniciar se pierden trabajos encolados, históricos y
-resultados.
+### 7.3 Estado del gestor
+Se persiste en un archivo (`ESTADO_HPC`, serialización Java): al reiniciar, lo
+encolado vuelve a la cola y lo que se ejecutaba queda FALLIDO (reintentable).
+Con muchos usuarios convendría PostgreSQL, como el resto de servicios.
 
 ### 7.4 node-soap sin desplegar
 El código está; falta montarlo en la VM del equipo con
@@ -350,11 +354,9 @@ activo real.
 ### 7.5 Requisitos del enunciado sin cubrir del todo
 Trazabilidad completa en la sección 10 del documento de arquitectura y en la
 adenda J de los contratos.
-- **Malla Grid:** el enunciado pide integrar computadoras, móviles e IoT "tanto
-  desde su centro de cómputo como de forma externa". Falta un registro de nodos
-  en el gestor (`RegistrarNodo`/`RetirarNodo`, permiso `hpcadmin`) y que el
-  planificador asigne procesos según su carga. La decisión D7 de la arquitectura
-  v1 ("fuera del alcance") quedó reemplazada.
+- **Malla Grid:** implementado el registro de nodos (`POST/DELETE /cluster/nodos`,
+  permiso `hpcadmin`) y la asignación por carga; falta probarlo con un equipo
+  externo real (OpenMPI + llave SSH + `/srv/home`).
 - **Compartir imágenes externamente** (y videos para presentaciones): enlace
   público de solo lectura con caducidad (`Contrato PhotoAlbum.md` §3.14).
 - **Código Unix de permisos:** el propietario no puede cambiar los bits `rwx`
@@ -364,12 +366,11 @@ adenda J de los contratos.
 
 ## 8. Pendientes importantes
 
-**RMI**
-- Los resultados se guardan como `String` en memoria; `leerSalida` acumula sin
-  límite (un trabajo con mucha salida puede tumbar el gestor).
-- Sin timeout de ejecución.
-- Race en cancelación: `procesosActivos.put()` ocurre tras `pb.start()`.
-- Falta `ObtenerEstadoCluster` (node-web reenvía `/api/cluster`, job-api no la tiene).
+**HPC**
+- job-api va por HTTP (el diagrama pide HTTPS).
+- Sin progreso (%): OpenMPI no lo informa; los clientes muestran barra indeterminada.
+- Sin notificación push al terminar (los clientes consultan cada 3 s).
+- Los resultados de más de `MAX_RESULTADOS_MB` quedan solo en el clúster (se avisa en `OMITIDOS.txt`).
 
 **sync**
 - Sin sesiones (`sesionId`), RegistrarDispositivo, ResolverConflicto interactivo
@@ -431,8 +432,8 @@ respaldo y equipos externos de la malla. `job-runner.jar` aparece como
 ## 11. Próximos pasos
 
 1. **Desplegar node-soap** en la VM del equipo (7.4) y pasar los servicios a `soap`.
-2. **Montar el clúster de 5 nodos y `job-runner.jar`** (7.1), y con ello quitar
-   el `bash -c` del gestor (7.2). Es lo más riesgoso y lo que más trabajo queda.
+2. **Probar el servicio HPC con OpenMPI real** (7.1): clúster de 5 nodos con el
+   paso 6, o una VM con `ejecutor-vm-ubuntu.sh`.
 3. Montar las VMs de producción (node-sync, node-monitoreo…) y **repetir el
    análisis de vulnerabilidades en producción** (sección 5 del informe).
 4. Implementar lo de 7.5 (Grid, compartir imágenes externamente, `chmod`) y pasar a PDF las adendas.

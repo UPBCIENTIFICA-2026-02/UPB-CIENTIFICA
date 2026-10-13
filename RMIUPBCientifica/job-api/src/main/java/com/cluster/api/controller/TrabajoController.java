@@ -1,14 +1,16 @@
 package com.cluster.api.controller;
 
-import com.cluster.api.dto.JobIdResponse;
-import com.cluster.api.dto.JobResponse;
-import com.cluster.api.dto.JobStatusResponse;
-import com.cluster.api.dto.SubmitJobRequest;
-import com.cluster.api.service.JobFacadeService;
-import com.cluster.common.EstadoInvalidoException;
-import com.cluster.common.Job;
-import com.cluster.common.JobNoEncontradoException;
+import com.cluster.api.dto.EstadoTrabajoResponse;
+import com.cluster.api.dto.SolicitudTrabajoRequest;
+import com.cluster.api.dto.TrabajoResponse;
+import com.cluster.api.service.FachadaHpc;
+import com.cluster.common.ErrorHpc;
+import com.cluster.common.EstadoTrabajo;
 import com.cluster.common.NoAutorizadoException;
+import com.cluster.common.Prioridad;
+import com.cluster.common.RespuestaEnvio;
+import com.cluster.common.ResultadoTrabajo;
+import com.cluster.common.TrabajoHpc;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -17,97 +19,101 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
- * Controlador REST. Deliberadamente NO conoce {@code Remote}, {@code Registry}
- * ni {@code RemoteException}: solo conoce {@link JobFacadeService} y los DTOs
- * HTTP. Cada endpoint corresponde exactamente a un método del contrato
- * {@code JobService}; no se agregan endpoints sin respaldo en el contrato.
+ * REST de trabajos HPC. Cada ruta corresponde a una operación de Contrato_HPC;
+ * el controlador solo traduce HTTP ↔ RMI (FachadaHpc), sin reglas de negocio.
  *
- * AUTENTICACIÓN: el token se lee de la cabecera {@code Authorization: Bearer ...}
- * y se reenvía al gestor, que es quien lo valida contra node-soap. Antes no se
- * pedía nada: cualquiera podía enviar trabajos y cancelar los de los demás.
+ * <pre>
+ * POST   /jobs                 EnviarTrabajo            201 RespuestaEnvio
+ * GET    /jobs[?estado=]       ListarTrabajosUsuario    200 TrabajoResponse[]
+ * GET    /jobs/{id}            ConsultarEstadoTrabajo   200 TrabajoResponse
+ * GET    /jobs/{id}/estado     ConsultarEstadoTrabajo   200 EstadoTrabajoResponse
+ * GET    /jobs/{id}/resultado  ObtenerResultado         200 ResultadoTrabajo
+ * GET    /jobs/{id}/logs       ObtenerLogsTrabajo       200 { logsEjecucion }
+ * DELETE /jobs/{id}            CancelarTrabajo          200 { trabajoId, estadoFinal }
+ * PUT    /jobs/{id}/prioridad  DefinirPrioridadTrabajo  200 TrabajoResponse
+ * POST   /jobs/{id}/reintento  ReintentarTrabajo        201 RespuestaEnvio
+ * </pre>
  *
- * El token NUNCA se acepta en el cuerpo de la petición: el uid tiene que salir
- * de una credencial verificada, no de un campo que el cliente rellena.
+ * El token se lee de {@code Authorization: Bearer ...} y lo valida el gestor;
+ * nunca se acepta en el cuerpo.
  */
 @RestController
 @RequestMapping("/jobs")
-public class JobController {
+public class TrabajoController {
 
-    private static final String PREFIJO_BEARER = "Bearer ";
+    private final FachadaHpc hpc;
 
-    private final JobFacadeService jobFacadeService;
-
-    public JobController(JobFacadeService jobFacadeService) {
-        this.jobFacadeService = jobFacadeService;
+    public TrabajoController(FachadaHpc hpc) {
+        this.hpc = hpc;
     }
 
-    /**
-     * Extrae el token de la cabecera Authorization.
-     *
-     * Si falta, se lanza la misma excepción que si fuera inválido: para el
-     * cliente el resultado es el mismo (401) y así el gestor es el único que
-     * decide qué es un token válido.
-     */
-    private String token(String cabecera) throws NoAutorizadoException {
-        if (cabecera == null || !cabecera.startsWith(PREFIJO_BEARER)) {
-            throw NoAutorizadoException.tokenInvalido();
-        }
-        String token = cabecera.substring(PREFIJO_BEARER.length()).trim();
-        if (token.isEmpty()) {
-            throw NoAutorizadoException.tokenInvalido();
-        }
-        return token;
-    }
-
-    /** Corresponde a JobService.submitJob */
     @PostMapping
-    public ResponseEntity<JobIdResponse> crearTrabajo(
+    public ResponseEntity<RespuestaEnvio> enviar(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
-            @Valid @RequestBody SubmitJobRequest request) throws NoAutorizadoException {
-        String id = jobFacadeService.submitJob(
-                token(autorizacion), request.getNombre(), request.getComando(), request.getPrioridad());
-        return ResponseEntity.status(HttpStatus.CREATED).body(new JobIdResponse(id));
+            @Valid @RequestBody SolicitudTrabajoRequest solicitud) throws NoAutorizadoException, ErrorHpc {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(hpc.enviar(Tokens.de(autorizacion), solicitud.aSolicitud()));
     }
 
-    /** Corresponde a JobService.getJob */
-    @GetMapping("/{id}")
-    public ResponseEntity<JobResponse> obtenerTrabajo(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
-            @PathVariable("id") String id) throws JobNoEncontradoException, NoAutorizadoException {
-        Job job = jobFacadeService.getJob(token(autorizacion), id);
-        return ResponseEntity.ok(JobResponse.desde(job));
-    }
-
-    /** Corresponde a JobService.getJobStatus */
-    @GetMapping("/{id}/estado")
-    public ResponseEntity<JobStatusResponse> obtenerEstado(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
-            @PathVariable("id") String id) throws JobNoEncontradoException, NoAutorizadoException {
-        var estado = jobFacadeService.getJobStatus(token(autorizacion), id);
-        return ResponseEntity.ok(new JobStatusResponse(id, estado));
-    }
-
-    /** Corresponde a JobService.listJobs (solo los trabajos del usuario) */
     @GetMapping
-    public ResponseEntity<List<JobResponse>> listarTrabajos(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion)
-            throws NoAutorizadoException {
-        List<JobResponse> respuesta = jobFacadeService.listJobs(token(autorizacion)).stream()
-                .map(JobResponse::desde)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(respuesta);
+    public List<TrabajoResponse> listar(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
+            @RequestParam(value = "estado", required = false) String estado) throws NoAutorizadoException, ErrorHpc {
+        EstadoTrabajo filtro = estado == null || estado.isBlank() ? null : EstadoTrabajo.valueOf(estado.trim().toUpperCase());
+        return hpc.listar(Tokens.de(autorizacion), filtro).stream().map(TrabajoResponse::desde).toList();
     }
 
-    /** Corresponde a JobService.cancelJob */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> cancelarTrabajo(
+    @GetMapping("/{id}")
+    public TrabajoResponse consultar(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
-            @PathVariable("id") String id)
-            throws JobNoEncontradoException, EstadoInvalidoException, NoAutorizadoException {
-        boolean cancelado = jobFacadeService.cancelJob(token(autorizacion), id);
-        return ResponseEntity.ok(Map.of("id", id, "cancelado", cancelado));
+            @PathVariable("id") String id) throws NoAutorizadoException, ErrorHpc {
+        return TrabajoResponse.desde(hpc.consultar(Tokens.de(autorizacion), id));
+    }
+
+    @GetMapping("/{id}/estado")
+    public EstadoTrabajoResponse estado(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
+            @PathVariable("id") String id) throws NoAutorizadoException, ErrorHpc {
+        return EstadoTrabajoResponse.desde(hpc.consultar(Tokens.de(autorizacion), id));
+    }
+
+    @GetMapping("/{id}/resultado")
+    public ResultadoTrabajo resultado(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
+            @PathVariable("id") String id) throws NoAutorizadoException, ErrorHpc {
+        return hpc.resultado(Tokens.de(autorizacion), id);
+    }
+
+    @GetMapping("/{id}/logs")
+    public Map<String, String> logs(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
+            @PathVariable("id") String id) throws NoAutorizadoException, ErrorHpc {
+        return Map.of("trabajoId", id, "logsEjecucion", hpc.logs(Tokens.de(autorizacion), id));
+    }
+
+    @DeleteMapping("/{id}")
+    public Map<String, Object> cancelar(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
+            @PathVariable("id") String id) throws NoAutorizadoException, ErrorHpc {
+        TrabajoHpc t = hpc.cancelar(Tokens.de(autorizacion), id);
+        return Map.of("trabajoId", t.getId(), "estadoFinal", t.getEstado());
+    }
+
+    @PutMapping("/{id}/prioridad")
+    public TrabajoResponse prioridad(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
+            @PathVariable("id") String id,
+            @RequestBody Map<String, String> cuerpo) throws NoAutorizadoException, ErrorHpc {
+        Prioridad nueva = Prioridad.desde(cuerpo == null ? null : cuerpo.get("nuevaPrioridad"));
+        return TrabajoResponse.desde(hpc.definirPrioridad(Tokens.de(autorizacion), id, nueva));
+    }
+
+    @PostMapping("/{id}/reintento")
+    public ResponseEntity<RespuestaEnvio> reintentar(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacion,
+            @PathVariable("id") String id) throws NoAutorizadoException, ErrorHpc {
+        return ResponseEntity.status(HttpStatus.CREATED).body(hpc.reintentar(Tokens.de(autorizacion), id));
     }
 }

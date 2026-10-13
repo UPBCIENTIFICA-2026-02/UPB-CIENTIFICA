@@ -15,3 +15,7 @@ buildNumber.properties
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+# Estado del gestor y directorios de trabajos del job-runner local
+estado-hpc/
+trabajos-hpc/

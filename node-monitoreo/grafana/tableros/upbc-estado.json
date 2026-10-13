@@ -570,7 +570,7 @@
       "type": "prometheus",
       "uid": "prometheus-upbc"
      },
-     "expr": "hpc_trabajos{estado=\"RUNNING\"}",
+     "expr": "hpc_trabajos{estado=\"EJECUTANDO\"}",
      "legendFormat": "",
      "refId": "A",
      "instant": true,
@@ -624,7 +624,7 @@
       "type": "prometheus",
       "uid": "prometheus-upbc"
      },
-     "expr": "round(increase(hpc_trabajos_terminados_total{resultado=\"COMPLETED\"}[$__range]))",
+     "expr": "round(increase(hpc_trabajos_terminados_total{resultado=\"COMPLETADO\"}[$__range]))",
      "legendFormat": "",
      "refId": "A",
      "instant": true,
@@ -678,7 +678,7 @@
       "type": "prometheus",
       "uid": "prometheus-upbc"
      },
-     "expr": "round(increase(hpc_trabajos_terminados_total{resultado=\"FAILED\"}[$__range]))",
+     "expr": "round(sum(increase(hpc_trabajos_terminados_total{resultado=~\"FALLIDO|FALLIDO_TIMEOUT\"}[$__range])))",
      "legendFormat": "",
      "refId": "A",
      "instant": true,
@@ -846,7 +846,7 @@
       "type": "prometheus",
       "uid": "prometheus-upbc"
      },
-     "expr": "hpc_trabajos{estado=~\"QUEUED|RUNNING\"}",
+     "expr": "hpc_trabajos{estado=~\"EN_COLA|EJECUTANDO\"}",
      "legendFormat": "{{estado}}",
      "refId": "A"
     },
@@ -858,6 +858,33 @@
      "expr": "hpc_cola_longitud",
      "legendFormat": "cola",
      "refId": "B"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "hpc_procesos_en_uso",
+     "legendFormat": "procesos MPI en uso",
+     "refId": "C"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "hpc_procesos_total",
+     "legendFormat": "procesos de la malla",
+     "refId": "D"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus-upbc"
+     },
+     "expr": "sum(hpc_nodos{estado=\"EN_FALLA\"})",
+     "legendFormat": "nodos en falla",
+     "refId": "E"
     }
    ],
    "fieldConfig": {

@@ -19,13 +19,18 @@
 
   y deja apuntado el portal al job-api del cluster (hpc-master, 192.168.56.10:8082).
 
-  Con -HpcLocal arranca tambien aqui el gestor RMI y job-api:
+  Con -HpcLocal arranca tambien aqui el servicio HPC completo:
 
-      gestor-cluster   2099   Gestor de trabajos (RMI)
-      job-api          8082   Fachada REST del gestor (la usan la app y el portal)
+      job-runner       2199   Ejecutor MPI (en produccion va en hpc-master)
+      gestor-cluster   2099   Gestor RMI: valida codigo/dataset en Storage,
+                              planifica y asigna nodos, guarda el resultado en el Home
+      job-api          8082   Fachada REST del gestor (la usan las apps y el portal)
 
-  Sirve para probar la pestana HPC sin las VMs. Los trabajos se ejecutan en
-  este PC con Git Bash, no en el cluster MPI.
+  Los trabajos son codigo fuente + dataset del Home (Contrato_HPC). En Windows no
+  hay OpenMPI: el job-runner local usa un mpirun SIMULADO (lanza N copias del
+  programa con OMPI_COMM_WORLD_RANK/SIZE, sin comunicacion entre procesos) y solo
+  ejecuta programas .py. Para MPI real, job-runner en Linux (hpc-master o la VM)
+  y -EjecutorHpc apuntando a el.
 
   POR QUE EN WINDOWS Y NO EN LAS VMs: la app movil, en modo desarrollo, busca
   Storage, Media y Auth en UNA sola direccion (la IP Wi-Fi del PC, ver
@@ -50,18 +55,30 @@
   abre desde el portal en /monitoreo/.
 
 .PARAMETER HpcLocal
-  Arranca gestor-cluster y job-api en este PC (necesita Java 17+ y los .jar
-  compilados: mvn package en RMIUPBCientifica).
+  Arranca job-runner, gestor-cluster y job-api en este PC (necesita Java 17+ y
+  los .jar compilados: mvn package en RMIUPBCientifica).
+
+.PARAMETER EjecutorHpc
+  host:puerto del Registry de un job-runner REAL (con OpenMPI), p. ej. el de la
+  VM Ubuntu con el 2199 reenviado: 127.0.0.1:2199. Con este parametro no se
+  arranca el job-runner simulado local.
+
+.PARAMETER NodosHpc
+  Nodos de la malla que conoce el gestor, "host:procesos,...". Por defecto
+  localhost:4 (el job-runner local o la VM).
 
 .EXAMPLE
   .\7-iniciar-servicios-windows.ps1
   .\7-iniciar-servicios-windows.ps1 -ModoAuth soap
   .\7-iniciar-servicios-windows.ps1 -HpcLocal
+  .\7-iniciar-servicios-windows.ps1 -HpcLocal -EjecutorHpc 127.0.0.1:2199 -NodosHpc localhost:4
 #>
 param(
     [ValidateSet('simulado', 'soap')] [string] $ModoAuth = 'simulado',
     [string] $UrlTrabajos = 'http://192.168.56.10:8082',
     [switch] $HpcLocal,
+    [string] $EjecutorHpc = '',
+    [string] $NodosHpc = 'localhost:4',
     [switch] $Monitoreo
 )
 
@@ -142,20 +159,36 @@ $servicios = @(
 
 if ($HpcLocal) {
     $dirRmi  = Join-Path $raiz 'RMIUPBCientifica'
-    foreach ($jar in 'gestor-cluster\target\gestor-cluster.jar', 'job-api\target\job-api.jar') {
+    foreach ($jar in 'gestor-cluster\target\gestor-cluster.jar', 'job-api\target\job-api.jar', 'job-runner\target\job-runner.jar') {
         if (-not (Test-Path (Join-Path $dirRmi $jar))) {
             throw "Falta RMIUPBCientifica\$jar. Compila antes: mvn -f RMIUPBCientifica\pom.xml package -DskipTests"
         }
     }
-    # En Windows "bash" es C:\Windows\System32\bash.exe (WSL); sin una distro
-    # Linux los trabajos fallan con "execvpe(/bin/bash) failed". Se usa Git Bash.
-    $bashGit = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
-    if (-not (Test-Path $bashGit)) { throw "No encuentro Git Bash en $bashGit (lo necesita el gestor para ejecutar trabajos)." }
+    $jarRunner = Join-Path $dirRmi 'job-runner\target\job-runner.jar'
+    if ($EjecutorHpc) {
+        $hostEjecutor, $puertoEjecutor = $EjecutorHpc.Split(':')
+    } else {
+        $hostEjecutor = '127.0.0.1'; $puertoEjecutor = '2199'
+        # job-runner local (solo desarrollo): mpirun simulado y programas .py.
+        # Puertos 2199/2200 porque 2099/2100 son del gestor en esta misma maquina.
+        # ANTES el gestor ejecutaba aqui cada "comando" con Git Bash (bash -c).
+        $python = if (Get-Command py -ErrorAction SilentlyContinue) { 'py -3' } else { 'python' }
+        $servicios += @{ Nombre = 'job-runner'; Puerto = 2199; Dir = $dirRmi;
+           Cmd = "java '-Djava.rmi.server.hostname=127.0.0.1' -jar job-runner\target\job-runner.jar";
+           Env = @{ RUNNER_PUERTO_REGISTRY = '2199'; RUNNER_PUERTO_OBJETO = '2200';
+                    DIR_TRABAJOS = (Join-Path $dirRmi 'trabajos-hpc');
+                    MPIRUN = "java -cp $jarRunner com.cluster.runner.MpirunSimulado";
+                    PYTHON = $python } }
+    }
     $servicios += @(
         # El -D va entre comillas: PowerShell parte "-Djava.rmi..." en el punto.
         @{ Nombre = 'gestor-cluster'; Puerto = 2099; Dir = $dirRmi;
            Cmd = "java '-Djava.rmi.server.hostname=127.0.0.1' -jar gestor-cluster\target\gestor-cluster.jar";
-           Env = @{ AUTH_MODE = $ModoAuth; AUTH_URL = $urlAuth; AUTH_NS = $nsAuth; SHELL_TRABAJOS = $bashGit } },
+           Env = @{ AUTH_MODE = $ModoAuth; AUTH_URL = $urlAuth; AUTH_NS = $nsAuth;
+                    URL_STORAGE = 'http://127.0.0.1:8084';
+                    EJECUTOR_HOST = $hostEjecutor; EJECUTOR_PUERTO = $puertoEjecutor;
+                    HPC_NODOS = $NodosHpc;
+                    ESTADO_HPC = (Join-Path $dirRmi 'estado-hpc\trabajos.ser') } },
         @{ Nombre = 'job-api';        Puerto = 8082; Dir = $dirRmi;
            Cmd = 'java -jar job-api\target\job-api.jar'; Env = @{} }
     )
@@ -215,7 +248,8 @@ foreach ($s in $servicios) {
     Write-Host "  $($s.Nombre)"
     # auth-local primero y con margen: Storage y Media lo consultan al validar.
     # El gestor tiene que estar en el Registry antes de que job-api lo busque.
-    if ($s.Nombre -in 'auth-local', 'gestor-cluster') { Start-Sleep -Seconds 2 }
+    # job-runner antes que el gestor, y el gestor antes que job-api.
+    if ($s.Nombre -in 'auth-local', 'job-runner', 'gestor-cluster') { Start-Sleep -Seconds 2 }
 }
 
 # ------------------------------------------------------------------ esperar
@@ -291,7 +325,7 @@ Write-Host @"
      USAR_MOCK_AUTH = false     (asi usa auth-local en el 8081)
 
  Monitoreo (Grafana):         $(if ($Monitoreo) { "http://localhost:8080/monitoreo/  (admin / admin la primera vez)" } else { "no arrancado (usa -Monitoreo)" })
- HPC (job-api):               $(if ($HpcLocal) { "http://${ipWifi}:8082  (local)" } else { $UrlTrabajos })
+ HPC (job-api):               $(if ($HpcLocal) { "http://${ipWifi}:8082  (local; job-runner $(if ($EjecutorHpc) { $EjecutorHpc } else { 'simulado 127.0.0.1:2199' }))" } else { $UrlTrabajos })
  File Sync (gRPC):            ${ipWifi}:9090  (movil y escritorio)
      (en la VM Ubuntu; si el celular no conecta, permite el 9090 en el Firewall)
 

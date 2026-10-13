@@ -1,154 +1,176 @@
 package com.cluster.api;
 
-import com.cluster.gestor.JobServiceImpl;
-import com.cluster.common.JobService;
+import com.cluster.common.EstadoEjecucion;
+import com.cluster.common.OrdenEjecucion;
+import com.cluster.common.ServicioHpc;
+import com.cluster.gestor.auth.ValidadorSimulado;
+import com.cluster.gestor.dominio.Almacenamiento;
+import com.cluster.gestor.dominio.Ejecutor;
+import com.cluster.gestor.dominio.GestorTrabajos;
+import com.cluster.gestor.dominio.Persistencia;
+import com.cluster.gestor.dominio.RegistroNodos;
+import com.cluster.gestor.dominio.ReglasTrabajo;
+import com.cluster.gestor.rmi.ServicioHpcRmi;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.nio.charset.StandardCharsets;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Prueba de integración real de extremo a extremo: levanta un
- * gestor-cluster (RMI Registry + JobServiceImpl exportado en el puerto 2100)
- * embebido dentro del propio proceso de pruebas, y verifica que job-api,
- * arrancado como aplicación Spring Boot completa, sea capaz de recibir una
- * petición HTTP real y completarla a través de una invocación RMI real
- * (sin mocks) contra ese servidor.
+ * HTTP real -> job-api -> RMI real -> gestor-cluster (embebido en el proceso)
+ * -> dominio. Storage y job-runner son dobles en memoria: lo que se prueba aquí
+ * es el contrato HTTP/RMI, no el clúster (ver EjecutorMpiImplTest).
  *
- * Usa un puerto de Registry alternativo (11099) para no colisionar con una
- * instancia real de gestor-cluster que pudiera estar corriendo en la máquina
- * de desarrollo durante la ejecución de `mvn test`.
- *
- * El JobServiceImpl embebido usa su constructor sin argumentos, que instala el
- * validador SIMULADO: por eso los tokens de aquí tienen la forma
- * "mock-token-<uid>-...". Con el validador SOAP haría falta node-soap levantado,
- * que no es lo que esta prueba quiere ejercitar.
+ * Registry en 11099 para no chocar con un gestor real en la máquina.
  */
-@SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {
-                "rmi.gestor.registryPort=11099"
-        }
-)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {"rmi.gestor.registryPort=11099"})
 class HttpToRmiIntegrationTest {
-
-    private static Registry registry;
-    private static JobServiceImpl implementacion;
-    private static final int PUERTO_REGISTRY_PRUEBA = 11099;
-    private static final int PUERTO_OBJETO_REMOTO_PRUEBA = 12100;
 
     private static final String TOKEN = "mock-token-jperez-e2e";
     private static final String TOKEN_OTRO = "mock-token-otrousuario-e2e";
 
+    private static Registry registry;
+    private static ServicioHpcRmi servicio;
+    private static GestorTrabajos gestor;
+
     @Autowired
-    private TestRestTemplate restTemplate;
+    private TestRestTemplate rest;
 
     @BeforeAll
-    static void iniciarGestorClusterEmbebido() throws Exception {
-        registry = LocateRegistry.createRegistry(PUERTO_REGISTRY_PRUEBA);
-        implementacion = new JobServiceImpl();
-        JobService stub = (JobService) UnicastRemoteObject.exportObject(implementacion, PUERTO_OBJETO_REMOTO_PRUEBA);
-        registry.rebind("JobService", stub);
+    static void iniciarGestorEmbebido() throws Exception {
+        Almacenamiento storage = new Almacenamiento() {
+            public Elemento resolver(String token, String ruta) {
+                return ruta.endsWith("pi.c") ? new Elemento("id-pi", "pi.c", false, 10) : null;
+            }
+
+            public byte[] descargar(String token, String id) {
+                return "int main(){}".getBytes(StandardCharsets.UTF_8);
+            }
+
+            public String guardar(String token, String carpeta, Map<String, byte[]> archivos) {
+                return "/" + carpeta;
+            }
+        };
+        Ejecutor ejecutor = new Ejecutor() {
+            public boolean disponible() { return true; }
+            public void iniciar(OrdenEjecucion o) { }
+            public EstadoEjecucion consultar(String id) {
+                return new EstadoEjecucion(EstadoEjecucion.TERMINADO, 0, false, false, false, null);
+            }
+            public String logs(String id, int max) { return "rango 0: pi = 3.1416"; }
+            public Map<String, byte[]> resultados(String id) {
+                return Map.of("salida.txt", "pi".getBytes(StandardCharsets.UTF_8));
+            }
+            public void cancelar(String id) { }
+            public void limpiar(String id) { }
+            public List<String> nodosSinRespuesta(List<String> hosts) { return List.of(); }
+        };
+        Persistencia memoria = new Persistencia() {
+            public void guardar(Instantanea i) { }
+            public Instantanea cargar() { return null; }
+        };
+        gestor = new GestorTrabajos(storage, ejecutor, RegistroNodos.desdeConfiguracion("nodo1:4"),
+                new ReglasTrabajo(8, 3600), memoria, Duration.ofSeconds(60), Duration.ofMillis(20));
+        gestor.arrancar();
+        servicio = new ServicioHpcRmi(new ValidadorSimulado(), gestor);
+        registry = LocateRegistry.createRegistry(11099);
+        registry.rebind("ServicioHpc", (ServicioHpc) UnicastRemoteObject.exportObject(servicio, 12100));
     }
 
     @AfterAll
-    static void detenerGestorClusterEmbebido() throws Exception {
-        registry.unbind("JobService");
-        UnicastRemoteObject.unexportObject(implementacion, true);
-        implementacion.shutdown();
+    static void detener() throws Exception {
+        registry.unbind("ServicioHpc");
+        UnicastRemoteObject.unexportObject(servicio, true);
+        UnicastRemoteObject.unexportObject(registry, true);
+        gestor.detener();
     }
 
-    /** Cabeceras con el token de sesión, que ahora exigen todos los endpoints. */
     private static HttpHeaders conToken(String token) {
-        HttpHeaders cabeceras = new HttpHeaders();
-        cabeceras.setBearerAuth(token);
-        return cabeceras;
+        HttpHeaders h = new HttpHeaders();
+        h.setBearerAuth(token);
+        return h;
     }
 
-    private ResponseEntity<Map> crear(String token, Map<String, Object> cuerpo) {
-        return restTemplate.exchange(
-                "/jobs", HttpMethod.POST, new HttpEntity<>(cuerpo, conToken(token)), Map.class);
+    private ResponseEntity<Map> llamar(HttpMethod metodo, String ruta, String token, Object cuerpo) {
+        return rest.exchange(ruta, metodo, new HttpEntity<>(cuerpo, conToken(token)), Map.class);
     }
 
-    @Test
-    void flujoCompletoCrearConsultarYListarTrabajo() {
-        Map<String, Object> cuerpo = Map.of("nombre", "integracion", "comando", "echo hola-e2e", "prioridad", 5);
-
-        ResponseEntity<Map> creacion = crear(TOKEN, cuerpo);
-        assertEquals(HttpStatus.CREATED, creacion.getStatusCode());
-        String id = (String) creacion.getBody().get("id");
-        assertNotNull(id);
-
-        ResponseEntity<Map> consulta = restTemplate.exchange(
-                "/jobs/" + id, HttpMethod.GET, new HttpEntity<>(conToken(TOKEN)), Map.class);
-        assertEquals(HttpStatus.OK, consulta.getStatusCode());
-        assertEquals(id, consulta.getBody().get("id"));
-
-        ResponseEntity<Map[]> listado = restTemplate.exchange(
-                "/jobs", HttpMethod.GET, new HttpEntity<>(conToken(TOKEN)), Map[].class);
-        assertEquals(HttpStatus.OK, listado.getStatusCode());
-        assertTrue(listado.getBody().length >= 1);
+    private static Map<String, Object> solicitud(String codigo) {
+        return Map.of("nombreTrabajo", "integracion", "rutaCodigo", codigo,
+                "numeroProcesos", 2, "tiempoMaximoEjecucion", 60);
     }
 
     @Test
-    void consultarTrabajoInexistenteRetorna404ViaHttp() {
-        ResponseEntity<Map> respuesta = restTemplate.exchange(
-                "/jobs/no-existe-123", HttpMethod.GET, new HttpEntity<>(conToken(TOKEN)), Map.class);
-        assertEquals(HttpStatus.NOT_FOUND, respuesta.getStatusCode());
+    void flujoCompletoEnviarConsultarResultadoYLogs() throws Exception {
+        ResponseEntity<Map> envio = llamar(HttpMethod.POST, "/jobs", TOKEN, solicitud("/Proyectos/pi.c"));
+        assertEquals(HttpStatus.CREATED, envio.getStatusCode());
+        String id = (String) envio.getBody().get("trabajoId");
+
+        String estado = "";
+        for (int i = 0; i < 100 && !"COMPLETADO".equals(estado); i++) {
+            Thread.sleep(50);
+            estado = (String) llamar(HttpMethod.GET, "/jobs/" + id + "/estado", TOKEN, null).getBody().get("estado");
+        }
+        assertEquals("COMPLETADO", estado);
+
+        Map<?, ?> resultado = llamar(HttpMethod.GET, "/jobs/" + id + "/resultado", TOKEN, null).getBody();
+        assertTrue(((String) resultado.get("rutaResultado")).startsWith("/Resultados HPC/integracion-"));
+        assertEquals("rango 0: pi = 3.1416",
+                llamar(HttpMethod.GET, "/jobs/" + id + "/logs", TOKEN, null).getBody().get("logsEjecucion"));
+
+        ResponseEntity<Map[]> lista = rest.exchange("/jobs", HttpMethod.GET, new HttpEntity<>(conToken(TOKEN)), Map[].class);
+        assertTrue(lista.getBody().length >= 1);
+
+        Map<?, ?> cluster = llamar(HttpMethod.GET, "/cluster/estado", TOKEN, null).getBody();
+        assertEquals(1, cluster.get("nodosTotales"));
+        assertEquals(true, cluster.get("ejecutorConectado"));
     }
 
     @Test
-    void crearYCancelarTrabajoDevuelveConfirmacion() {
-        Map<String, Object> cuerpo = Map.of("nombre", "cancelable", "comando", "sleep 5", "prioridad", 1);
-        String id = (String) crear(TOKEN, cuerpo).getBody().get("id");
-
-        ResponseEntity<Map> cancelacion = restTemplate.exchange(
-                "/jobs/" + id, HttpMethod.DELETE, new HttpEntity<>(conToken(TOKEN)), Map.class);
-
-        assertEquals(HttpStatus.OK, cancelacion.getStatusCode());
-        assertEquals(Boolean.TRUE, cancelacion.getBody().get("cancelado"));
-    }
-
-    // --- autenticación de extremo a extremo ---
-
-    @Test
-    void sinCabeceraDeAutorizacionRetorna401ViaHttp() {
-        ResponseEntity<Map> respuesta = restTemplate.getForEntity("/jobs", Map.class);
-        assertEquals(HttpStatus.UNAUTHORIZED, respuesta.getStatusCode());
+    void codigoInexistenteEs404ConCodigoDelContrato() {
+        ResponseEntity<Map> r = llamar(HttpMethod.POST, "/jobs", TOKEN, solicitud("/no-existe.c"));
+        assertEquals(HttpStatus.NOT_FOUND, r.getStatusCode());
+        assertEquals("HPC-001", r.getBody().get("codigo"));
     }
 
     @Test
-    void tokenInvalidoRetorna401ViaHttp() {
-        ResponseEntity<Map> respuesta = restTemplate.exchange(
-                "/jobs", HttpMethod.GET, new HttpEntity<>(conToken("esto-no-es-un-token")), Map.class);
-        assertEquals(HttpStatus.UNAUTHORIZED, respuesta.getStatusCode());
+    void unUsuarioNoVeElTrabajoDeOtro() {
+        String id = (String) llamar(HttpMethod.POST, "/jobs", TOKEN_OTRO, solicitud("/Proyectos/pi.c")).getBody().get("trabajoId");
+        ResponseEntity<Map> r = llamar(HttpMethod.GET, "/jobs/" + id, TOKEN, null);
+        assertEquals(HttpStatus.NOT_FOUND, r.getStatusCode());
+        assertEquals("HPC-101", r.getBody().get("codigo"));
     }
 
     @Test
-    void unUsuarioNoVeNiCancelaElTrabajoDeOtroViaHttp() {
-        Map<String, Object> cuerpo = Map.of("nombre", "ajeno", "comando", "sleep 5", "prioridad", 1);
-        String id = (String) crear(TOKEN_OTRO, cuerpo).getBody().get("id");
+    void tokenInvalidoEs401() {
+        assertEquals(HttpStatus.UNAUTHORIZED, llamar(HttpMethod.GET, "/jobs", "no-es-un-token", null).getStatusCode());
+    }
 
-        ResponseEntity<Map> consulta = restTemplate.exchange(
-                "/jobs/" + id, HttpMethod.GET, new HttpEntity<>(conToken(TOKEN)), Map.class);
-        assertEquals(HttpStatus.NOT_FOUND, consulta.getStatusCode());
-
-        ResponseEntity<Map> cancelacion = restTemplate.exchange(
-                "/jobs/" + id, HttpMethod.DELETE, new HttpEntity<>(conToken(TOKEN)), Map.class);
-        assertEquals(HttpStatus.NOT_FOUND, cancelacion.getStatusCode());
+    @Test
+    void nodosDeLaMalla() {
+        ResponseEntity<Map> r = llamar(HttpMethod.POST, "/cluster/nodos", TOKEN,
+                Map.of("host", "equipo-externo-1", "capacidadProcesos", 2));
+        assertEquals(HttpStatus.CREATED, r.getStatusCode());
+        assertEquals("EXTERNO", r.getBody().get("origen"));
+        assertEquals(HttpStatus.NO_CONTENT,
+                llamar(HttpMethod.DELETE, "/cluster/nodos/equipo-externo-1", TOKEN, null).getStatusCode());
     }
 }

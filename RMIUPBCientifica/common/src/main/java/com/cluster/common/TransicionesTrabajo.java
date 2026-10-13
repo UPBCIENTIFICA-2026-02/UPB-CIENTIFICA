@@ -6,41 +6,57 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Regla única de la máquina de estados de un {@link Job}. Se centraliza aquí
- * (en {@code common}) en lugar de duplicarla en {@code gestor-cluster} para
- * que el mismo comportamiento pueda ser probado de forma aislada y sea
- * imposible que servidor y pruebas diverjan en la definición de qué
- * transición es válida.
+ * Regla única de la máquina de estados de un {@link TrabajoHpc}. Vive en
+ * {@code common} para que el gestor y las pruebas usen exactamente la misma.
+ *
+ * <pre>
+ * PENDIENTE -> EN_COLA -> EJECUTANDO -> COMPLETADO
+ *                                    -> COMPLETADO_PENDIENTE_ALMACENAMIENTO -> COMPLETADO
+ *                                    -> FALLIDO | FALLIDO_TIMEOUT
+ * PENDIENTE | EN_COLA | EJECUTANDO -> CANCELADO
+ * EJECUTANDO -> EN_COLA   (un nodo asignado falló antes de arrancar: se reasigna)
+ * </pre>
  */
-public final class JobStatusTransition {
+public final class TransicionesTrabajo {
 
-    private static final Map<JobStatus, Set<JobStatus>> TRANSICIONES_VALIDAS = new EnumMap<>(JobStatus.class);
+    private static final Map<EstadoTrabajo, Set<EstadoTrabajo>> VALIDAS = new EnumMap<>(EstadoTrabajo.class);
 
     static {
-        TRANSICIONES_VALIDAS.put(JobStatus.QUEUED, EnumSet.of(JobStatus.RUNNING, JobStatus.CANCELLED));
-        TRANSICIONES_VALIDAS.put(JobStatus.RUNNING, EnumSet.of(JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED));
-        TRANSICIONES_VALIDAS.put(JobStatus.COMPLETED, EnumSet.noneOf(JobStatus.class));
-        TRANSICIONES_VALIDAS.put(JobStatus.FAILED, EnumSet.noneOf(JobStatus.class));
-        TRANSICIONES_VALIDAS.put(JobStatus.CANCELLED, EnumSet.noneOf(JobStatus.class));
+        VALIDAS.put(EstadoTrabajo.PENDIENTE, EnumSet.of(EstadoTrabajo.EN_COLA, EstadoTrabajo.CANCELADO));
+        VALIDAS.put(EstadoTrabajo.EN_COLA, EnumSet.of(EstadoTrabajo.EJECUTANDO, EstadoTrabajo.CANCELADO));
+        VALIDAS.put(EstadoTrabajo.EJECUTANDO, EnumSet.of(
+                EstadoTrabajo.COMPLETADO, EstadoTrabajo.COMPLETADO_PENDIENTE_ALMACENAMIENTO,
+                EstadoTrabajo.FALLIDO, EstadoTrabajo.FALLIDO_TIMEOUT,
+                EstadoTrabajo.CANCELADO, EstadoTrabajo.EN_COLA));
+        VALIDAS.put(EstadoTrabajo.COMPLETADO_PENDIENTE_ALMACENAMIENTO, EnumSet.of(EstadoTrabajo.COMPLETADO));
+        VALIDAS.put(EstadoTrabajo.COMPLETADO, EnumSet.noneOf(EstadoTrabajo.class));
+        VALIDAS.put(EstadoTrabajo.FALLIDO, EnumSet.noneOf(EstadoTrabajo.class));
+        VALIDAS.put(EstadoTrabajo.FALLIDO_TIMEOUT, EnumSet.noneOf(EstadoTrabajo.class));
+        VALIDAS.put(EstadoTrabajo.CANCELADO, EnumSet.noneOf(EstadoTrabajo.class));
     }
 
-    private JobStatusTransition() {
+    private TransicionesTrabajo() {
     }
 
-    /**
-     * Indica si es válido pasar del estado {@code actual} al estado {@code nuevo}.
-     */
-    public static boolean esValida(JobStatus actual, JobStatus nuevo) {
+    public static boolean esValida(EstadoTrabajo actual, EstadoTrabajo nuevo) {
         if (actual == null || nuevo == null) {
             return false;
         }
-        return TRANSICIONES_VALIDAS.get(actual).contains(nuevo);
+        return VALIDAS.get(actual).contains(nuevo);
     }
 
-    /**
-     * Indica si el estado es terminal (no admite ninguna transición saliente).
-     */
-    public static boolean esTerminal(JobStatus estado) {
-        return TRANSICIONES_VALIDAS.get(estado).isEmpty();
+    /** Sin transiciones de salida. COMPLETADO_PENDIENTE_ALMACENAMIENTO no lo es: aún se guarda. */
+    public static boolean esTerminal(EstadoTrabajo estado) {
+        return VALIDAS.get(estado).isEmpty();
+    }
+
+    /** Solo se cancela lo que todavía no terminó (Contrato_HPC §3.4, HPC-105). */
+    public static boolean esCancelable(EstadoTrabajo estado) {
+        return esValida(estado, EstadoTrabajo.CANCELADO);
+    }
+
+    /** ReintentarTrabajo solo aplica a FALLIDO y FALLIDO_TIMEOUT (§3.6, HPC-107). */
+    public static boolean esReintentable(EstadoTrabajo estado) {
+        return estado == EstadoTrabajo.FALLIDO || estado == EstadoTrabajo.FALLIDO_TIMEOUT;
     }
 }

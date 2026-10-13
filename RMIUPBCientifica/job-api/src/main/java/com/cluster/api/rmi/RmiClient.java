@@ -1,7 +1,7 @@
 package com.cluster.api.rmi;
 
 import com.cluster.api.exception.RmiNoDisponibleException;
-import com.cluster.common.JobService;
+import com.cluster.common.ServicioHpc;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -11,20 +11,12 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 /**
- * Única clase de {@code job-api} que conoce los tipos de {@code java.rmi}
- * ({@link Registry}, {@link Naming}-equivalente vía {@code LocateRegistry},
- * {@code Remote}). El resto de la aplicación (Controller, Service) solo
- * conoce {@link JobService}, la interfaz de dominio, nunca los detalles de
- * cómo se localiza o conecta el stub.
+ * Única clase de job-api que conoce java.rmi. El resto solo ve la interfaz
+ * {@link ServicioHpc}.
  *
- * Estrategia de resolución: se busca el stub en CADA invocación en lugar de
- * cachearlo de forma permanente. Esto es intencional: si gestor-cluster se
- * reinicia, un stub cacheado indefinidamente seguiría apuntando a una
- * referencia remota obsoleta y fallaría en cada llamada. Volver a resolverlo
- * (operación barata: solo consulta el Registry en el puerto 1099) garantiza
- * que job-api siempre invoque contra el proceso vivo actual, con el coste de
- * una consulta adicional al Registry por request, aceptable para el volumen
- * de este proyecto.
+ * El stub se busca en cada invocación: si gestor-cluster se reinicia, un stub
+ * guardado apuntaría a un objeto que ya no existe. Consultar el Registry es
+ * barato para el volumen de este proyecto.
  */
 @Component
 public class RmiClient {
@@ -42,16 +34,11 @@ public class RmiClient {
         this.serviceName = serviceName;
     }
 
-    /**
-     * Resuelve el stub de {@link JobService} contra el RMI Registry.
-     *
-     * @throws RmiNoDisponibleException si el Registry no está accesible o el
-     *         servicio no está publicado bajo el nombre esperado
-     */
-    public JobService obtenerServicio() {
+    /** @throws RmiNoDisponibleException si el Registry no responde o el servicio no está publicado */
+    public ServicioHpc obtenerServicio() {
         try {
             Registry registry = LocateRegistry.getRegistry(host, registryPort);
-            return (JobService) registry.lookup(serviceName);
+            return (ServicioHpc) registry.lookup(serviceName);
         } catch (RemoteException e) {
             throw new RmiNoDisponibleException(
                     "No se pudo contactar al RMI Registry en " + host + ":" + registryPort, e);

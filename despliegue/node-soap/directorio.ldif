@@ -148,3 +148,11 @@ objectClass: posixGroup
 cn: hpc
 gidNumber: 3006
 memberUid: investigadores
+
+# hpcadmin: prioridad ALTA en la cola ("hpc:prioridad-alta" de Contrato_HPC) y
+# registrar/retirar nodos de la malla Grid. Lo exige el gestor del clúster.
+dn: cn=hpcadmin,ou=services,dc=upb-cientifica,dc=local
+objectClass: posixGroup
+cn: hpcadmin
+gidNumber: 3007
+memberUid: investigadores

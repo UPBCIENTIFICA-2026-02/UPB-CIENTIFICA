@@ -1,270 +1,164 @@
-# rmi-system
+# Servicio HPC (rmi-system)
 
-Sistema distribuido académico para gestionar trabajos en un clúster, usando
-**Java RMI** como mecanismo de comunicación entre el servidor de gestión
-(`gestor-cluster`) y la fachada HTTP (`job-api`).
+Servicio central de UPB-CIENTÍFICA (Contrato_HPC): recibe **código fuente y
+conjuntos de datos** del Home del usuario, los planifica y los ejecuta **en
+paralelo con MPI** sobre el clúster (malla Grid). El resultado vuelve al Home,
+en `Resultados HPC/<nombre>-<id>`.
 
-## 1. Requisitos
+Es el "RMI Server Java Cluster" de la Figura 1 del enunciado:
 
-- Debian 12 (o cualquier Linux con Bash).
-- OpenJDK 17.
-- Apache Maven 3.8+.
-
-Instalación de requisitos en Debian 12:
-
-```bash
-sudo apt update
-sudo apt install -y openjdk-17-jdk maven
-java -version
-mvn -version
-```
-
-## 2. Instalación
-
-```bash
-git clone <repositorio>   # o descomprime el zip entregado
-cd rmi-system
-./scripts/build.sh
-```
-
-## 3. Estructura del proyecto
-
-```text
-rmi-system/
-├── pom.xml                       # POM raíz (agregador multi-módulo)
-├── common/                       # Contrato RMI compartido
-│   └── src/main/java/com/cluster/common/
-│       ├── Job.java
-│       ├── JobStatus.java
-│       ├── JobStatusTransition.java
-│       ├── JobService.java
-│       ├── JobNoEncontradoException.java
-│       └── EstadoInvalidoException.java
-├── gestor-cluster/               # Servidor RMI
-│   └── src/main/java/com/cluster/gestor/
-│       ├── JobServiceImpl.java
-│       └── Main.java
-├── job-api/                      # Fachada HTTP (cliente RMI, Spring Boot)
-│   └── src/main/java/com/cluster/api/
-│       ├── JobApiApplication.java
-│       ├── controller/JobController.java
-│       ├── service/JobFacadeService.java
-│       ├── rmi/RmiClient.java
-│       ├── dto/*
-│       └── exception/*
-├── config/
-│   └── seguridad-rmi.policy
-└── scripts/
-    ├── build.sh
-    ├── start-gestor.sh
-    └── start-api.sh
-```
-
-**Cambio justificado respecto al árbol original:** no existe
-`scripts/start-registry.sh`. El RMI Registry se levanta embebido dentro del
-propio proceso de `gestor-cluster` (`LocateRegistry.createRegistry(2099)` en
-`Main.java`), por lo que no hay un proceso `rmiregistry` independiente que
-arrancar. Ver sección 5.
-
-## 4. Arquitectura
-
-```text
-Cliente HTTP → job-api (Spring Boot, :8082)
-                  │  Controller → Service → RmiClient
-                  ▼
-         RMI Registry (:2099)  ──lookup("JobService")──▶ stub
-                  │
-                  ▼
-   JobService exportado en el puerto fijo :2100 (gestor-cluster)
-                  │
-                  ▼
-   JobServiceImpl: ConcurrentHashMap + PriorityBlockingQueue + ExecutorService
-```
-
-`common` es el módulo del que dependen tanto `gestor-cluster` (servidor) como
-`job-api` (cliente): contiene la interfaz remota, el modelo `Job` y las
-excepciones de dominio. `common` no depende de ninguno de los otros dos
-módulos.
-
-## 5. Funcionamiento del RMI
-
-- **Estrategia de Registry:** embebido, vía `LocateRegistry.createRegistry(2099)`
-  dentro del proceso `gestor-cluster`, en lugar del proceso externo
-  `rmiregistry`. Ventaja: un solo proceso que gestionar; si `gestor-cluster`
-  cae, el registry desaparece con él, evitando registries huérfanos apuntando
-  a un stub muerto.
-- **Exportación del objeto remoto:** explícita y en puerto fijo, vía
-  `UnicastRemoteObject.exportObject(servicio, 2100)`. Nunca se usa el
-  puerto dinámico (`exportObject(obj, 0)`).
-- **Publicación:** `registry.rebind("JobService", stub)`.
-- **Resolución del lado cliente:** `job-api` hace
-  `LocateRegistry.getRegistry(host, 2099).lookup("JobService")` en cada
-  invocación (no cachea el stub de forma permanente), para no quedar
-  apuntando a una instancia de `gestor-cluster` ya reiniciada.
-
-## 6. Puertos
-
-| Puerto | Proceso | Propósito |
+| Módulo | Dónde corre | Qué hace |
 |---|---|---|
-| `2099` | `gestor-cluster` (Registry embebido) | Descubrimiento: resuelve el nombre `"JobService"` a un stub. No ejecuta lógica de negocio. |
-| `2100` | `gestor-cluster` (objeto remoto exportado) | Todas las invocaciones reales de método (`submitJob`, `getJob`, etc.) pasan por aquí. |
-| `8082` | `job-api` | HTTP REST hacia el nodo web / cliente externo (el diagrama dice HTTPS: pendiente). |
-| `9102` | `gestor-cluster` | `GET /metrics` para Prometheus (monitoreo): trabajos por estado, cola, tiempos de ejecución y de espera. Configurable con `METRICAS_PUERTO`. |
+| `common` | (librería) | Contrato RMI: `ServicioHpc` (clientes ↔ gestor) y `EjecutorMpi` (gestor ↔ job-runner), modelo `TrabajoHpc`, `ErrorHpc` con los códigos HPC-xxx |
+| `gestor-cluster` | node-rmi | HPC Service + Scheduler: valida el token y el mapa de servicios, resuelve y descarga código/dataset de Storage con el token del usuario, cola con prioridad y envejecimiento, asigna nodos según su carga, guarda el resultado en el Home. Métricas en `:9102` |
+| `job-runner` | hpc-master | Cluster MPI: escribe el código y el dataset en el directorio compartido por NFS, compila con `mpicc`/`mpicxx` y lanza `mpirun` con el hostfile asignado; corta por tiempo máximo y cancela |
+| `job-api` | node-rmi | Fachada REST (Spring Boot) para el portal y las apps |
 
-## 7. Cómo compilar
+> **Antes:** el gestor recibía un `comando` de shell y lo ejecutaba con
+> `bash -c` en su propia máquina, sin MPI ni clúster (riesgo V-11). Ya no hay
+> shell en ningún punto: job-runner lanza el compilador y `mpirun` con listas de
+> argumentos, y el código del usuario solo corre en el clúster como `mpiuser`.
 
-```bash
-./scripts/build.sh
-# equivalente a: mvn clean package
-```
-
-Genera:
-- `gestor-cluster/target/gestor-cluster.jar` (ejecutable, con `common` embebido)
-- `job-api/target/job-api.jar` (Spring Boot ejecutable)
-
-## 8. Cómo iniciar
-
-En una terminal:
-
-```bash
-./scripts/start-gestor.sh
-```
-
-Salida esperada:
+## 1. Arquitectura
 
 ```text
-=== gestor-cluster: iniciando servidor RMI ===
-[gestor-cluster] RMI Registry creado en el puerto 2099
-[gestor-cluster] Objeto remoto JobService exportado en el puerto 2100
-[gestor-cluster] Servicio registrado en el Registry como 'JobService'
-[gestor-cluster] Listo. Escuchando en Registry:2099 / Objeto remoto:2100
+Portal / apps ──REST──▶ job-api :8082 ──RMI 2099/2100──▶ gestor-cluster (node-rmi)
+                                                         │  ├─ Auth (SOAP): token + servicio "hpc"
+                                                         │  ├─ Storage (REST 8084): leer código/dataset, guardar resultado
+                                                         │  └─ Planificador: cola + AsignarNodos por carga
+                                                         ▼
+                                       RMI 2099/2100 ─▶ job-runner (hpc-master)
+                                                         │  mpicc -O2 -o programa codigo.c
+                                                         ▼  mpirun --hostfile ... -np N programa dataset args
+                                              hpc-worker 1..4 + equipos externos (SSH + MPI, /srv/home por NFS)
 ```
 
-En otra terminal:
+Capas del gestor (`com.cluster.gestor`): `rmi/` (presentación: token, mapa de
+servicios), `dominio/` (`GestorTrabajos`, `Planificador`, `AsignadorNodos`,
+`RegistroNodos`, `ReglasTrabajo`; interfaces `Almacenamiento`, `Ejecutor`,
+`Persistencia`), `datos/` (`StorageHttp`, `EjecutorRmi`, `ArchivoPersistencia`),
+`auth/` (Strategy simulado/SOAP), `metricas/`. Composition root: `Main`.
 
-```bash
-./scripts/start-api.sh
+## 2. Reglas de negocio (Contrato_HPC)
+
+- **Estados:** `PENDIENTE → EN_COLA → EJECUTANDO → COMPLETADO`;
+  `COMPLETADO_PENDIENTE_ALMACENAMIENTO` si Storage no responde (se reintenta cada
+  30 s, nunca se pierde un resultado); `FALLIDO`, `FALLIDO_TIMEOUT` (la salida
+  parcial se guarda con `INCOMPLETO.txt`), `CANCELADO`.
+- **Formatos:** `.c` (mpicc), `.cpp/.cc/.cxx` (mpicxx), `.py` (mpi4py). Otro → HPC-004.
+- **Dataset** opcional; llega al programa como primer argumento. Los
+  `parametrosEjecucion` van después, como `clave=valor`.
+- **Cola:** prioridad `BAJA/NORMAL/ALTA` + un punto por cada `HPC_ENVEJECIMIENTO`
+  segundos de espera (ningún trabajo se queda sin turno). `ALTA` exige el servicio
+  `hpcadmin` en el mapa del perfil.
+- **AsignarNodos:** cada proceso va al nodo con menor ocupación relativa; si no
+  caben, el trabajo espera en cola. Un nodo que no responde por SSH se marca
+  `EN_FALLA` y el trabajo se reasigna a otros.
+- **Malla Grid:** `POST /cluster/nodos` registra un equipo externo (OpenMPI +
+  llave SSH del clúster + `/srv/home` montado). Exige `hpcadmin`.
+- **Estado persistente:** `ESTADO_HPC` (archivo); al reiniciar, lo que estaba en
+  cola vuelve a la cola y lo que se ejecutaba queda `FALLIDO` (reintentable).
+
+## 3. API REST (job-api)
+
+Todas exigen `Authorization: Bearer <token>`; el uid sale del token.
+
+| Método | Ruta | Operación | Respuesta |
+|---|---|---|---|
+| `POST` | `/jobs` | EnviarTrabajo | `201 { trabajoId, estadoInicial, posicionEstimadaCola, fechaEnvio }` |
+| `GET` | `/jobs[?estado=]` | ListarTrabajosUsuario | `200 TrabajoResponse[]` |
+| `GET` | `/jobs/{id}` | ConsultarEstadoTrabajo | `200 TrabajoResponse` |
+| `GET` | `/jobs/{id}/estado` | ConsultarEstadoTrabajo | `200 { trabajoId, estado, progreso, nodosAsignados, posicionCola, mensajeError }` |
+| `GET` | `/jobs/{id}/resultado` | ObtenerResultado | `200 { rutaResultado, tamanoBytes, fecha, codigoSalida, incompleto }` |
+| `GET` | `/jobs/{id}/logs` | ObtenerLogsTrabajo | `200 { logsEjecucion }` |
+| `DELETE` | `/jobs/{id}` | CancelarTrabajo | `200 { trabajoId, estadoFinal }` |
+| `PUT` | `/jobs/{id}/prioridad` | DefinirPrioridadTrabajo `{ nuevaPrioridad }` | `200 TrabajoResponse` |
+| `POST` | `/jobs/{id}/reintento` | ReintentarTrabajo | `201 { trabajoId, …, advertencia }` |
+| `GET` | `/cluster/estado` | ObtenerEstadoCluster + Cola | `200 { nodosTotales, procesosEnUso, ejecutorConectado, nodos[] … }` |
+| `POST` | `/cluster/nodos` | RegistrarNodo `{ host, capacidadProcesos, externo }` | `201 NodoCluster` |
+| `DELETE` | `/cluster/nodos/{host}` | RetirarNodo | `204` |
+
+Cuerpo de `POST /jobs`:
+
+```json
+{ "nombreTrabajo": "pi", "rutaCodigo": "/Proyectos/pi.c", "rutaDataset": "/Proyectos/datos.csv",
+  "numeroProcesos": 6, "tiempoMaximoEjecucion": 600, "prioridad": "NORMAL",
+  "parametrosEjecucion": { "pasos": "100000000" } }
 ```
 
-## 9. Cómo probar
+`rutaCodigo`/`rutaDataset`: ruta dentro del Home o id de Storage (lo único que
+sirve para un archivo compartido por otro).
 
-Ejecutar toda la batería de pruebas (unitarias + integración HTTP→RMI real):
+Errores: `{ status, error, codigo, mensaje }` con `codigo` del contrato —
+HPC-001/002 (404 código/dataset no encontrado o sin permiso), HPC-003/004/005
+(422 cuota de procesos, formato, tiempo), HPC-007 (403 prioridad ALTA sin
+permiso), HPC-101 (404), HPC-103/104/105/106/107/108 (409). Además `401` sin
+token, `403` perfil sin `hpc`, `503` gestor, Storage o Auth caídos.
 
-```bash
-mvn test
-```
+## 4. Puertos
 
-Probar manualmente con `curl` (con ambos procesos corriendo).
-
-**Todos los endpoints exigen `Authorization: Bearer <token>`.** En modo de
-desarrollo (`AUTH_MODE=simulado`, el valor por omisión) vale cualquier token con
-la forma `mock-token-<uid>-...`; el `<uid>` es el usuario al que se le atribuyen
-los trabajos. En producción hay que arrancar `gestor-cluster` con
-`AUTH_MODE=soap` y usar un token real emitido por `node-soap`.
-
-En modo `soap` el gestor exige además que el perfil del usuario tenga **`hpc`**
-en su mapa de servicios (`validarAccesoServicio` de node-soap, cacheado 1 min).
-Si no lo tiene, job-api responde **403** "Tu perfil no tiene acceso al servicio
-"hpc"" (p. ej. el usuario `estudiante` de auth-local).
-
-```bash
-TOKEN="mock-token-jperez-demo"
-
-# Crear un trabajo
-curl -X POST http://localhost:8082/jobs \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"nombre":"demo","comando":"echo hola-cluster","prioridad":5}'
-# => {"id":"3f1c..."}
-
-# Consultar estado
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8082/jobs/<ID>/estado
-
-# Consultar el trabajo completo
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8082/jobs/<ID>
-
-# Listar los trabajos DEL USUARIO del token (ya no los de todos)
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8082/jobs
-
-# Cancelar (solo si el trabajo es de ese usuario)
-curl -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:8082/jobs/<ID>
-
-# Sin token: 401
-curl -i http://localhost:8082/jobs
-```
-
-## 10. Endpoints REST
-
-| Método | Ruta | Corresponde a (JobService) | Éxito | Errores |
-|---|---|---|---|---|
-| `POST` | `/jobs` | `submitJob` | `201` | `400` |
-| `GET` | `/jobs/{id}` | `getJob` | `200` | `404` |
-| `GET` | `/jobs/{id}/estado` | `getJobStatus` | `200` | `404` |
-| `GET` | `/jobs` | `listJobs` | `200` | — |
-| `DELETE` | `/jobs/{id}` | `cancelJob` | `200` | `404`, `409` |
-
-Todos los endpoints pueden además devolver `401` (sin token o inválido), `403`
-(perfil sin `hpc`), `503` (gestor-cluster o Auth no disponible) o `500` (error
-interno inesperado; el detalle queda solo en el registro del servidor). Una ruta
-inexistente responde `404 "Ruta no encontrada"` (antes respondía 500 con detalle
-interno).
-
-**Pendiente con el contrato:** `Contrato_HPC` envía `{ nombre, rutaCodigoFuente,
-rutaDataset, numeroProcesos, prioridad }` y define `ObtenerEstadoCluster`
-(`GET /cluster/estado`); job-api todavía pide `{ nombre, comando, prioridad }` y
-no tiene esa ruta. Ver `docs/TRASPASO.md` §7–8 del monorepo.
-
-## 11. Flujo completo de una solicitud
-
-1. El cliente hace `POST /jobs` con `{nombre, comando, prioridad}`.
-2. `JobController` valida el cuerpo (`@Valid`) y delega en `JobFacadeService`.
-3. `JobFacadeService` pide el stub a `RmiClient.obtenerServicio()`.
-4. `RmiClient` hace `LocateRegistry.getRegistry("localhost", 2099).lookup("JobService")`.
-5. Con el stub obtenido, se invoca `stub.submitJob(nombre, comando, prioridad)`;
-   esta llamada abre/usa una conexión hacia el puerto **2100**.
-6. `JobServiceImpl.submitJob` valida, crea el `Job` (estado `QUEUED`), lo
-   guarda en el `ConcurrentHashMap` y lo encola en la `PriorityBlockingQueue`.
-7. Un worker del `ExecutorService` lo toma, lo marca `RUNNING`, ejecuta el
-   comando con `ProcessBuilder`, y al terminar lo marca `COMPLETED`/`FAILED`.
-8. El `String id` retorna serializado hasta `job-api`, que responde `201` con
-   `{"id": "..."}`.
-9. El cliente puede luego consultar `GET /jobs/{id}` para ver el resultado.
-
-## 12. Errores frecuentes
-
-| Síntoma | Causa probable | Solución |
+| Puerto | Proceso | Uso |
 |---|---|---|
-| `job-api` responde `503` en todo | `gestor-cluster` no está corriendo | Ejecuta `./scripts/start-gestor.sh` primero |
-| `java.rmi.ConnectException` al iniciar `job-api` | Puerto 2099 ocupado por otro proceso | `sudo ss -ltnp | grep 2099` y libera el puerto |
-| `BindException: Address already in use` en `gestor-cluster` | Ya hay una instancia corriendo | Detén la instancia previa (`Ctrl+C` o `kill`) |
-| `404` inesperado al consultar un trabajo recién creado | Typo en el `id` copiado del `POST` | Verifica el campo `id` de la respuesta de creación |
-| `409` al cancelar | El trabajo ya terminó (`COMPLETED`/`FAILED`/`CANCELLED`) | Es el comportamiento esperado: no se puede cancelar un trabajo ya finalizado |
-| `403` en todo para un usuario | Modo `soap` y su perfil no tiene `hpc` | Es lo esperado; darle el servicio en `ou=services` de LDAP |
-| `job-api.jar` queda de ~17 KB tras `mvn package` | Se compiló con job-api corriendo (Windows no deja reemplazar el `.jar`) | Detener job-api y volver a compilar |
+| `8082` | job-api | REST para portal y apps (el diagrama pide HTTPS: pendiente) |
+| `2099` / `2100` | gestor-cluster | Registry RMI embebido / objeto `ServicioHpc` |
+| `9102` | gestor-cluster | `GET /metrics` (trabajos por estado, cola, nodos, procesos, tiempos) |
+| `2099` / `2100` | job-runner (hpc-master) | Registry / objeto `EjecutorMpi`. **2199/2200** si comparte máquina con el gestor |
 
-## 13. Solución de problemas
+## 5. Configuración
+
+**gestor-cluster:** `AUTH_MODE=soap|simulado`, `AUTH_URL`, `AUTH_NS`,
+`URL_STORAGE` (`http://node-repository:8084`), `EJECUTOR_HOST` (`hpc-master`),
+`EJECUTOR_PUERTO` (2099), `HPC_NODOS` (`hpc-master:2,hpc-worker1:2,…`),
+`HPC_MAX_PROCESOS` (64), `HPC_MAX_TIEMPO` (86400 s), `HPC_ENVEJECIMIENTO` (60 s),
+`ESTADO_HPC`, `METRICAS_PUERTO`. Arrancar con `-Djava.rmi.server.hostname=<IP>`.
+
+**job-runner:** `RUNNER_PUERTO_REGISTRY` / `RUNNER_PUERTO_OBJETO`,
+`DIR_TRABAJOS` (`/srv/home/.hpc-trabajos`, **compartido por NFS**), `MPICC`,
+`MPICXX`, `MPIRUN`, `MPIRUN_OPCIONES` (p. ej. `--mca btl_tcp_if_include
+192.168.56.0/24`), `PYTHON`, `SSH`, `NODOS_LOCALES`, `MAX_RESULTADOS_MB` (200).
+Corre como `mpiuser` (OpenMPI no arranca como root).
+
+**job-api:** `rmi.gestor.host`, `rmi.gestor.registryPort` (2099),
+`rmi.gestor.serviceName` (`ServicioHpc`).
+
+## 6. Compilar, probar y desplegar
 
 ```bash
-# Ver qué proceso ocupa el puerto 2099 o 2100
-sudo ss -ltnp | grep -E '2099|2100'
-
-# Detener un gestor-cluster colgado
-pkill -f gestor-cluster.jar
-
-# Ejecutar solo las pruebas de un módulo
-mvn -pl gestor-cluster test
-mvn -pl job-api test
+mvn clean package      # common, gestor-cluster, job-runner, job-api + pruebas
 ```
 
-## 14. Sobre `config/seguridad-rmi.policy`
+Pruebas: `TrabajoHpcTest`, `TransicionesTrabajoTest` (common);
+`GestorTrabajosTest` (flujo completo con Storage y job-runner en memoria:
+desenlaces, timeout, cancelación, reasignación por nodo caído, aislamiento entre
+usuarios, persistencia); `EjecutorMpiImplTest` (job-runner con el mpirun
+simulado: N procesos, dataset, tiempo máximo, cancelación, saneo de nombres);
+`TrabajoControllerTest` y `HttpToRmiIntegrationTest` (HTTP → RMI real).
 
-Se entrega documentado pero **no se activa por defecto**. El `SecurityManager`
-de Java (mecanismo que consume este archivo) está deprecado para su
-eliminación desde Java 17 (JEP 411) y ya fue eliminado en versiones
-posteriores del JDK. Además, en este proyecto no hay carga dinámica de
-clases vía `codebase` (todas las clases del contrato viven en el módulo
-`common`, compartido y compilado una sola vez), por lo que el riesgo que
-el `.policy` mitigaba clásicamente no aplica aquí. La protección real de
-los puertos 2099/2100 debe hacerse a nivel de firewall en Debian
-(`nftables`/`iptables`). El archivo incluye, comentados, los comandos exactos
-por si el enunciado académico exige activarlo como ejercicio didáctico.
+- **Clúster (VirtualBox o laboratorio):** `despliegue/cluster-virtualbox/6-desplegar-gestor.sh`
+  instala los tres servicios en hpc-master y prueba `ejemplos/pi.c` en todos los nodos.
+- **Una VM Ubuntu con OpenMPI real:** `despliegue/cluster-virtualbox/ejecutor-vm-ubuntu.sh`
+  y en Windows `7-iniciar-servicios-windows.ps1 -HpcLocal -EjecutorHpc 127.0.0.1:2299`.
+- **Solo el PC (desarrollo de las interfaces):** `7-iniciar-servicios-windows.ps1 -HpcLocal`
+  arranca un job-runner con `MpirunSimulado` (N copias del programa con
+  `OMPI_COMM_WORLD_RANK/SIZE`, sin comunicación MPI; solo programas `.py`).
+
+Ejemplos en `job-runner/ejemplos/`: `pi.c` (MPI_Reduce), `estadisticas.c` +
+`numeros.csv` (dataset), `pi_mpi.py` (mpi4py).
+
+## 7. Errores frecuentes
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| Los trabajos se quedan EN_COLA y `/cluster/estado` dice `ejecutorConectado: false` | job-runner caído o puertos mal apuntados | `EJECUTOR_HOST/PUERTO` del gestor = Registry de job-runner; `-Djava.rmi.server.hostname` de job-runner alcanzable desde el gestor |
+| HPC-001 con un archivo que sí existe | La ruta no es relativa al Home, o es un archivo compartido por otro | Usar `/Carpeta/archivo.c` o el id de Storage |
+| FALLIDO con HPC-004 | No compiló | Ver `compilacion.txt` en el resultado o `GET /jobs/{id}/logs` |
+| `mpirun` falla en los workers con "No such file" | `DIR_TRABAJOS` no está en el NFS compartido | Debe estar bajo `/srv/home` en todos los nodos |
+| `mpirun` se cuelga entre VMs | OpenMPI usa la interfaz NAT | `MPIRUN_OPCIONES=--mca btl_tcp_if_include <red del clúster>` |
+| 403 en todo | Perfil sin `hpc` (modo soap) | Es lo esperado; darle el servicio en `ou=services` |
+| `job-api.jar` de ~17 KB | Compilado con job-api corriendo (Windows) | Detenerlo y recompilar |
+
+## 8. Sobre `config/seguridad-rmi.policy`
+
+Documentado pero no activo: el `SecurityManager` está deprecado (JEP 411) y no
+hay carga dinámica de clases (todo el contrato vive en `common`). La protección
+de 2099/2100 se hace con el cortafuegos de cada VM.

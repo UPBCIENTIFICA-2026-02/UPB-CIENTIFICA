@@ -36,10 +36,8 @@ y `logout` de node-soap (namespace `http://192.168.1.195/soap`, endpoint
 
 ## Desacuerdos conocidos (no los resuelve node-web)
 
-1. **HPC.** El front envía `POST /jobs` con `{ nombre, rutaCodigoFuente,
-   rutaDataset, numeroProcesos, prioridad }` y consulta `GET /cluster/estado`,
-   como dice `Contrato_HPC`. El job-api de `RMIUPBCientifica` todavía exige
-   `{ nombre, comando, prioridad }` y no tiene `/cluster/estado` (responde 404).
-   Se arregla en job-api, no aquí.
+1. ~~**HPC.**~~ Resuelto (2026-10-13): job-api implementa `Contrato_HPC`
+   (`POST /jobs` con `nombreTrabajo`, `rutaCodigo`, `rutaDataset`,
+   `numeroProcesos`, `tiempoMaximoEjecucion`, `prioridad`…; `GET /cluster/estado`).
 2. **Puertos.** El plan del diagrama es la referencia: 8081 identidad,
    8082 trabajos, 8083 medios, 8084 archivos, 8085 compartidos, 3000 monitoreo.

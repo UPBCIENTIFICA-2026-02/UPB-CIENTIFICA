@@ -87,7 +87,9 @@ const USUARIOS = {
  * Home, así que todo perfil que los tenga necesita también "storage".
  */
 const SERVICIOS_POR_PERFIL = {
-  investigadores: ["storage", "sharedfile", "album", "streaming", "filesync", "hpc"],
+  // hpcadmin = permiso "hpc:prioridad-alta" de Contrato_HPC y administrar los
+  // nodos de la malla Grid (RegistrarNodo / RetirarNodo).
+  investigadores: ["storage", "sharedfile", "album", "streaming", "filesync", "hpc", "hpcadmin"],
   estudiantes: ["storage", "sharedfile", "album", "streaming", "filesync"],
 };
 

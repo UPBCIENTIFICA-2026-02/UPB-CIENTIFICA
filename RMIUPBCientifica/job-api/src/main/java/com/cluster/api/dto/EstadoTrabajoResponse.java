@@ -1,23 +1,19 @@
 package com.cluster.api.dto;
 
-import com.cluster.common.JobStatus;
+import com.cluster.common.EstadoTrabajo;
+import com.cluster.common.TrabajoHpc;
 
-/** Respuesta de {@code GET /jobs/{id}/estado}. */
-public class JobStatusResponse {
+import java.util.List;
 
-    private final String id;
-    private final JobStatus estado;
+/**
+ * GET /jobs/{id}/estado — ConsultarEstadoTrabajo (Contrato_HPC §3.2).
+ * {@code progreso} es null: OpenMPI no informa avance de forma general.
+ */
+public record EstadoTrabajoResponse(String trabajoId, EstadoTrabajo estado, Double progreso,
+                                    List<String> nodosAsignados, int posicionCola, String mensajeError) {
 
-    public JobStatusResponse(String id, JobStatus estado) {
-        this.id = id;
-        this.estado = estado;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public JobStatus getEstado() {
-        return estado;
+    public static EstadoTrabajoResponse desde(TrabajoHpc t) {
+        return new EstadoTrabajoResponse(t.getId(), t.getEstado(), null, t.getNodosAsignados(),
+                t.getPosicionCola(), t.getMensajeError());
     }
 }
