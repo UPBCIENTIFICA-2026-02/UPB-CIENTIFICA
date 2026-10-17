@@ -1,0 +1,307 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2240" height="1190" viewBox="0 0 2240 1190" font-family="Arial, Helvetica, sans-serif">
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="1120.0" y="40" font-size="20" font-weight="bold" text-anchor="middle">UPB-CIENTÍFICA — Diagrama de componentes</text>
+<rect x="40" y="120" width="135.8" height="22" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="40" y="142" width="290" height="178" fill="#fff" fill-opacity="0" stroke="#000" stroke-width="1.2"/>
+<text x="50" y="136" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start">Navegador web</text>
+<rect x="370" y="120" width="273.4" height="22" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="370" y="142" width="300" height="928" fill="#fff" fill-opacity="0" stroke="#000" stroke-width="1.2"/>
+<text x="380" y="136" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start">Consumidores de los servicios</text>
+<rect x="840" y="120" width="153.0" height="22" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="840" y="142" width="430" height="928" fill="#fff" fill-opacity="0" stroke="#000" stroke-width="1.2"/>
+<text x="850" y="136" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start">Servicios (SOA)</text>
+<text x="1260" y="160" font-size="11" font-weight="normal" font-style="italic" text-anchor="end">«subsystem»</text>
+<rect x="1450" y="120" width="170.2" height="22" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1450" y="142" width="330" height="578" fill="#fff" fill-opacity="0" stroke="#000" stroke-width="1.2"/>
+<text x="1460" y="136" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start">Recursos de datos</text>
+<rect x="1450" y="760" width="230.39999999999998" height="22" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1450" y="782" width="750" height="288" fill="#fff" fill-opacity="0" stroke="#000" stroke-width="1.2"/>
+<text x="1460" y="776" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start">Clúster HPC (malla Grid)</text>
+<text x="2190" y="800" font-size="11" font-weight="normal" font-style="italic" text-anchor="end">«subsystem»</text>
+<rect x="1820" y="120" width="221.79999999999998" height="22" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1820" y="142" width="380" height="308" fill="#fff" fill-opacity="0" stroke="#000" stroke-width="1.2"/>
+<text x="1830" y="136" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start">Monitoreo (transversal)</text>
+<rect x="70" y="180" width="230" height="90" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="276" y="187" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="272" y="190" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="272" y="198" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="175.0" y="214.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="175.0" y="230.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Interfaz web (SPA)</text>
+<text x="175.0" y="245.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">spa-ui.js</text>
+<rect x="400" y="330" width="240" height="90" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="616" y="337" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="612" y="340" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="612" y="348" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="510.0" y="364.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="510.0" y="380.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Portal web</text>
+<text x="510.0" y="395.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">node-web · pasarela /api</text>
+<rect x="400" y="560" width="240" height="90" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="616" y="567" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="612" y="570" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="612" y="578" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="510.0" y="594.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="510.0" y="610.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">App de escritorio</text>
+<text x="510.0" y="625.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">Python · CustomTkinter</text>
+<rect x="400" y="790" width="240" height="90" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="616" y="797" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="612" y="800" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="612" y="808" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="510.0" y="824.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="510.0" y="840.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">App Android</text>
+<text x="510.0" y="855.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">Kotlin · Jetpack Compose</text>
+<rect x="880" y="174.0" width="300" height="82" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1156" y="181.0" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="184.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="192.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1020.0" y="204.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1020.0" y="220.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Authentication</text>
+<text x="1020.0" y="235.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">node-soap · PHP 8</text>
+<rect x="880" y="304.0" width="300" height="82" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1156" y="311.0" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="314.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="322.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1020.0" y="334.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1020.0" y="350.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Distributed Storage</text>
+<text x="1020.0" y="365.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">node-repository · Node.js</text>
+<rect x="880" y="429.0" width="300" height="82" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1156" y="436.0" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="439.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="447.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1020.0" y="459.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1020.0" y="475.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Shared File</text>
+<text x="1020.0" y="490.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">shared-file-svc · Node.js</text>
+<rect x="880" y="554.0" width="300" height="82" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1156" y="561.0" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="564.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="572.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1020.0" y="584.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1020.0" y="600.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Photo Album</text>
+<text x="1020.0" y="615.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">node-media · Node.js</text>
+<rect x="880" y="679.0" width="300" height="82" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1156" y="686.0" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="689.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="697.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1020.0" y="709.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1020.0" y="725.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Streaming</text>
+<text x="1020.0" y="740.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">node-media · FFmpeg</text>
+<rect x="880" y="804.0" width="300" height="82" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1156" y="811.0" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="814.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="822.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1020.0" y="834.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1020.0" y="850.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">File Sync</text>
+<text x="1020.0" y="865.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">syncd · Go</text>
+<rect x="880" y="929.0" width="300" height="82" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1156" y="936.0" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="939.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1152" y="947.0" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1020.0" y="959.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1020.0" y="975.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Gestor del clúster</text>
+<text x="1020.0" y="990.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">gestor-cluster + job-api · Java</text>
+<rect x="1480" y="175" width="270" height="80" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1726" y="182" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1722" y="185" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1722" y="193" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1605.0" y="204.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1605.0" y="220.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Directorio</text>
+<text x="1605.0" y="235.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">OpenLDAP</text>
+<rect x="1480" y="285" width="270" height="80" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1726" y="292" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1722" y="295" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1722" y="303" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1605.0" y="314.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1605.0" y="330.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Repositorio de archivos</text>
+<text x="1605.0" y="345.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">/srv/home (NFSv4)</text>
+<rect x="1480" y="605" width="270" height="90" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1726" y="612" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1722" y="615" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1722" y="623" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1605.0" y="639.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1605.0" y="655.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Bases de datos</text>
+<text x="1605.0" y="670.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">PostgreSQL 16 · una por servicio</text>
+<rect x="1850" y="175" width="320" height="80" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="2146" y="182" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="2142" y="185" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="2142" y="193" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="2000.0" y="204.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="2000.0" y="220.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Recolector de métricas</text>
+<text x="2000.0" y="235.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">Prometheus + blackbox</text>
+<rect x="1850" y="335" width="320" height="80" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="2146" y="342" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="2142" y="345" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="2142" y="353" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="2000.0" y="364.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="2000.0" y="380.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Tableros y alertas</text>
+<text x="2000.0" y="395.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">Grafana</text>
+<rect x="1480" y="943" width="280" height="90" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="1736" y="950" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1732" y="953" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="1732" y="961" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="1610.0" y="977.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="1610.0" y="993.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Ejecutor MPI</text>
+<text x="1610.0" y="1008.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">job-runner.jar · hpc-master</text>
+<rect x="1900" y="943" width="280" height="90" fill="#f4f4f4" stroke="#000" stroke-width="1.3"/>
+<rect x="2156" y="950" width="15" height="19" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="2152" y="953" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="2152" y="961" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<text x="2030.0" y="977.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
+<text x="2030.0" y="993.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Nodos de cómputo</text>
+<text x="2030.0" y="1008.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">OpenMPI 5 · hpc-worker 1..3</text>
+<text x="520" y="1030" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">Los tres usan las 7 interfaces del bus;</text>
+<text x="520" y="1045" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">el portal web, todas menos ISincronización.</text>
+<rect x="1333.9" y="633" width="92.2" height="15" fill="#fff"/>
+<text x="1380" y="643" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«use» SQL 5432</text>
+<rect x="1290.6" y="82" width="578.9" height="15" fill="#fff"/>
+<text x="1580" y="92" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«use» /metrics (HTTP): cada servicio, el gestor (9102) y node_exporter (9100) de cada máquina</text>
+<rect x="836.6" y="92" width="116.9" height="15" fill="#fff"/>
+<text x="895" y="102" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«use» validarToken</text>
+<path d="M880,215 L799,215" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M715,215 L776,215" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M880,345 L799,345" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M715,345 L776,345" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M880,470 L799,470" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M715,470 L776,470" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M880,595 L799,595" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M715,595 L776,595" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M880,720 L799,720" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M715,720 L776,720" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M880,845 L799,845" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M715,845 L776,845" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M880,970 L799,970" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M715,970 L776,970" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M715,215 L715,970" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M640,375 L715,375" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M640,605 L715,605" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M640,835 L715,835" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M520,330 L520,300" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M300,225 L520,225 L520,268" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,345 L1212,345" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,452 L1221,452" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,577 L1221,577" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,702 L1221,702" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,827 L1221,827" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,952 L1221,952" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1221,359 L1221,952" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,488 L1215,488 A6,6 0 0 1 1227,488 L1243,488" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,613 L1215,613 A6,6 0 0 1 1227,613 L1252,613" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,738 L1215,738 A6,6 0 0 1 1227,738 L1252,738" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1252,502 L1252,738" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,215 L1420,215" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1480,215 L1443,215" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,325 L1420,325" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1480,325 L1443,325" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1270,650 L1480,650" fill="none" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<path d="M1469,644 L1480,650 L1469,656" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1180,988 L1420,988" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1480,988 L1443,988" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1760,988 L1820,988" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1900,988 L1843,988" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M2010,175 L2010,100 L1150,100 L1150,120" fill="none" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<path d="M1144,109 L1150,120 L1156,109" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M2010,255 L2010,291" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M2010,314 L2010,335" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M1000,120 L1000,108 L790,108 L790,206" fill="none" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<path d="M784,195 L790,206 L796,195" fill="none" stroke="#000" stroke-width="1.3"/>
+<circle cx="790" cy="215" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="740.0" y="170" width="100.1" height="16" fill="#fff"/>
+<text x="790" y="181" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">IAutenticación</text>
+<rect x="750.0" y="185" width="79.9" height="15" fill="#fff"/>
+<text x="790" y="195" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«SOAP/HTTPS»</text>
+<path d="M790,201 A14,14 0 0 0 790,229" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="790" cy="345" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="736.6" y="300" width="106.8" height="16" fill="#fff"/>
+<text x="790" y="311" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">IAlmacenamiento</text>
+<rect x="768.5" y="315" width="43.0" height="15" fill="#fff"/>
+<text x="790" y="325" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«REST»</text>
+<path d="M790,331 A14,14 0 0 0 790,359" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="790" cy="470" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="746.7" y="425" width="86.6" height="16" fill="#fff"/>
+<text x="790" y="436" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">ICompartidos</text>
+<rect x="768.5" y="440" width="43.0" height="15" fill="#fff"/>
+<text x="790" y="450" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«REST»</text>
+<path d="M790,456 A14,14 0 0 0 790,484" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="790" cy="595" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="766.8" y="550" width="46.3" height="16" fill="#fff"/>
+<text x="790" y="561" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">IÁlbum</text>
+<rect x="768.5" y="565" width="43.0" height="15" fill="#fff"/>
+<text x="790" y="575" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«REST»</text>
+<path d="M790,581 A14,14 0 0 0 790,609" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="790" cy="720" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="753.4" y="675" width="73.2" height="16" fill="#fff"/>
+<text x="790" y="686" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">IStreaming</text>
+<rect x="768.5" y="690" width="43.0" height="15" fill="#fff"/>
+<text x="790" y="700" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«REST»</text>
+<path d="M790,706 A14,14 0 0 0 790,734" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="790" cy="845" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="736.6" y="800" width="106.8" height="16" fill="#fff"/>
+<text x="790" y="811" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">ISincronización</text>
+<rect x="756.2" y="815" width="67.6" height="15" fill="#fff"/>
+<text x="790" y="825" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«gRPC/TLS»</text>
+<path d="M790,831 A14,14 0 0 0 790,859" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="790" cy="970" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="746.7" y="925" width="86.6" height="16" fill="#fff"/>
+<text x="790" y="936" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">ITrabajosHPC</text>
+<rect x="768.5" y="940" width="43.0" height="15" fill="#fff"/>
+<text x="790" y="950" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«REST»</text>
+<path d="M790,956 A14,14 0 0 0 790,984" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="520" cy="291" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="533.0" y="278" width="53.0" height="16" fill="#fff"/>
+<text x="536" y="289" font-size="12" font-weight="bold" font-style="normal" text-anchor="start">IPortal</text>
+<rect x="533.0" y="293" width="49.1" height="15" fill="#fff"/>
+<text x="536" y="303" font-size="11" font-weight="normal" font-style="normal" text-anchor="start">«HTTPS»</text>
+<!-- -->
+<path d="M506,291 A14,14 0 0 0 534,291" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="1221" cy="345" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="1234.0" y="332" width="106.8" height="16" fill="#fff"/>
+<text x="1237" y="343" font-size="12" font-weight="bold" font-style="normal" text-anchor="start">IAlmacenamiento</text>
+<rect x="1234.0" y="347" width="43.0" height="15" fill="#fff"/>
+<text x="1237" y="357" font-size="11" font-weight="normal" font-style="normal" text-anchor="start">«REST»</text>
+<path d="M1207,345 A14,14 0 0 0 1235,345" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="1252" cy="488" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="1265.0" y="475" width="86.6" height="16" fill="#fff"/>
+<text x="1268" y="486" font-size="12" font-weight="bold" font-style="normal" text-anchor="start">ICompartidos</text>
+<rect x="1265.0" y="490" width="43.0" height="15" fill="#fff"/>
+<text x="1268" y="500" font-size="11" font-weight="normal" font-style="normal" text-anchor="start">«REST»</text>
+<path d="M1238,488 A14,14 0 0 1 1266,488" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="1429" cy="215" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="1389.0" y="170" width="79.9" height="16" fill="#fff"/>
+<text x="1429" y="181" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">IDirectorio</text>
+<rect x="1404.4" y="185" width="49.1" height="15" fill="#fff"/>
+<text x="1429" y="195" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«LDAPS»</text>
+<path d="M1429,201 A14,14 0 0 1 1429,229" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="1429" cy="325" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="1395.8" y="280" width="66.5" height="16" fill="#fff"/>
+<text x="1429" y="291" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">IArchivos</text>
+<rect x="1404.4" y="295" width="49.1" height="15" fill="#fff"/>
+<text x="1429" y="305" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«NFSv4»</text>
+<path d="M1429,311 A14,14 0 0 1 1429,339" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="1429" cy="988" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="1385.7" y="943" width="86.6" height="16" fill="#fff"/>
+<text x="1429" y="954" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">IEjecutorMPI</text>
+<rect x="1410.6" y="958" width="36.8" height="15" fill="#fff"/>
+<text x="1429" y="968" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«RMI»</text>
+<path d="M1429,974 A14,14 0 0 1 1429,1002" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="1829" cy="988" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="1812.6" y="943" width="32.9" height="16" fill="#fff"/>
+<text x="1829" y="954" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle">IMPI</text>
+<rect x="1761.3" y="958" width="135.4" height="15" fill="#fff"/>
+<text x="1829" y="968" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle">«SSH · MPI/TCP · NFS»</text>
+<path d="M1829,974 A14,14 0 0 1 1829,1002" fill="none" stroke="#000" stroke-width="1.4"/>
+<circle cx="2010" cy="300" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<rect x="2023.0" y="287" width="120.2" height="16" fill="#fff"/>
+<text x="2026" y="298" font-size="12" font-weight="bold" font-style="normal" text-anchor="start">IConsultaMétricas</text>
+<rect x="2023.0" y="302" width="86.1" height="15" fill="#fff"/>
+<text x="2026" y="312" font-size="11" font-weight="normal" font-style="normal" text-anchor="start">«PromQL/HTTP»</text>
+<path d="M1996,300 A14,14 0 0 0 2024,300" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="40" y="1095" width="1290" height="86" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M58,1118 h22" stroke="#000" stroke-width="1.3"/><circle cx="89" cy="1118" r="9" fill="#fff" stroke="#000" stroke-width="1.4"/>
+<text x="108" y="1122" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">Interfaz provista (lollipop)</text>
+<path d="M318,1118 h22" stroke="#000" stroke-width="1.3"/><path d="M354,1104 A14,14 0 0 0 354,1132" fill="none" stroke="#000" stroke-width="1.4"/>
+<text x="376" y="1122" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">Interfaz requerida (socket); bola + socket = conector de ensamble</text>
+<path d="M818,1118 h40" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/><path d="M847,1112 L858,1118 L847,1124" fill="none" stroke="#000" stroke-width="1.3"/>
+<text x="870" y="1122" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">Dependencia «use»</text>
+<path d="M1018,1118 h12 a6,6 0 0 1 12,0 h16" fill="none" stroke="#000" stroke-width="1.3"/>
+<text x="1068" y="1122" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">Cruce sin conexión</text>
+<text x="58" y="1146" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">SOA: cada servicio expone un contrato estable (WSDL, REST, .proto o interfaz RMI) y valida el token en Authentication (validarToken /</text>
+<text x="58" y="1164" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">validarAccesoServicio). La pasarela node-web solo reenvía: la lógica de negocio vive en cada servicio. Despliegue físico: ver despliegue-real.</text>
+</svg>

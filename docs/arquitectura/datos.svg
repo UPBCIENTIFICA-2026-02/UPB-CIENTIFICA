@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1060" viewBox="0 0 1900 1060" font-family="Arial, Helvetica, sans-serif">
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="950.0" y="44" font-size="23" font-weight="bold" text-anchor="middle">UPB-CIENTÍFICA — Modelo de datos</text>
+<rect x="30" y="75" width="118.0" height="26" fill="#f2f2f2" stroke="#000" stroke-width="1.3"/>
+<rect x="30" y="101" width="540" height="429" fill="#fcfcfc" stroke="#000" stroke-width="1.3"/>
+<text x="42" y="93" font-size="15" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">Directorio</text>
+<text x="558" y="518" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="end" fill="#444">OpenLDAP · pasd_nodo1</text>
+<rect x="610" y="75" width="182.39999999999998" height="26" fill="#f2f2f2" stroke="#000" stroke-width="1.3"/>
+<rect x="610" y="101" width="690" height="519" fill="#fcfcfc" stroke="#000" stroke-width="1.3"/>
+<text x="622" y="93" font-size="15" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">metadatos_storage</text>
+<text x="1288" y="608" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="end" fill="#444">PostgreSQL · pasd_nodo2 · Storage</text>
+<rect x="1340" y="75" width="154.79999999999998" height="26" fill="#f2f2f2" stroke="#000" stroke-width="1.3"/>
+<rect x="1340" y="101" width="530" height="334" fill="#fcfcfc" stroke="#000" stroke-width="1.3"/>
+<text x="1352" y="93" font-size="15" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">comparticiones</text>
+<text x="1858" y="423" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="end" fill="#444">PostgreSQL · pasd_nodo2 · Shared File</text>
+<rect x="30" y="575" width="136.39999999999998" height="26" fill="#f2f2f2" stroke="#000" stroke-width="1.3"/>
+<rect x="30" y="601" width="540" height="394" fill="#fcfcfc" stroke="#000" stroke-width="1.3"/>
+<text x="42" y="593" font-size="15" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">trabajos HPC</text>
+<text x="558" y="983" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="end" fill="#444">archivo · pasd_nodo3 · Gestor del clúster</text>
+<rect x="610" y="670" width="164.0" height="26" fill="#f2f2f2" stroke="#000" stroke-width="1.3"/>
+<rect x="610" y="696" width="690" height="299" fill="#fcfcfc" stroke="#000" stroke-width="1.3"/>
+<text x="622" y="688" font-size="15" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">catalogo_medios</text>
+<text x="1288" y="983" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="end" fill="#444">PostgreSQL · pasd_nodo3 · Album/Streaming</text>
+<rect x="55" y="140" width="215" height="129" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="55" y="140" width="215" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="162.5" y="159" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«entry»</text>
+<text x="162.5" y="179" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Usuario</text>
+<text x="67" y="212" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">uid : string {PK}</text>
+<text x="67" y="235" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">cn : string</text>
+<text x="67" y="258" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">homeDirectory : string</text>
+<rect x="370" y="140" width="175" height="83" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="370" y="140" width="175" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="457.5" y="159" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«entry»</text>
+<text x="457.5" y="179" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Perfil</text>
+<text x="382" y="212" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">cn : string {PK}</text>
+<rect x="370" y="330" width="175" height="83" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="370" y="330" width="175" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="457.5" y="349" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«entry»</text>
+<text x="457.5" y="369" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Servicio</text>
+<text x="382" y="402" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">cn : string {PK}</text>
+<rect x="820" y="140" width="280" height="198" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="820" y="140" width="280" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="960.0" y="159" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«table»</text>
+<text x="960.0" y="179" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Nodo</text>
+<text x="832" y="212" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">id : uuid {PK}</text>
+<text x="832" y="235" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">nombre : text</text>
+<text x="832" y="258" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">tipo : archivo|directorio</text>
+<text x="832" y="281" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">propietario : text {FK}</text>
+<text x="832" y="304" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">permisos : char(9)</text>
+<text x="832" y="327" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">contenedor_id : uuid {FK}</text>
+<rect x="635" y="430" width="235" height="129" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="635" y="430" width="235" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="752.5" y="449" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«table»</text>
+<text x="752.5" y="469" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Version</text>
+<text x="647" y="502" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">id : uuid {PK}</text>
+<text x="647" y="525" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">nodo_id : uuid {FK}</text>
+<text x="647" y="548" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">version : int</text>
+<rect x="1030" y="430" width="250" height="129" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="1030" y="430" width="250" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="1155.0" y="449" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«table»</text>
+<text x="1155.0" y="469" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Acceso</text>
+<text x="1042" y="502" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">nodo_id : uuid {PK, FK}</text>
+<text x="1042" y="525" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">destinatario : text {PK}</text>
+<text x="1042" y="548" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">nivel : text</text>
+<rect x="1385" y="140" width="300" height="175" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="1385" y="140" width="300" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="1535.0" y="159" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«table»</text>
+<text x="1535.0" y="179" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Comparticion</text>
+<text x="1397" y="212" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">id : uuid {PK}</text>
+<text x="1397" y="235" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">elemento_id : uuid {FK}</text>
+<text x="1397" y="258" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">destinatario : text</text>
+<text x="1397" y="281" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">nivel_permiso : text</text>
+<text x="1397" y="304" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">estado : text</text>
+<rect x="55" y="640" width="300" height="221" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="55" y="640" width="300" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="205.0" y="659" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«serializable»</text>
+<text x="205.0" y="679" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">TrabajoHPC</text>
+<text x="67" y="712" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">id : uuid {PK}</text>
+<text x="67" y="735" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">propietario : string {FK}</text>
+<text x="67" y="758" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">codigo_id : uuid {FK}</text>
+<text x="67" y="781" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">dataset_id : uuid {FK}</text>
+<text x="67" y="804" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">numeroProcesos : int</text>
+<text x="67" y="827" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">estado : EstadoTrabajo</text>
+<text x="67" y="850" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">prioridad : BAJA|NORMAL|ALTA</text>
+<rect x="640" y="735" width="285" height="175" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="640" y="735" width="285" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="782.5" y="754" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«table»</text>
+<text x="782.5" y="774" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Medio</text>
+<text x="652" y="807" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">id : uuid {PK}</text>
+<text x="652" y="830" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">archivo_storage_id : uuid {FK}</text>
+<text x="652" y="853" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">propietario : text {FK}</text>
+<text x="652" y="876" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">tipo : foto|video</text>
+<text x="652" y="899" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">titulo : text</text>
+<rect x="1030" y="735" width="240" height="129" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="1030" y="735" width="240" height="50" fill="#e9e9e9" stroke="#000" stroke-width="1.5"/>
+<text x="1150.0" y="754" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#333">«table»</text>
+<text x="1150.0" y="774" font-size="17" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Album</text>
+<text x="1042" y="807" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">id : uuid {PK}</text>
+<text x="1042" y="830" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">propietario : text {FK}</text>
+<text x="1042" y="853" font-size="14" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">nombre : text</text>
+<path d="M270,207 L370,207" fill="none" stroke="#000" stroke-width="1.5"/>
+<path d="M457.5,223 L457.5,330" fill="none" stroke="#000" stroke-width="1.5"/>
+<path d="M1100,322 L1140,322 L1140,207 L1100,207" fill="none" stroke="#000" stroke-width="1.5"/>
+<path d="M860,338 L860,405 L752,405 L752,430" fill="none" stroke="#000" stroke-width="1.5"/>
+<path d="M1060,338 L1060,430" fill="none" stroke="#000" stroke-width="1.5"/>
+<path d="M925,802 L1030,802" fill="none" stroke="#000" stroke-width="1.5"/>
+<path d="M820,276 L604,276 A6,6 0 0 0 592,276 L588,276 L588,470 L160,470 L160,269" fill="none" stroke="#000" stroke-width="1.5" stroke-dasharray="8,5"/>
+<path d="M355,753 L598,753 L598,207 L820,207" fill="none" stroke="#000" stroke-width="1.5" stroke-dasharray="8,5"/>
+<path d="M1385,230 L1318,230 L1318,108 L960,108 L960,140" fill="none" stroke="#000" stroke-width="1.5" stroke-dasharray="8,5"/>
+<path d="M900,735 L900,338" fill="none" stroke="#000" stroke-width="1.5" stroke-dasharray="8,5"/>
+<rect x="278.9" y="182.5" width="82.2" height="18.5" fill="#fff"/>
+<text x="320" y="195" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">miembro de</text>
+<rect x="272.0" y="214" width="15.7" height="19" fill="#fff"/>
+<text x="276" y="227" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">*</text>
+<rect x="352.3" y="214" width="15.7" height="19" fill="#fff"/>
+<text x="364" y="227" font-size="14" font-weight="bold" font-style="normal" text-anchor="end" fill="#000">*</text>
+<rect x="463.5" y="269.0" width="67.4" height="18.5" fill="#fff"/>
+<text x="467.5" y="281.5" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="start" fill="#000">autoriza</text>
+<rect x="437.8" y="228" width="15.7" height="19" fill="#fff"/>
+<text x="449.5" y="241" font-size="14" font-weight="bold" font-style="normal" text-anchor="end" fill="#000">*</text>
+<rect x="437.8" y="311" width="15.7" height="19" fill="#fff"/>
+<text x="449.5" y="324" font-size="14" font-weight="bold" font-style="normal" text-anchor="end" fill="#000">*</text>
+<rect x="1144.0" y="257.0" width="67.4" height="18.5" fill="#fff"/>
+<text x="1148" y="269.5" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="start" fill="#000">contiene</text>
+<rect x="1102.0" y="327" width="38.8" height="19" fill="#fff"/>
+<text x="1106" y="340" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">0..*</text>
+<rect x="1102.0" y="187" width="38.8" height="19" fill="#fff"/>
+<text x="1106" y="200" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">0..1</text>
+<rect x="777.4" y="385.5" width="45.1" height="18.5" fill="#fff"/>
+<text x="800" y="398" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">tiene</text>
+<rect x="864.0" y="343" width="15.7" height="19" fill="#fff"/>
+<text x="868" y="356" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">1</text>
+<rect x="756.0" y="409" width="38.8" height="19" fill="#fff"/>
+<text x="760" y="422" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">0..*</text>
+<rect x="1064.0" y="376.5" width="60.0" height="18.5" fill="#fff"/>
+<text x="1068" y="389.0" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="start" fill="#000">concede</text>
+<rect x="1040.3" y="343" width="15.7" height="19" fill="#fff"/>
+<text x="1052" y="356" font-size="14" font-weight="bold" font-style="normal" text-anchor="end" fill="#000">1</text>
+<rect x="1017.2" y="409" width="38.8" height="19" fill="#fff"/>
+<text x="1052" y="422" font-size="14" font-weight="bold" font-style="normal" text-anchor="end" fill="#000">0..*</text>
+<rect x="950.7" y="761.5" width="52.6" height="18.5" fill="#fff"/>
+<text x="977" y="774" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">agrupa</text>
+<rect x="927.0" y="781" width="15.7" height="19" fill="#fff"/>
+<text x="931" y="794" font-size="14" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">*</text>
+<rect x="1012.3" y="781" width="15.7" height="19" fill="#fff"/>
+<text x="1024" y="794" font-size="14" font-weight="bold" font-style="normal" text-anchor="end" fill="#000">*</text>
+<path d="M153,282 L160,269 L167,282" fill="none" stroke="#000" stroke-width="1.5"/>
+<rect x="286.9" y="449.5" width="186.2" height="18.5" fill="#fff"/>
+<text x="380" y="462" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">«references» propietario</text>
+<path d="M807,200 L820,207 L807,214" fill="none" stroke="#000" stroke-width="1.5"/>
+<rect x="358.3" y="731.5" width="223.3" height="18.5" fill="#fff"/>
+<text x="470" y="744" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">«references» código y dataset</text>
+<path d="M953,127 L960,140 L967,127" fill="none" stroke="#000" stroke-width="1.5"/>
+<rect x="1046.9" y="88.5" width="186.2" height="18.5" fill="#fff"/>
+<text x="1140" y="101" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">«references» elemento_id</text>
+<path d="M893,351 L900,338 L907,351" fill="none" stroke="#000" stroke-width="1.5"/>
+<rect x="904.0" y="637.5" width="238.2" height="18.5" fill="#fff"/>
+<text x="908" y="650" font-size="13.5" font-weight="normal" font-style="italic" text-anchor="start" fill="#000">«references» archivo_storage_id</text>
+</svg>

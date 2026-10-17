@@ -45,6 +45,9 @@ Environment=UPBC_TABLEROS=/var/lib/grafana/tableros
 # El portal (node-web) reenvía /monitoreo/ a este Grafana.
 Environment=GF_SERVER_ROOT_URL=https://node-web.cca.upb.edu.co/monitoreo/
 Environment=GF_SERVER_SERVE_FROM_SUB_PATH=true
+# node-web reenvía a Grafana desde 127.0.0.1: sin esto Grafana rechaza las
+# consultas de los paneles ("origin not allowed", 403) y todo sale "No data".
+Environment=GF_SECURITY_CSRF_TRUSTED_ORIGINS=node-web.cca.upb.edu.co node-web
 Environment=GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/tableros/upbc-estado.json
 Environment=GF_ANALYTICS_REPORTING_ENABLED=false
 EOF

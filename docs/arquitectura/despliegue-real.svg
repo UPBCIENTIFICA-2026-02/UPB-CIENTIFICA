@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2150" height="1215" viewBox="0 0 2150 1215" font-family="Arial, Helvetica, sans-serif">
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="1075.0" y="40" font-size="20" font-weight="bold" text-anchor="middle">UPB-CIENTÍFICA — Diagrama de despliegue</text>
+<rect x="50" y="190" width="138.0" height="24" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="50" y="214" width="280" height="616" fill="none" stroke="#000" stroke-width="1.2"/>
+<text x="60" y="207" font-size="13" font-weight="bold" font-style="normal" text-anchor="start">CONSUMIDORES</text>
+<polygon points="80,240 92,228 292,228 280,240" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="280,240 292,228 292,348 280,360" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="80" y="240" width="200" height="120" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="180.0" y="258" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="180.0" y="275" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Web Browser</text>
+<rect x="105" y="293" width="150" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M239,298 h7 l4,4 v10 h-11 z M246,298 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="180.0" y="313.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«source»</text>
+<text x="180.0" y="329.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">spa-ui.js</text>
+<rect x="65" y="400" width="138.0" height="24" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="65" y="424" width="250" height="386" fill="none" stroke="#000" stroke-width="1.2"/>
+<text x="75" y="417" font-size="13" font-weight="bold" font-style="normal" text-anchor="start">Apps nativas</text>
+<polygon points="90,455 102,443 302,443 290,455" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="290,455 302,443 302,568 290,580" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="90" y="455" width="200" height="125" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="190.0" y="473" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="190.0" y="490" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Android Mobile</text>
+<rect x="110" y="510" width="160" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M254,515 h7 l4,4 v10 h-11 z M261,515 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="190.0" y="530.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="190.0" y="546.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">upbc-movil.apk</text>
+<polygon points="90,640 102,628 302,628 290,640" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="290,640 302,628 302,753 290,765" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="90" y="640" width="200" height="125" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="190.0" y="658" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="190.0" y="675" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Desktop PC</text>
+<rect x="110" y="695" width="160" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M254,700 h7 l4,4 v10 h-11 z M261,700 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="190.0" y="715.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="190.0" y="731.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">main.py</text>
+<polygon points="450,190 462,178 782,178 770,190" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="770,190 782,178 782,818 770,830" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="450" y="190" width="320" height="640" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="610.0" y="208" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="610.0" y="225" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">pasd_nodo1 · 10.154.12.219</text>
+<text x="610.0" y="241" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Ubuntu Server 24.04</text>
+<polygon points="472,264 484,252 754,252 742,264" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="742,264 754,252 754,352 742,364" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="472" y="264" width="270" height="100" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="607.0" y="282" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="607.0" y="299" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Nginx + Node.js 20</text>
+<rect x="522.0" y="308" width="170" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M676.0,313 h7 l4,4 v10 h-11 z M683.0,313 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="607.0" y="327.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="607.0" y="343.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">node-web</text>
+<polygon points="472,397 484,385 754,385 742,397" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="742,397 754,385 754,485 742,497" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="472" y="397" width="270" height="100" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="607.0" y="415" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="607.0" y="432" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Apache 2.4 + PHP 8.3</text>
+<rect x="522.0" y="441" width="170" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M676.0,446 h7 l4,4 v10 h-11 z M683.0,446 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="607.0" y="460.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="607.0" y="476.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">node-soap</text>
+<polygon points="472,552 484,540 754,540 742,552" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="742,552 754,540 754,640 742,652" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="472" y="552" width="270" height="100" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="607.0" y="570" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="607.0" y="587" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">OpenLDAP</text>
+<rect x="522.0" y="596" width="170" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M676.0,601 h7 l4,4 v10 h-11 z M683.0,601 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="607.0" y="615.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«schema»</text>
+<text x="607.0" y="631.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">directorio</text>
+<polygon points="472,697 484,685 754,685 742,697" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="742,697 754,685 754,785 742,797" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="472" y="697" width="270" height="100" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="607.0" y="715" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="607.0" y="732" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Prometheus + Grafana</text>
+<rect x="522.0" y="741" width="170" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M676.0,746 h7 l4,4 v10 h-11 z M683.0,746 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="607.0" y="760.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="607.0" y="776.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">monitoreo</text>
+<polygon points="980,80 992,68 1332,68 1320,80" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1320,80 1332,68 1332,478 1320,490" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="980" y="80" width="340" height="410" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="1150.0" y="98" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="1150.0" y="115" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">pasd_nodo2 · 10.154.12.221</text>
+<text x="1150.0" y="131" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Ubuntu Server 24.04</text>
+<polygon points="1000,154 1012,142 1312,142 1300,154" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1300,154 1312,142 1312,232 1300,244" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1000" y="154" width="300" height="90" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="1150.0" y="172" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="1150.0" y="189" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Go</text>
+<rect x="1065.0" y="198" width="170" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1219.0,203 h7 l4,4 v10 h-11 z M1226.0,203 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1150.0" y="217.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="1150.0" y="233.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">syncd (File Sync)</text>
+<polygon points="1000,266 1012,254 1312,254 1300,266" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1300,266 1312,254 1312,344 1300,356" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1000" y="266" width="300" height="90" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="1150.0" y="284" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="1150.0" y="301" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">PostgreSQL 16</text>
+<rect x="1065.0" y="310" width="170" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1219.0,315 h7 l4,4 v10 h-11 z M1226.0,315 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1150.0" y="329.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«schema»</text>
+<text x="1150.0" y="345.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">metadatos</text>
+<polygon points="1000,378 1012,366 1312,366 1300,378" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1300,378 1312,366 1312,464 1300,476" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1000" y="378" width="300" height="98" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="1150.0" y="396" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="1150.0" y="413" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Node.js 20</text>
+<rect x="1010.0" y="422" width="135.0" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1129.0,427 h7 l4,4 v10 h-11 z M1136.0,427 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1077.5" y="441.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="1077.5" y="457.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">Storage</text>
+<rect x="1155.0" y="422" width="135.0" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1274.0,427 h7 l4,4 v10 h-11 z M1281.0,427 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1222.5" y="441.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="1222.5" y="457.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">Shared File</text>
+<polygon points="980,570 992,558 1332,558 1320,570" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1320,570 1332,558 1332,973 1320,985" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="980" y="570" width="340" height="415" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="1150.0" y="588" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="1150.0" y="605" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">pasd_nodo3 · 10.154.12.222</text>
+<text x="1150.0" y="621" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Ubuntu Server 24.04</text>
+<polygon points="1000,644 1012,632 1312,632 1300,644" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1300,644 1312,632 1312,722 1300,734" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1000" y="644" width="300" height="90" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="1150.0" y="662" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="1150.0" y="679" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Node.js 20 + FFmpeg</text>
+<rect x="1065.0" y="688" width="170" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1219.0,693 h7 l4,4 v10 h-11 z M1226.0,693 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1150.0" y="707.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="1150.0" y="723.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">Album + Streaming</text>
+<polygon points="1000,758 1012,746 1312,746 1300,758" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1300,758 1312,746 1312,836 1300,848" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1000" y="758" width="300" height="90" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="1150.0" y="776" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="1150.0" y="793" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">PostgreSQL 16</text>
+<rect x="1065.0" y="802" width="170" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1219.0,807 h7 l4,4 v10 h-11 z M1226.0,807 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1150.0" y="821.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«schema»</text>
+<text x="1150.0" y="837.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">catalogo_medios</text>
+<polygon points="1000,872 1012,860 1312,860 1300,872" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1300,872 1312,860 1312,960 1300,972" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1000" y="872" width="300" height="100" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="1150.0" y="890" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="1150.0" y="907" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">JVM 17</text>
+<rect x="1010.0" y="916" width="135.0" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1129.0,921 h7 l4,4 v10 h-11 z M1136.0,921 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1077.5" y="935.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="1077.5" y="951.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">gestor-cluster.jar</text>
+<rect x="1155.0" y="916" width="135.0" height="44" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1274.0,921 h7 l4,4 v10 h-11 z M1281.0,921 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1222.5" y="935.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="1222.5" y="951.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">job-api.jar</text>
+<rect x="1460" y="520" width="489.5" height="24" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1460" y="544" width="660" height="536" fill="none" stroke="#000" stroke-width="1.2"/>
+<text x="1470" y="537" font-size="13" font-weight="bold" font-style="normal" text-anchor="start">CLÚSTER HPC (sala del laboratorio, VMs Debian 13)</text>
+<polygon points="1490,590 1502,578 1752,578 1740,590" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1740,590 1752,578 1752,1038 1740,1050" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1490" y="590" width="250" height="460" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="1615.0" y="608" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="1615.0" y="625" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">hpc-master</text>
+<polygon points="1505,650 1517,638 1732,638 1720,650" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="1720,650 1732,638 1732,1018 1720,1030" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1505" y="650" width="215" height="380" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<text x="1612.5" y="668" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«executionEnvironment»</text>
+<text x="1612.5" y="685" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">OpenJDK 21 + OpenMPI 5</text>
+<rect x="1535" y="705" width="155" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1674,710 h7 l4,4 v10 h-11 z M1681,710 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1612.5" y="725.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«executable»</text>
+<text x="1612.5" y="741.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">job-runner.jar</text>
+<rect x="1535" y="790" width="155" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1674,795 h7 l4,4 v10 h-11 z M1681,795 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1612.5" y="810.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«file»</text>
+<text x="1612.5" y="826.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">hostfile</text>
+<rect x="1535" y="875" width="155" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M1674,880 h7 l4,4 v10 h-11 z M1681,880 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="1612.5" y="895.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«file»</text>
+<text x="1612.5" y="911.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">/srv/home (NFS)</text>
+<polygon points="1910,590 1922,578 2112,578 2100,590" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="2100,590 2112,578 2112,718 2100,730" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1910" y="590" width="190" height="140" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="2005.0" y="608" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="2005.0" y="625" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">hpc-worker1</text>
+<rect x="1928" y="650" width="150" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M2062,655 h7 l4,4 v10 h-11 z M2069,655 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="2003.0" y="670.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«library»</text>
+<text x="2003.0" y="686.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">libmpi.so</text>
+<polygon points="1910,750 1922,738 2112,738 2100,750" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="2100,750 2112,738 2112,878 2100,890" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1910" y="750" width="190" height="140" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="2005.0" y="768" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="2005.0" y="785" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">hpc-worker2</text>
+<rect x="1928" y="810" width="150" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M2062,815 h7 l4,4 v10 h-11 z M2069,815 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="2003.0" y="830.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«library»</text>
+<text x="2003.0" y="846.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">libmpi.so</text>
+<polygon points="1910,910 1922,898 2112,898 2100,910" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<polygon points="2100,910 2112,898 2112,1038 2100,1050" fill="#d6d6d6" stroke="#000" stroke-width="1.2"/>
+<rect x="1910" y="910" width="190" height="140" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+<text x="2005.0" y="928" font-size="12" font-weight="normal" font-style="italic" text-anchor="middle">«device»</text>
+<text x="2005.0" y="945" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">hpc-worker3</text>
+<rect x="1928" y="970" width="150" height="46" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M2062,975 h7 l4,4 v10 h-11 z M2069,975 v4 h4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="2003.0" y="990.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«library»</text>
+<text x="2003.0" y="1006.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">libmpi.so</text>
+<path d="M280,300 L472,300" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M315,440 L454,440 A6,6 0 0 1 466,440 L472,440" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M65,560 L25,560 L25,120 L950,120 L950,200 L1000,200" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M65,520 L37,520 L37,135 L935,135 L935,395 L1000,395" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M65,700 L25,700 L25,1060 L960,1060 L960,715 L1000,715" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M65,740 L37,740 L37,1045 L954,1045 A6,6 0 0 1 966,1045 L975,1045 L975,945 L1000,945" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M742,300 L900,300 L900,450 L1000,450" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M742,320 L870,320 L870,680 L1000,680" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M742,345 L850,345 L850,905 L954,905 A6,6 0 0 1 966,905 L1000,905" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M607,497 L607,552" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M980,470 L876,470 A6,6 0 0 0 864,470 L856,470 A6,6 0 0 0 844,470 L742,470" fill="none" stroke="#000" stroke-width="1.4" stroke-dasharray="7,4"/>
+<path d="M980,610 L876,610 A6,6 0 0 0 864,610 L856,610 A6,6 0 0 0 844,610 L800,610 L800,485 L742,485" fill="none" stroke="#000" stroke-width="1.4" stroke-dasharray="7,4"/>
+<path d="M1275,644 L1275,475" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M1300,895 L1375,895 L1375,450 L1300,450" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M560,364 L560,397" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M472,345 L460,345 L460,745 L472,745" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M1150,356 L1150,378" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M1150,734 L1150,758" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M1300,200 L1345,200 L1345,425 L1300,425" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M1300,940 L1505,940" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M1740,660 L1910,660" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M1740,820 L1910,820" fill="none" stroke="#000" stroke-width="1.4"/>
+<path d="M1740,980 L1910,980" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="336.0" y="281" width="79.9" height="16" fill="#fff"/>
+<text x="376" y="292" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«HTTPS» 443</text>
+<rect x="332.9" y="421" width="120.2" height="16" fill="#fff"/>
+<text x="393" y="432" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«SOAP/HTTPS» 8081</text>
+<rect x="546.6" y="101" width="106.8" height="16" fill="#fff"/>
+<text x="600" y="112" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«gRPC/TLS» 9090</text>
+<rect x="543.2" y="141" width="113.5" height="16" fill="#fff"/>
+<text x="600" y="152" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«HTTP» 8084-8085</text>
+<rect x="460.0" y="1065" width="79.9" height="16" fill="#fff"/>
+<text x="500" y="1076" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«HTTP» 8083</text>
+<rect x="460.0" y="1026" width="79.9" height="16" fill="#fff"/>
+<text x="500" y="1037" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«HTTP» 8082</text>
+<rect x="764.2" y="281" width="113.5" height="16" fill="#fff"/>
+<text x="821" y="292" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«HTTP» 8084-8085</text>
+<rect x="895.0" y="661" width="79.9" height="16" fill="#fff"/>
+<text x="935" y="672" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«HTTP» 8083</text>
+<rect x="860.0" y="886" width="79.9" height="16" fill="#fff"/>
+<text x="900" y="897" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«HTTP» 8082</text>
+<rect x="616.0" y="519" width="79.9" height="16" fill="#fff"/>
+<text x="619" y="530" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">«LDAPS» 636</text>
+<rect x="1156.5" y="521" width="113.5" height="16" fill="#fff"/>
+<text x="1267" y="532" font-size="12" font-weight="normal" font-style="normal" text-anchor="end">«HTTP» 8084-8085</text>
+<rect x="1380.0" y="469" width="79.9" height="16" fill="#fff"/>
+<text x="1383" y="480" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">«HTTP» 8084</text>
+<rect x="567.0" y="374" width="120.2" height="16" fill="#fff"/>
+<text x="570" y="385" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">«SOAP/HTTPS» 8081</text>
+<rect x="477.0" y="665" width="167.3" height="16" fill="#fff"/>
+<text x="480" y="676" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">«HTTP» 3000 (/monitoreo)</text>
+<rect x="1157.0" y="360" width="73.2" height="16" fill="#fff"/>
+<text x="1160" y="371" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">«TCP» 5432</text>
+<rect x="1157.0" y="739" width="73.2" height="16" fill="#fff"/>
+<text x="1160" y="750" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">«TCP» 5432</text>
+<rect x="1349.0" y="301" width="79.9" height="16" fill="#fff"/>
+<text x="1352" y="312" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">«HTTP» 8084</text>
+<rect x="1344.9" y="921" width="120.2" height="16" fill="#fff"/>
+<text x="1405" y="932" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«RMI» 2099 / 2100</text>
+<rect x="1754.8" y="641" width="140.4" height="16" fill="#fff"/>
+<text x="1825" y="652" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«SSH» 22 · «MPI/TCP»</text>
+<rect x="1781.7" y="666" width="86.6" height="16" fill="#fff"/>
+<text x="1825" y="677" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«NFSv4» 2049</text>
+<rect x="1754.8" y="801" width="140.4" height="16" fill="#fff"/>
+<text x="1825" y="812" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«SSH» 22 · «MPI/TCP»</text>
+<rect x="1781.7" y="826" width="86.6" height="16" fill="#fff"/>
+<text x="1825" y="837" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«NFSv4» 2049</text>
+<rect x="1754.8" y="961" width="140.4" height="16" fill="#fff"/>
+<text x="1825" y="972" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«SSH» 22 · «MPI/TCP»</text>
+<rect x="1781.7" y="986" width="86.6" height="16" fill="#fff"/>
+<text x="1825" y="997" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle">«NFSv4» 2049</text>
+<rect x="450" y="1095" width="900" height="108" fill="#f4f4f4" stroke="#000" stroke-width="1"/>
+<path d="M465,1112 h40" stroke="#000" stroke-width="1.4"/>
+<text x="515" y="1116" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">Ruta de comunicación («protocolo» puerto); termina en el servicio que la atiende.</text>
+<path d="M465,1134 h40" stroke="#000" stroke-width="1.4" stroke-dasharray="7,4"/>
+<text x="515" y="1138" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">«SOAP/HTTPS» 8081: Storage, Shared File, syncd, Album/Streaming y el gestor validan el token en node-soap.</text>
+<path d="M465,1156 h12 a6,6 0 0 1 12,0 h16" fill="none" stroke="#000" stroke-width="1.4"/>
+<text x="515" y="1160" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">Salto: las líneas se cruzan sin conectarse.</text>
+<text x="465" y="1182" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">El navegador entra solo por node-web (HTTPS 443). Prometheus (pasd_nodo1) lee cada 15 s /metrics, 9100 y 9102</text>
+<text x="465" y="1198" font-size="12" font-weight="normal" font-style="normal" text-anchor="start">de las 3 VPS y del clúster. Cada máquina tiene firewall (ufw) con solo estos puertos abiertos.</text>
+</svg>
