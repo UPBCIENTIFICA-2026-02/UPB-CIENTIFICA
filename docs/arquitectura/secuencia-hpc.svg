@@ -1,0 +1,252 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1996" height="1653" viewBox="0 0 1996 1653" font-family="Arial, Helvetica, sans-serif">
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="70" y="44" font-size="22" font-weight="bold">sd Enviar un trabajo al clúster HPC desde el portal web</text>
+<circle cx="150" cy="85" r="11" fill="#fff" stroke="#000" stroke-width="1.5"/><path d="M150,96 v26 M133,105 h34 M150,122 l-14,20 M150,122 l14,20" stroke="#000" stroke-width="1.5" fill="none"/>
+<text x="150.0" y="162.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Investigador</text>
+<line x1="150" y1="168" x2="150" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="270" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="362.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Navegador web</text>
+<text x="362.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">SPA · spa-ui.js</text>
+<line x1="362" y1="146" x2="362" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="482" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="574.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">node-web</text>
+<text x="574.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">Nginx + pasarela · pasd_nodo1</text>
+<line x1="574" y1="146" x2="574" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="694" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="786.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">job-api</text>
+<text x="786.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">REST 8082 · pasd_nodo3</text>
+<line x1="786" y1="146" x2="786" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="906" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="998.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">gestor-cluster</text>
+<text x="998.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">RMI 2099 · pasd_nodo3</text>
+<line x1="998" y1="146" x2="998" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="1118" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="1210.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Authentication</text>
+<text x="1210.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">node-soap · pasd_nodo1</text>
+<line x1="1210" y1="146" x2="1210" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="1330" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="1422.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Distributed Storage</text>
+<text x="1422.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">REST 8084 · pasd_nodo2</text>
+<line x1="1422" y1="146" x2="1422" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="1542" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="1634.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">job-runner</text>
+<text x="1634.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">RMI 2099 · hpc-master</text>
+<line x1="1634" y1="146" x2="1634" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="1754" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="1846.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Nodos MPI</text>
+<text x="1846.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">hpc-master + hpc-worker1..3</text>
+<line x1="1846" y1="146" x2="1846" y2="1557" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="287" y="373" width="1230" height="294" fill="none" stroke="#000" stroke-width="1.2"/>
+<path d="M287,373 h47.5 v12 l-8,8 h-39.5 z" fill="#eee" stroke="#000" stroke-width="1.2"/>
+<line x1="287" y1="473" x2="1517" y2="473" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4"/>
+<rect x="923" y="771" width="1018" height="194" fill="none" stroke="#000" stroke-width="1.2"/>
+<path d="M923,771 h56.0 v12 l-8,8 h-48.0 z" fill="#eee" stroke="#000" stroke-width="1.2"/>
+<rect x="923" y="1077" width="806" height="82" fill="none" stroke="#000" stroke-width="1.2"/>
+<path d="M923,1077 h56.0 v12 l-8,8 h-48.0 z" fill="#eee" stroke="#000" stroke-width="1.2"/>
+<rect x="75" y="1317" width="1018" height="174" fill="none" stroke="#000" stroke-width="1.2"/>
+<path d="M75,1317 h56.0 v12 l-8,8 h-48.0 z" fill="#eee" stroke="#000" stroke-width="1.2"/>
+<line x1="156" y1="197" x2="356" y2="197" stroke="#000" stroke-width="1.3"/>
+<line x1="368" y1="219" x2="568" y2="219" stroke="#000" stroke-width="1.3"/>
+<line x1="580" y1="241" x2="780" y2="241" stroke="#000" stroke-width="1.3"/>
+<line x1="792" y1="263" x2="992" y2="263" stroke="#000" stroke-width="1.3"/>
+<line x1="1004" y1="285" x2="1204" y2="285" stroke="#000" stroke-width="1.3"/>
+<line x1="1204" y1="307" x2="1004" y2="307" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="1004" y1="331" x2="1204" y2="331" stroke="#000" stroke-width="1.3"/>
+<line x1="1204" y1="353" x2="1004" y2="353" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="992" y1="415" x2="792" y2="415" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="780" y1="437" x2="580" y2="437" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="568" y1="459" x2="368" y2="459" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="1004" y1="511" x2="1416" y2="511" stroke="#000" stroke-width="1.3"/>
+<line x1="1416" y1="533" x2="1004" y2="533" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<path d="M1004,557 h40 v20 h-34" fill="none" stroke="#000" stroke-width="1.3"/>
+<line x1="992" y1="601" x2="792" y2="601" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="780" y1="625" x2="580" y2="625" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="568" y1="649" x2="368" y2="649" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="356" y1="693" x2="156" y2="693" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<path d="M1004,813 h40 v20 h-34" fill="none" stroke="#000" stroke-width="1.3"/>
+<line x1="1004" y1="857" x2="1416" y2="857" stroke="#000" stroke-width="1.3"/>
+<line x1="1416" y1="879" x2="1004" y2="879" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="1004" y1="903" x2="1628" y2="903" stroke="#000" stroke-width="1.3"/>
+<line x1="1628" y1="925" x2="1004" y2="925" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="1004" y1="949" x2="1634" y2="949" stroke="#000" stroke-width="1.3"/>
+<path d="M1640,991 h40 v20 h-34" fill="none" stroke="#000" stroke-width="1.3"/>
+<line x1="1640" y1="1035" x2="1840" y2="1035" stroke="#000" stroke-width="1.3"/>
+<line x1="1840" y1="1057" x2="1640" y2="1057" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="1004" y1="1119" x2="1634" y2="1119" stroke="#000" stroke-width="1.3"/>
+<line x1="1634" y1="1141" x2="1004" y2="1141" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="1004" y1="1185" x2="1634" y2="1185" stroke="#000" stroke-width="1.3"/>
+<line x1="1634" y1="1207" x2="1004" y2="1207" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="1004" y1="1231" x2="1416" y2="1231" stroke="#000" stroke-width="1.3"/>
+<line x1="1416" y1="1253" x2="1004" y2="1253" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<path d="M1004,1277 h40 v20 h-34" fill="none" stroke="#000" stroke-width="1.3"/>
+<line x1="362" y1="1359" x2="568" y2="1359" stroke="#000" stroke-width="1.3"/>
+<line x1="580" y1="1381" x2="780" y2="1381" stroke="#000" stroke-width="1.3"/>
+<line x1="792" y1="1403" x2="992" y2="1403" stroke="#000" stroke-width="1.3"/>
+<line x1="992" y1="1425" x2="792" y2="1425" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="780" y1="1449" x2="580" y2="1449" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="568" y1="1473" x2="362" y2="1473" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="362" y1="1517" x2="156" y2="1517" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<rect x="1198" y="279" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1198" y="325" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1410" y="505" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="986" y="257" width="12" height="342" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="774" y="235" width="12" height="388" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="562" y="213" width="12" height="434" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="350" y="191" width="12" height="500" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1410" y="851" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1622" y="897" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1834" y="1029" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1628" y="1113" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1628" y="1179" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1622" y="963" width="12" height="242" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1410" y="1225" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="986" y="785" width="12" height="510" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="986" y="1397" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="774" y="1375" width="12" height="72" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="562" y="1353" width="12" height="118" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="138" y="169" width="12" height="1344" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<path d="M356,197 l-12,-5 v10 z" fill="#000"/>
+<rect x="66.4" y="179.5" width="379.2" height="17.5" fill="#fff"/>
+<text x="256.0" y="191.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">1: enviar(nombre, código, dataset, procesos, prioridad)</text>
+<path d="M568,219 l-12,-5 v10 z" fill="#000"/>
+<rect x="308.8" y="201.5" width="318.5" height="17.5" fill="#fff"/>
+<text x="468.0" y="213.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">2: POST /api/jobs  [Bearer token]  «HTTPS» 443</text>
+<path d="M780,241 l-12,-5 v10 z" fill="#000"/>
+<rect x="517.4" y="223.5" width="325.2" height="17.5" fill="#fff"/>
+<text x="680.0" y="235.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">3: POST /jobs (reenvío sin interpretar)  «HTTP»</text>
+<path d="M992,263 l-12,-5 v10 z" fill="#000"/>
+<rect x="749.6" y="245.5" width="284.8" height="17.5" fill="#fff"/>
+<text x="892.0" y="257.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">4: enviarTrabajo(token, solicitud)  «RMI»</text>
+<path d="M1204,285 l-12,-5 v10 z" fill="#000"/>
+<rect x="978.5" y="267.5" width="251.0" height="17.5" fill="#fff"/>
+<text x="1104.0" y="279.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">5: validarToken(token)  «SOAP/HTTPS»</text>
+<path d="M1016,302 L1004,307 L1016,312" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1062.9" y="289.5" width="82.2" height="17.5" fill="#fff"/>
+<text x="1104.0" y="301.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">uid, perfil</text>
+<path d="M1204,331 l-12,-5 v10 z" fill="#000"/>
+<rect x="968.4" y="313.5" width="271.2" height="17.5" fill="#fff"/>
+<text x="1104.0" y="325.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">6: validarAccesoServicio(perfil, "hpc")</text>
+<path d="M1016,348 L1004,353 L1016,358" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1066.2" y="335.5" width="75.5" height="17.5" fill="#fff"/>
+<text x="1104.0" y="347.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">autorizado</text>
+<path d="M804,410 L792,415 L804,420" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="817.1" y="397.5" width="149.8" height="17.5" fill="#fff"/>
+<text x="892.0" y="409.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">NoAutorizadoException</text>
+<path d="M592,432 L580,437 L592,442" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="645.6" y="419.5" width="68.8" height="17.5" fill="#fff"/>
+<text x="680.0" y="431.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">401 / 403</text>
+<path d="M380,454 L368,459 L380,464" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="433.6" y="441.5" width="68.8" height="17.5" fill="#fff"/>
+<text x="468.0" y="453.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">401 / 403</text>
+<path d="M1416,511 l-12,-5 v10 z" fill="#000"/>
+<rect x="1057.5" y="493.5" width="305.0" height="17.5" fill="#fff"/>
+<text x="1210.0" y="505.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">7: resolver rutaCodigo y rutaDataset  «HTTP»</text>
+<path d="M1016,528 L1004,533 L1016,538" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1114.9" y="515.5" width="190.2" height="17.5" fill="#fff"/>
+<text x="1210.0" y="527.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">id y nombre de cada archivo</text>
+<path d="M1010,577 l10,-5 v10 z" fill="#000"/>
+<rect x="1048.0" y="559" width="330.9" height="18" fill="#fff"/>
+<text x="1052.0" y="571.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">8: validar reglas · estado = EN_COLA · encolar</text>
+<path d="M804,596 L792,601 L804,606" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="719.2" y="583.5" width="345.5" height="17.5" fill="#fff"/>
+<text x="892.0" y="595.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">RespuestaEnvio(trabajoId, PENDIENTE, posiciónCola)</text>
+<path d="M592,620 L580,625 L592,630" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="574.8" y="607.5" width="210.5" height="17.5" fill="#fff"/>
+<text x="680.0" y="619.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">201 {trabajoId, estadoInicial}</text>
+<path d="M380,644 L368,649 L380,654" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="362.8" y="631.5" width="210.5" height="17.5" fill="#fff"/>
+<text x="468.0" y="643.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">201 {trabajoId, estadoInicial}</text>
+<text x="295.0" y="388.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">alt</text>
+<rect x="340.5" y="376.5" width="257.8" height="17.5" fill="#fff"/>
+<text x="344.5" y="388.0" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">[sin token válido o perfil sin "hpc"]</text>
+<rect x="293.0" y="476.5" width="89.0" height="17.5" fill="#fff"/>
+<text x="297.0" y="488.0" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">[autorizado]</text>
+<path d="M168,688 L156,693 L168,698" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="194.6" y="675.5" width="122.8" height="17.5" fill="#fff"/>
+<text x="256.0" y="687.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">"Trabajo en cola"</text>
+<path d="M1016,709 h368 l12,12 v32 h-380 z" fill="#fffbe6" stroke="#000" stroke-width="1"/>
+<path d="M1384,709 v12 h12" fill="none" stroke="#000" stroke-width="1"/>
+<text x="1024.0" y="727.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">Planificador del gestor (asíncrono): prioridad con</text>
+<text x="1024.0" y="744.0" font-size="12" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">envejecimiento y asignación de nodos según su carga.</text>
+<path d="M1010,833 l10,-5 v10 z" fill="#000"/>
+<rect x="1048.0" y="815" width="302.8" height="18" fill="#fff"/>
+<text x="1052.0" y="827.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">9: asignar nodos libres (o seguir en cola)</text>
+<path d="M1416,857 l-12,-5 v10 z" fill="#000"/>
+<rect x="1033.9" y="839.5" width="352.2" height="17.5" fill="#fff"/>
+<text x="1210.0" y="851.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">10: descargar código y dataset  [token del usuario]</text>
+<path d="M1016,874 L1004,879 L1016,884" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1189.1" y="861.5" width="41.8" height="17.5" fill="#fff"/>
+<text x="1210.0" y="873.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">bytes</text>
+<path d="M1628,903 l-12,-5 v10 z" fill="#000"/>
+<rect x="1193.9" y="885.5" width="244.3" height="17.5" fill="#fff"/>
+<text x="1316.0" y="897.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">11: nodosSinRespuesta(nodos)  «RMI»</text>
+<path d="M1016,920 L1004,925 L1016,930" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1237.8" y="907.5" width="156.5" height="17.5" fill="#fff"/>
+<text x="1316.0" y="919.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">[ ]  (todos responden)</text>
+<path d="M1622,944 L1634,949 L1622,954" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1200.2" y="931.5" width="237.5" height="17.5" fill="#fff"/>
+<text x="1319.0" y="943.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">12: iniciar(OrdenEjecucion)  «RMI»</text>
+<text x="931.0" y="786.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">loop</text>
+<rect x="985.0" y="774.5" width="237.5" height="17.5" fill="#fff"/>
+<text x="989.0" y="786.0" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">[mientras el trabajo esté EN_COLA]</text>
+<path d="M1646,1011 l10,-5 v10 z" fill="#000"/>
+<rect x="1214.8" y="993" width="415.2" height="18" fill="#fff"/>
+<text x="1626.0" y="1005.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="end" fill="#000">13: escribir en /srv/home/.hpc-trabajos · hostfile · mpicc</text>
+<path d="M1840,1035 l-12,-5 v10 z" fill="#000"/>
+<rect x="1587.5" y="1017.5" width="305.0" height="17.5" fill="#fff"/>
+<text x="1740.0" y="1029.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">14: mpirun --hostfile -np N  «SSH + MPI/TCP»</text>
+<path d="M1652,1052 L1640,1057 L1652,1062" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1651.6" y="1039.5" width="176.8" height="17.5" fill="#fff"/>
+<text x="1740.0" y="1051.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">salida y código de salida</text>
+<path d="M1634,1119 l-12,-5 v10 z" fill="#000"/>
+<rect x="1234.0" y="1101.5" width="170.0" height="17.5" fill="#fff"/>
+<text x="1319.0" y="1113.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">15: consultar(trabajoId)</text>
+<path d="M1016,1136 L1004,1141 L1016,1146" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1264.4" y="1123.5" width="109.2" height="17.5" fill="#fff"/>
+<text x="1319.0" y="1135.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">EstadoEjecucion</text>
+<text x="931.0" y="1092.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">loop</text>
+<rect x="985.0" y="1080.5" width="224.0" height="17.5" fill="#fff"/>
+<text x="989.0" y="1092.0" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">[cada sondeo, hasta que termine]</text>
+<path d="M1634,1185 l-12,-5 v10 z" fill="#000"/>
+<rect x="1230.6" y="1167.5" width="176.8" height="17.5" fill="#fff"/>
+<text x="1319.0" y="1179.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">16: resultados(trabajoId)</text>
+<path d="M1016,1202 L1004,1207 L1016,1212" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1169.9" y="1189.5" width="298.2" height="17.5" fill="#fff"/>
+<text x="1319.0" y="1201.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">salida.txt, errores.txt, archivos generados</text>
+<path d="M1416,1231 l-12,-5 v10 z" fill="#000"/>
+<rect x="1054.1" y="1213.5" width="311.8" height="17.5" fill="#fff"/>
+<text x="1210.0" y="1225.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">17: guardar en "Resultados HPC/&lt;nombre&gt;-&lt;id&gt;"</text>
+<path d="M1016,1248 L1004,1253 L1016,1258" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1162.1" y="1235.5" width="95.8" height="17.5" fill="#fff"/>
+<text x="1210.0" y="1247.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">rutaResultado</text>
+<path d="M1010,1297 l10,-5 v10 z" fill="#000"/>
+<rect x="1048.0" y="1279" width="169.5" height="18" fill="#fff"/>
+<text x="1052.0" y="1291.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">18: estado = COMPLETADO</text>
+<path d="M568,1359 l-12,-5 v10 z" fill="#000"/>
+<rect x="305.8" y="1341.5" width="318.5" height="17.5" fill="#fff"/>
+<text x="465.0" y="1353.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">19: GET /api/jobs  [Bearer token]  «HTTPS» 443</text>
+<path d="M780,1381 l-12,-5 v10 z" fill="#000"/>
+<rect x="605.1" y="1363.5" width="149.8" height="17.5" fill="#fff"/>
+<text x="680.0" y="1375.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">20: GET /jobs  «HTTP»</text>
+<path d="M992,1403 l-12,-5 v10 z" fill="#000"/>
+<rect x="756.4" y="1385.5" width="271.2" height="17.5" fill="#fff"/>
+<text x="892.0" y="1397.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">21: listarTrabajosUsuario(token)  «RMI»</text>
+<path d="M804,1420 L792,1425 L804,1430" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="766.5" y="1407.5" width="251.0" height="17.5" fill="#fff"/>
+<text x="892.0" y="1419.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">TrabajoHpc[] (estado, rutaResultado)</text>
+<path d="M592,1444 L580,1449 L592,1454" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="605.1" y="1431.5" width="149.8" height="17.5" fill="#fff"/>
+<text x="680.0" y="1443.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">200 [TrabajoResponse]</text>
+<path d="M374,1468 L362,1473 L374,1478" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="390.1" y="1455.5" width="149.8" height="17.5" fill="#fff"/>
+<text x="465.0" y="1467.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">200 [TrabajoResponse]</text>
+<text x="83.0" y="1332.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">loop</text>
+<rect x="137.0" y="1320.5" width="291.5" height="17.5" fill="#fff"/>
+<text x="141.0" y="1332.0" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">[cada 3 s, mientras haya trabajos activos]</text>
+<path d="M168,1512 L156,1517 L168,1522" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="113.2" y="1499.5" width="291.5" height="17.5" fill="#fff"/>
+<text x="259.0" y="1511.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">"Completado: resultado en Resultados HPC/"</text>
+<text x="70.0" y="1587.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">Notación UML 2.5: ⟶ (punta rellena) mensaje síncrono · ⟶ (punta abierta) asíncrono · - - → respuesta · rectángulo blanco sobre la línea de vida = activación · alt/opt/loop = fragmentos combinados.</text>
+<text x="70.0" y="1609.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">El navegador solo habla con node-web (HTTPS 443): node-web reenvía sin interpretar y quien valida el token es el gestor. El uid sale siempre del token.</text>
+<text x="70.0" y="1631.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">Si un nodo no responde, el gestor lo marca EN_FALLA y devuelve el trabajo a la cola para asignarlo a otros nodos.</text>
+</svg>

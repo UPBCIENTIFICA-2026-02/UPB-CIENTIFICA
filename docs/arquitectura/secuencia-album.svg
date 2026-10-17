@@ -1,0 +1,211 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1996" height="1273" viewBox="0 0 1996 1273" font-family="Arial, Helvetica, sans-serif">
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="70" y="44" font-size="22" font-weight="bold">sd Ver las fotos desde el portal web (Photo Album)</text>
+<circle cx="150" cy="85" r="11" fill="#fff" stroke="#000" stroke-width="1.5"/><path d="M150,96 v26 M133,105 h34 M150,122 l-14,20 M150,122 l14,20" stroke="#000" stroke-width="1.5" fill="none"/>
+<text x="150.0" y="162.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Usuario</text>
+<line x1="150" y1="168" x2="150" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="270" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="362.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Navegador web</text>
+<text x="362.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">SPA · spa-ui.js</text>
+<line x1="362" y1="146" x2="362" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="482" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="574.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">node-web</text>
+<text x="574.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">Nginx + pasarela · pasd_nodo1</text>
+<line x1="574" y1="146" x2="574" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="694" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="786.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Photo Album</text>
+<text x="786.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">node-media 8083 · pasd_nodo3</text>
+<line x1="786" y1="146" x2="786" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="906" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="998.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Authentication</text>
+<text x="998.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">node-soap · pasd_nodo1</text>
+<line x1="998" y1="146" x2="998" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="1118" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="1210.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Distributed Storage</text>
+<text x="1210.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">REST 8084 · pasd_nodo2</text>
+<line x1="1210" y1="146" x2="1210" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="1330" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="1422.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">Shared File</text>
+<text x="1422.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">REST 8085 · pasd_nodo2</text>
+<line x1="1422" y1="146" x2="1422" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="1542" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="1634.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">FFmpeg</text>
+<text x="1634.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">herramienta local · pasd_nodo3</text>
+<line x1="1634" y1="146" x2="1634" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="1754" y="88" width="184" height="58" fill="#e9e9e9" stroke="#000" stroke-width="1.4"/>
+<text x="1846.0" y="112.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#000">catalogo_medios</text>
+<text x="1846.0" y="131.0" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#333">PostgreSQL · pasd_nodo3</text>
+<line x1="1846" y1="146" x2="1846" y2="1177" stroke="#000" stroke-width="1.1" stroke-dasharray="6,5"/>
+<rect x="723" y="389" width="1206" height="174" fill="none" stroke="#000" stroke-width="1.2"/>
+<path d="M723,389 h56.0 v12 l-8,8 h-48.0 z" fill="#eee" stroke="#000" stroke-width="1.2"/>
+<rect x="711" y="305" width="1230" height="370" fill="none" stroke="#000" stroke-width="1.2"/>
+<path d="M711,305 h47.5 v12 l-8,8 h-39.5 z" fill="#eee" stroke="#000" stroke-width="1.2"/>
+<rect x="287" y="791" width="594" height="128" fill="none" stroke="#000" stroke-width="1.2"/>
+<path d="M287,791 h56.0 v12 l-8,8 h-48.0 z" fill="#eee" stroke="#000" stroke-width="1.2"/>
+<line x1="156" y1="197" x2="356" y2="197" stroke="#000" stroke-width="1.3"/>
+<line x1="368" y1="219" x2="568" y2="219" stroke="#000" stroke-width="1.3"/>
+<line x1="580" y1="241" x2="780" y2="241" stroke="#000" stroke-width="1.3"/>
+<line x1="792" y1="263" x2="992" y2="263" stroke="#000" stroke-width="1.3"/>
+<line x1="992" y1="285" x2="792" y2="285" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="792" y1="347" x2="1204" y2="347" stroke="#000" stroke-width="1.3"/>
+<line x1="1204" y1="369" x2="792" y2="369" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="792" y1="431" x2="1204" y2="431" stroke="#000" stroke-width="1.3"/>
+<line x1="1204" y1="453" x2="792" y2="453" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="792" y1="477" x2="1628" y2="477" stroke="#000" stroke-width="1.3"/>
+<line x1="1628" y1="499" x2="792" y2="499" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="792" y1="523" x2="1840" y2="523" stroke="#000" stroke-width="1.3"/>
+<line x1="1840" y1="545" x2="792" y2="545" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="792" y1="589" x2="1416" y2="589" stroke="#000" stroke-width="1.3"/>
+<line x1="1416" y1="611" x2="792" y2="611" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="792" y1="635" x2="1840" y2="635" stroke="#000" stroke-width="1.3"/>
+<line x1="1840" y1="657" x2="792" y2="657" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="792" y1="701" x2="1840" y2="701" stroke="#000" stroke-width="1.3"/>
+<line x1="1840" y1="723" x2="792" y2="723" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="780" y1="747" x2="580" y2="747" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="568" y1="771" x2="368" y2="771" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="368" y1="833" x2="568" y2="833" stroke="#000" stroke-width="1.3"/>
+<line x1="580" y1="855" x2="780" y2="855" stroke="#000" stroke-width="1.3"/>
+<line x1="780" y1="877" x2="580" y2="877" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="568" y1="901" x2="368" y2="901" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="356" y1="945" x2="156" y2="945" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="156" y1="975" x2="356" y2="975" stroke="#000" stroke-width="1.3"/>
+<line x1="368" y1="997" x2="568" y2="997" stroke="#000" stroke-width="1.3"/>
+<line x1="580" y1="1019" x2="780" y2="1019" stroke="#000" stroke-width="1.3"/>
+<line x1="792" y1="1041" x2="1204" y2="1041" stroke="#000" stroke-width="1.3"/>
+<line x1="1204" y1="1063" x2="792" y2="1063" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="780" y1="1087" x2="580" y2="1087" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="568" y1="1111" x2="368" y2="1111" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<line x1="356" y1="1135" x2="156" y2="1135" stroke="#000" stroke-width="1.3" stroke-dasharray="7,4"/>
+<rect x="986" y="257" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1198" y="341" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1198" y="425" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1622" y="471" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1834" y="517" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1410" y="583" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1834" y="629" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1834" y="695" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="774" y="235" width="12" height="510" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="562" y="213" width="12" height="556" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="774" y="849" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="562" y="827" width="12" height="72" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="350" y="191" width="12" height="752" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="1198" y="1035" width="12" height="26" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="774" y="1013" width="12" height="72" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="562" y="991" width="12" height="118" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="350" y="969" width="12" height="164" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<rect x="138" y="169" width="12" height="964" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<path d="M356,197 l-12,-5 v10 z" fill="#000"/>
+<rect x="204.8" y="179.5" width="102.5" height="17.5" fill="#fff"/>
+<text x="256.0" y="191.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">1: abrir Fotos</text>
+<path d="M568,219 l-12,-5 v10 z" fill="#000"/>
+<rect x="281.8" y="201.5" width="372.5" height="17.5" fill="#fff"/>
+<text x="468.0" y="213.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">2: GET /api/album/fotos?pagina=0  [token]  «HTTPS» 443</text>
+<path d="M780,241 l-12,-5 v10 z" fill="#000"/>
+<rect x="551.1" y="223.5" width="257.8" height="17.5" fill="#fff"/>
+<text x="680.0" y="235.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">3: GET /album/fotos (reenvío)  «HTTP»</text>
+<path d="M992,263 l-12,-5 v10 z" fill="#000"/>
+<rect x="678.8" y="245.5" width="426.5" height="17.5" fill="#fff"/>
+<text x="892.0" y="257.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">4: validarToken · validarAccesoServicio("album")  «SOAP/HTTPS»</text>
+<path d="M804,280 L792,285 L804,290" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="877.9" y="267.5" width="28.2" height="17.5" fill="#fff"/>
+<text x="892.0" y="279.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">uid</text>
+<path d="M1204,347 l-12,-5 v10 z" fill="#000"/>
+<rect x="852.2" y="329.5" width="291.5" height="17.5" fill="#fff"/>
+<text x="998.0" y="341.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">5: listar el Home (directorios, recursivo)</text>
+<path d="M804,364 L792,369 L804,374" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="892.8" y="351.5" width="210.5" height="17.5" fill="#fff"/>
+<text x="998.0" y="363.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">archivos (id, nombre, versión)</text>
+<path d="M1204,431 l-12,-5 v10 z" fill="#000"/>
+<rect x="896.1" y="413.5" width="203.8" height="17.5" fill="#fff"/>
+<text x="998.0" y="425.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">6: descargar archivo  [token]</text>
+<path d="M804,448 L792,453 L804,458" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="977.1" y="435.5" width="41.8" height="17.5" fill="#fff"/>
+<text x="998.0" y="447.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">bytes</text>
+<path d="M1628,477 l-12,-5 v10 z" fill="#000"/>
+<rect x="1087.9" y="459.5" width="244.3" height="17.5" fill="#fff"/>
+<text x="1210.0" y="471.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">7: inspeccionar + generar miniatura</text>
+<path d="M804,494 L792,499 L804,504" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1081.1" y="481.5" width="257.8" height="17.5" fill="#fff"/>
+<text x="1210.0" y="493.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">ancho, alto, duración · miniatura.jpg</text>
+<path d="M1840,523 l-12,-5 v10 z" fill="#000"/>
+<rect x="1234.4" y="505.5" width="163.2" height="17.5" fill="#fff"/>
+<text x="1316.0" y="517.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">8: INSERT/UPDATE medios</text>
+<path d="M804,540 L792,545 L804,550" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1305.2" y="527.5" width="21.5" height="17.5" fill="#fff"/>
+<text x="1316.0" y="539.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">ok</text>
+<text x="731.0" y="404.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">loop</text>
+<rect x="785.0" y="392.5" width="264.5" height="17.5" fill="#fff"/>
+<text x="789.0" y="404.0" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">[cada imagen o video nuevo o cambiado]</text>
+<path d="M1416,589 l-12,-5 v10 z" fill="#000"/>
+<rect x="1012.2" y="571.5" width="183.5" height="17.5" fill="#fff"/>
+<text x="1104.0" y="583.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">9: GET compartidos-conmigo</text>
+<path d="M804,606 L792,611 L804,616" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1035.9" y="593.5" width="136.2" height="17.5" fill="#fff"/>
+<text x="1104.0" y="605.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">relaciones vigentes</text>
+<path d="M1840,635 l-12,-5 v10 z" fill="#000"/>
+<rect x="1200.6" y="617.5" width="230.8" height="17.5" fill="#fff"/>
+<text x="1316.0" y="629.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">10: actualizar medios_compartidos</text>
+<path d="M804,652 L792,657 L804,662" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1305.2" y="639.5" width="21.5" height="17.5" fill="#fff"/>
+<text x="1316.0" y="651.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">ok</text>
+<text x="719.0" y="320.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">opt</text>
+<rect x="764.5" y="308.5" width="359.0" height="17.5" fill="#fff"/>
+<text x="768.5" y="320.0" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">[primera página y último refresco hace más de 1 min]</text>
+<path d="M1840,701 l-12,-5 v10 z" fill="#000"/>
+<rect x="1156.8" y="683.5" width="318.5" height="17.5" fill="#fff"/>
+<text x="1316.0" y="695.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">11: SELECT fotos propias y compartidas (orden)</text>
+<path d="M804,718 L792,723 L804,728" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="1295.1" y="705.5" width="41.8" height="17.5" fill="#fff"/>
+<text x="1316.0" y="717.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">filas</text>
+<path d="M592,742 L580,747 L592,752" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="595.0" y="729.5" width="170.0" height="17.5" fill="#fff"/>
+<text x="680.0" y="741.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">lista de fotos (FotoDto)</text>
+<path d="M380,766 L368,771 L380,776" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="416.8" y="753.5" width="102.5" height="17.5" fill="#fff"/>
+<text x="468.0" y="765.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">lista de fotos</text>
+<path d="M568,833 l-12,-5 v10 z" fill="#000"/>
+<rect x="302.0" y="815.5" width="332.0" height="17.5" fill="#fff"/>
+<text x="468.0" y="827.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">12: GET /api/album/fotos/{id}/miniatura  «HTTPS»</text>
+<path d="M780,855 l-12,-5 v10 z" fill="#000"/>
+<rect x="530.9" y="837.5" width="298.2" height="17.5" fill="#fff"/>
+<text x="680.0" y="849.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">13: GET /album/fotos/{id}/miniatura  «HTTP»</text>
+<path d="M592,872 L580,877 L592,882" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="591.6" y="859.5" width="176.8" height="17.5" fill="#fff"/>
+<text x="680.0" y="871.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">JPEG desde la caché local</text>
+<path d="M380,896 L368,901 L380,906" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="426.9" y="883.5" width="82.2" height="17.5" fill="#fff"/>
+<text x="468.0" y="895.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">JPEG (blob)</text>
+<text x="295.0" y="806.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">loop</text>
+<rect x="349.0" y="794.5" width="230.8" height="17.5" fill="#fff"/>
+<text x="353.0" y="806.0" font-size="12.5" font-weight="bold" font-style="normal" text-anchor="start" fill="#000">[cada foto que entra en pantalla]</text>
+<path d="M168,940 L156,945 L168,950" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="181.1" y="927.5" width="149.8" height="17.5" fill="#fff"/>
+<text x="256.0" y="939.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">galería de miniaturas</text>
+<path d="M356,975 l-12,-5 v10 z" fill="#000"/>
+<rect x="191.2" y="957.5" width="129.5" height="17.5" fill="#fff"/>
+<text x="256.0" y="969.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">14: abrir una foto</text>
+<path d="M568,997 l-12,-5 v10 z" fill="#000"/>
+<rect x="302.0" y="979.5" width="332.0" height="17.5" fill="#fff"/>
+<text x="468.0" y="991.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">15: GET /api/album/fotos/{id}/contenido  «HTTPS»</text>
+<path d="M780,1019 l-12,-5 v10 z" fill="#000"/>
+<rect x="530.9" y="1001.5" width="298.2" height="17.5" fill="#fff"/>
+<text x="680.0" y="1013.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">16: GET /album/fotos/{id}/contenido  «HTTP»</text>
+<path d="M1204,1041 l-12,-5 v10 z" fill="#000"/>
+<rect x="821.9" y="1023.5" width="352.2" height="17.5" fill="#fff"/>
+<text x="998.0" y="1035.0" font-size="12.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#000">17: abrirLectura(archivo_storage_id, token)  «HTTP»</text>
+<path d="M804,1058 L792,1063 L804,1068" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="913.0" y="1045.5" width="170.0" height="17.5" fill="#fff"/>
+<text x="998.0" y="1057.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">imagen original (stream)</text>
+<path d="M592,1082 L580,1087 L592,1092" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="625.4" y="1069.5" width="109.2" height="17.5" fill="#fff"/>
+<text x="680.0" y="1081.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">imagen original</text>
+<path d="M380,1106 L368,1111 L380,1116" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="413.4" y="1093.5" width="109.2" height="17.5" fill="#fff"/>
+<text x="468.0" y="1105.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">imagen original</text>
+<path d="M168,1130 L156,1135 L168,1140" fill="none" stroke="#000" stroke-width="1.3"/>
+<rect x="198.0" y="1117.5" width="116.0" height="17.5" fill="#fff"/>
+<text x="256.0" y="1129.0" font-size="12.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#000">visor de la foto</text>
+<text x="70.0" y="1207.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">Notación UML 2.5: ⟶ (punta rellena) mensaje síncrono · ⟶ (punta abierta) asíncrono · - - → respuesta · rectángulo blanco sobre la línea de vida = activación · alt/opt/loop = fragmentos combinados.</text>
+<text x="70.0" y="1229.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">El navegador solo habla con node-web (HTTPS 443), que reenvía sin interpretar. Photo Album valida el token y el uid sale siempre del token.</text>
+<text x="70.0" y="1251.0" font-size="13" font-weight="normal" font-style="normal" text-anchor="start" fill="#000">Photo Album no guarda archivos: los bytes los entrega Storage con el token del usuario (propio o compartido). catalogo_medios solo guarda metadatos y miniaturas.</text>
+</svg>

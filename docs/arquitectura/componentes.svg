@@ -146,7 +146,7 @@
 <rect x="2152" y="961" width="8" height="4" fill="#fff" stroke="#000" stroke-width="1"/>
 <text x="2030.0" y="977.5" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">«component»</text>
 <text x="2030.0" y="993.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle">Nodos de cómputo</text>
-<text x="2030.0" y="1008.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">OpenMPI 5 · hpc-worker 1..3</text>
+<text x="2030.0" y="1008.5" font-size="11.5" font-weight="normal" font-style="normal" text-anchor="middle">OpenMPI 5 · hpc-master + hpc-worker1..3</text>
 <text x="520" y="1030" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">Los tres usan las 7 interfaces del bus;</text>
 <text x="520" y="1045" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle">el portal web, todas menos ISincronización.</text>
 <rect x="1333.9" y="633" width="92.2" height="15" fill="#fff"/>

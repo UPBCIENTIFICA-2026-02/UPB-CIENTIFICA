@@ -1,10 +1,13 @@
 # Guion de exposición: diagramas de UPB-CIENTÍFICA
 
-Tres guiones, uno por diagrama, en el orden recomendado para exponer:
+Seis guiones, uno por diagrama, en el orden recomendado para exponer:
 
 1. **Componentes** (`componentes.png`): *qué* piezas tiene el sistema y *cómo* se hablan.
 2. **Despliegue** (`despliegue-real.png`): *dónde* corre cada pieza y *por qué puertos*.
 3. **Modelo de datos** (`datos.png`): *qué datos* guarda cada pieza y *cómo se relacionan*.
+4. **Secuencia: enviar un trabajo al clúster** (`secuencia-hpc.png`): *en qué orden* se hablan las piezas, desde el portal web.
+5. **Secuencia: ver las fotos** (`secuencia-album.png`): Photo Album desde el portal web.
+6. **Secuencia: sincronizar una carpeta** (`secuencia-sync.png`): File Sync desde las apps nativas.
 
 Cómo leer este guion:
 
@@ -13,7 +16,7 @@ Cómo leer este guion:
 - *(≈ X min)* es el tiempo aproximado de cada parte. Cada diagrama dura entre 5 y 7 minutos.
 - Al final de cada guion hay **preguntas probables** con su respuesta corta.
 
-Frase puente entre diagramas: *"Ya vimos **qué** piezas hay; ahora veamos **dónde** viven"*, y después *"…y por último **qué datos** guarda cada una"*.
+Frase puente entre diagramas: *"Ya vimos **qué** piezas hay; ahora veamos **dónde** viven"*, después *"…y **qué datos** guarda cada una"*, y por último *"Ahora pongamos todo en movimiento: veamos **en qué orden** se hablan en tres casos de uso reales"*.
 
 ---
 
@@ -80,7 +83,7 @@ Los servicios también se necesitan entre sí:
 - Los servicios usan **PostgreSQL**, con una base por servicio para sus metadatos.
 
 **6. Clúster HPC.** **[Señalar: paquete "Clúster HPC (malla Grid)"]**
-El Gestor del clúster no ejecuta los trabajos. Requiere **IEjecutorMPI** por RMI, que provee el **Ejecutor MPI** (job-runner, en el nodo maestro). Este, a su vez, requiere **IMPI** de los **nodos de cómputo**, que es OpenMPI sobre SSH, MPI/TCP y NFS.
+El Gestor del clúster no ejecuta los trabajos. Requiere **IEjecutorMPI** por RMI, que provee el **Ejecutor MPI** (job-runner, en el nodo maestro). Este, a su vez, requiere **IMPI** de los **nodos de cómputo**, que es OpenMPI sobre SSH, MPI/TCP y NFS. Los nodos de cómputo son el **maestro y los tres workers**: el maestro también ejecuta procesos.
 
 **7. Monitoreo.** **[Señalar: paquete "Monitoreo (transversal)"]**
 Es transversal porque observa a todos: **Prometheus** lee las métricas de cada servicio y de cada máquina, y **Grafana** las consulta para los tableros y las alertas.
@@ -231,3 +234,152 @@ Cinco almacenes, cada uno con un único dueño, unidos por referencias lógicas 
 - **¿Cómo se garantiza la integridad sin claves foráneas entre bases?** La valida la API del dueño. Por ejemplo, al compartir, Shared File le pregunta a Storage si el nodo existe y si el usuario es su dueño. Si un nodo se borra, quien lo referencia lo detecta al consultar a Storage.
 - **¿Por qué los trabajos HPC están en un archivo y no en PostgreSQL?** Es una decisión de la primera versión: el gestor guarda su estado en un archivo para sobrevivir a reinicios. Pasarlo a PostgreSQL está registrado como mejora futura.
 - **¿Dónde están los respaldos?** El respaldo cifrado con GPG está diseñado (RF-11) y la copia va fuera del nodo, a nodo3. Está pendiente de generar la llave del custodio.
+
+---
+
+## Cómo leer los diagramas de secuencia (para los tres siguientes)
+
+Decirlo **una sola vez**, antes del primer diagrama de secuencia *(≈ 45 s)*:
+
+**[Señalar: las cabeceras y las líneas punteadas verticales]**
+
+- Cada **columna** es un participante: el usuario (monigote) o un componente. Debajo del nombre va **dónde corre** (`pasd_nodo1`, `hpc-master`…), igual que en el diagrama de despliegue.
+- La **línea punteada vertical** es su *línea de vida*. El tiempo avanza **hacia abajo**.
+- El **rectángulo blanco** sobre la línea de vida es una **activación**: el participante está trabajando o esperando una respuesta.
+- **Flecha con punta rellena**: mensaje **síncrono** (quien llama espera). **Punta abierta**: mensaje **asíncrono** (no espera). **Línea punteada**: la **respuesta**.
+- Los mensajes van **numerados** en orden y llevan su protocolo entre comillas angulares, por ejemplo `«HTTPS» 443`, `«RMI»`, `«gRPC/TLS»`.
+- Los **marcos** son fragmentos combinados: `alt` es un si/si no (cada rama con su condición entre corchetes), `opt` es un "solo si…" y `loop` es una repetición.
+
+---
+
+## 4. Secuencia: enviar un trabajo al clúster (portal web)
+
+### Apertura *(≈ 30 s)*
+
+Este diagrama muestra qué pasa cuando un investigador **envía un trabajo MPI al clúster desde el portal web**, hasta que ve el resultado en su Home. Es el caso que más servicios atraviesa: el navegador, node-web, job-api, el gestor, la autenticación, Storage, job-runner y los nodos del clúster.
+
+### Recorrido *(≈ 4–5 min)*
+
+**1. El envío pasa solo por node-web (mensajes 1 a 4).** **[Señalar: las primeras flechas, de izquierda a derecha]**
+El investigador elige el código fuente y el dataset de su Home, el número de procesos y la prioridad. El navegador hace `POST /api/jobs` por **HTTPS 443**, con el token. **El navegador nunca habla con otro servicio que no sea node-web.**
+node-web **reenvía sin interpretar** a job-api (8082), que traduce de REST a **RMI** y llama a `enviarTrabajo(token, solicitud)` en el gestor.
+
+**2. Validación (mensajes 5 y 6).** **[Señalar: las dos flechas hacia Authentication]**
+Quien valida es el **gestor**, no node-web. Primero `validarToken`, que devuelve el uid y el perfil. Luego `validarAccesoServicio(perfil, "hpc")`, que comprueba el *mapa de servicios*. **El uid sale del token, nunca del cuerpo del mensaje.**
+
+**3. El `alt` (mensaje 7 y 8).** **[Señalar: el marco alt y sus dos ramas]**
+- Si el token no es válido o el perfil no tiene "hpc" (un estudiante, por ejemplo), la excepción vuelve por la misma cadena y el navegador recibe **401 o 403**.
+- Si está autorizado, el gestor le pregunta a **Storage** si existen el código y el dataset, valida las reglas (cuota de procesos, formato) y **encola** el trabajo.
+
+**4. Respuesta inmediata.** **[Señalar: "201 {trabajoId, estadoInicial}" y "Trabajo en cola"]**
+El navegador recibe enseguida un **201** con el id del trabajo. **No espera a que el trabajo corra**: la ejecución puede tardar minutos u horas.
+
+**5. Ejecución asíncrona (mensajes 9 a 14).** **[Señalar: la nota amarilla y el primer loop]**
+El **planificador** del gestor trabaja por su cuenta. Ordena la cola por prioridad con **envejecimiento** (para que un trabajo de prioridad baja no espere para siempre) y asigna nodos según su carga. Mientras el trabajo está en cola:
+- descarga el código y el dataset de Storage **con el token del usuario** (así Storage aplica sus permisos);
+- le pregunta a job-runner si todos los nodos responden (`nodosSinRespuesta`);
+- y le envía la orden con `iniciar(...)`. **[Señalar: la punta abierta]** Es un mensaje **asíncrono**: el gestor no se queda bloqueado.
+
+En el maestro, **job-runner** escribe los archivos en `/srv/home/.hpc-trabajos` (compartido por NFS), arma el *hostfile*, compila con **`mpicc`** y lanza **`mpirun`**. Los procesos corren en el **maestro y los tres workers** (SSH + MPI/TCP).
+
+**6. Recoger el resultado (mensajes 15 a 18).** **[Señalar: el segundo loop y las flechas a Storage]**
+El gestor **sondea** a job-runner hasta que el trabajo termina, pide los resultados (`salida.txt`, `errores.txt` y los archivos generados) y los **guarda en Storage**, en `Resultados HPC/<nombre>-<id>` del Home del usuario. El estado pasa a **COMPLETADO**.
+
+**7. El navegador consulta (mensajes 19 a 21).** **[Señalar: el loop de abajo a la izquierda]**
+Mientras tanto, la pantalla de HPC pide cada **3 segundos** `GET /api/jobs`, también **por node-web**. job-api lo traduce a `listarTrabajosUsuario(token)` y el gestor devuelve **solo los trabajos de ese usuario**. Cuando aparece COMPLETADO, el investigador abre el resultado en su Home.
+
+### Cierre *(≈ 20 s)*
+
+Tres ideas: el navegador **solo** pasa por node-web; el envío y la ejecución están **desacoplados** (cola + mensaje asíncrono), y el clúster **no guarda nada propio**: código, dataset y resultado viven en Storage.
+
+### Preguntas probables
+
+- **¿Por qué no se ejecuta el trabajo en la misma petición?** Un trabajo MPI puede tardar mucho; una petición HTTP no puede quedar abierta tanto tiempo. Por eso se encola y se responde de inmediato con el id.
+- **¿Qué pasa si un nodo se cae?** `nodosSinRespuesta` lo detecta antes de lanzar; si falla durante la ejecución, el gestor marca el nodo **EN_FALLA** y devuelve el trabajo a la cola para asignarlo a nodos sanos.
+- **¿Por qué el navegador no llama a job-api directamente?** Porque el enunciado pide que la interfaz web entre solo por node-web. Además así el navegador solo necesita el puerto 443 y un único certificado.
+- **¿Con qué usuario corren los procesos?** Hoy como `mpiuser` en los nodos. Para la identidad real del investigador, los nodos tendrían que ser clientes LDAP (RF-20), pendiente documentado.
+
+---
+
+## 5. Secuencia: ver las fotos (Photo Album, portal web)
+
+### Apertura *(≈ 20 s)*
+
+Este diagrama muestra qué pasa cuando un usuario **abre la sección Fotos en el portal web**: cómo se arma la galería, cómo llegan las miniaturas y cómo se ve una foto en tamaño original.
+
+### Recorrido *(≈ 3–4 min)*
+
+**1. Pedir la lista (mensajes 1 a 4).** **[Señalar: las primeras flechas]**
+El navegador pide `GET /api/album/fotos` por **HTTPS 443** a node-web, que **reenvía** a Photo Album (node-media, 8083, en nodo3). Photo Album **valida el token** y el permiso `"album"` en Authentication.
+
+**2. Refrescar el índice, solo si hace falta (mensajes 5 a 10).** **[Señalar: el marco opt]**
+Photo Album **no guarda fotos**: guarda un **índice** (catálogo) de las que hay en Storage. Ese índice se refresca solo si es la primera página y pasó más de un minuto desde el último refresco:
+- lista el Home del usuario en **Storage**;
+- **[Señalar: el loop interno]** por cada imagen nueva o cambiada, la descarga, **FFmpeg** la inspecciona y genera la **miniatura**, y guarda los metadatos en `catalogo_medios`;
+- luego pregunta a **Shared File** qué le han compartido al usuario, para incluir también esas fotos.
+
+**3. Responder la lista (mensaje 11).** **[Señalar: SELECT y las respuestas hacia la izquierda]**
+Con el índice al día, Photo Album consulta su base (fotos propias y compartidas, ordenadas) y la lista vuelve **por node-web** al navegador.
+
+**4. Miniaturas (mensajes 12 y 13).** **[Señalar: el loop "cada foto que entra en pantalla"]**
+El navegador pide cada miniatura **solo cuando entra en pantalla** (carga perezosa), otra vez por node-web. Photo Album la entrega desde su **caché local**: no molesta a Storage.
+
+**5. Ver la foto original (mensajes 14 a 17).** **[Señalar: la parte de abajo]**
+Al abrir una foto, el navegador pide `/contenido` por node-web. Photo Album **no tiene el archivo**: se lo pide a **Storage con el token del usuario**, y es Storage quien decide si tiene permiso (porque es suya o porque se la compartieron). Los bytes viajan Storage → Photo Album → node-web → navegador.
+
+### Cierre *(≈ 15 s)*
+
+Photo Album es un servicio de **índice y presentación**: los archivos siguen siendo de Storage, los permisos los aplica Storage y lo compartido lo decide Shared File. Cada servicio hace lo suyo, unidos solo por contratos.
+
+### Preguntas probables
+
+- **¿Por qué no se refresca el índice en cada petición?** Recorrer el Home y generar miniaturas es costoso. Con el umbral de un minuto, la galería responde rápido y sigue estando al día.
+- **¿Las fotos se duplican en nodo3?** No. En nodo3 solo hay metadatos y miniaturas pequeñas. La foto original siempre se lee de Storage.
+- **¿Qué pasa si me revocan una foto compartida?** Al refrescar, Shared File ya no la devuelve y desaparece de la galería. Y aunque alguien conserve el enlace, Storage rechazaría la lectura.
+
+---
+
+## 6. Secuencia: sincronizar una carpeta (File Sync, apps nativas)
+
+### Apertura *(≈ 30 s)*
+
+Este diagrama muestra la **sincronización de una carpeta** entre el dispositivo y el servidor. Aquí el cliente es una **app nativa** (escritorio o Android), porque un navegador no puede leer carpetas del disco. Las apps **no pasan por node-web**: inician sesión directamente en node-soap (8081) y hablan con **syncd** por **gRPC/TLS 9090**, como se vio en el despliegue.
+
+### Recorrido *(≈ 4 min)*
+
+**1. El disparo (mensajes 1 y 2).** **[Señalar: el primer alt]**
+La sincronización empieza de dos formas: **manual**, cuando el usuario pulsa *Sincronizar*, o **automática**, al conectarse al Wi-Fi del servidor o a la hora programada.
+
+**2. Trabajo local (mensajes 3 y 4).** **[Señalar: los automensajes de la App]**
+La app calcula el **SHA-256** de cada archivo local (con una caché para no recalcular los que no cambiaron) y los compara con la **base**: el estado que quedó en la última sincronización.
+
+**3. Pedir el plan (mensajes 5 a 10).** **[Señalar: IniciarSync y lo que hace File Sync]**
+La app llama a `IniciarSync` por gRPC con la lista de archivos y sus hashes; el token va en el *metadata* de gRPC.
+- syncd **valida el token** y el permiso `"filesync"` en Authentication.
+- Lista la carpeta del usuario en **Storage**.
+- **[Señalar: el opt]** Si no conoce el hash de una versión del servidor, la descarga una vez, lo calcula y lo guarda en su caché.
+- Hace la **comparación a tres vías**: local, base y servidor. Así sabe **dónde** cambió cada archivo, y no solo que son distintos.
+
+Devuelve una **lista de acciones**, una por archivo.
+
+**4. Ejecutar las acciones (mensajes 11 a 19).** **[Señalar: el loop y el alt de cinco ramas]**
+Por cada acción distinta de "igual":
+- **SUBIR**: la app envía el archivo en trozos (*stream*) y syncd lo guarda en Storage, que crea una **nueva versión**.
+- **BAJAR**: syncd lo lee de Storage y lo envía en trozos; la app lo escribe.
+- **BORRAR_SERVIDOR**: se borró en el dispositivo, así que se borra en Storage.
+- **BORRAR**: se borró en el servidor, así que se borra la copia local.
+- **CONFLICTO**: cambió en los dos lados. **No se pierde nada**: la copia local se renombra como copia en conflicto y se sube, y se baja la del servidor (política *MANTENER_AMBOS* del contrato).
+
+**5. Cerrar (mensaje 20).** **[Señalar: el final]**
+La app guarda la **nueva base** y muestra un resumen: subidos, bajados, borrados y conflictos.
+
+### Cierre *(≈ 15 s)*
+
+File Sync **no guarda archivos**: toda la persistencia es de Storage, con su historial de versiones. syncd solo coordina: compara, decide y transmite.
+
+### Preguntas probables
+
+- **¿Por qué gRPC y no REST?** gRPC permite enviar los archivos en *streams* de trozos de forma eficiente, y el contrato `.proto` fija exactamente los mensajes. Además va cifrado con TLS.
+- **¿Por qué comparar a tres vías y no solo local contra servidor?** Con dos versiones no se sabe quién cambió. La base permite distinguir "lo cambié yo" de "lo cambió el servidor" y detectar los conflictos reales.
+- **¿Por qué la web no sincroniza?** Un navegador no tiene acceso libre a las carpetas del disco. Por eso File Sync solo lo usan las apps de escritorio y Android.
+- **¿Qué pasa si se corta la conexión a mitad?** Las acciones ya hechas quedan en Storage; la base solo se actualiza al final, así que la siguiente sincronización recalcula lo que falte.
