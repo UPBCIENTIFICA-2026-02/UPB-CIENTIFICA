@@ -7,9 +7,15 @@ y acuerdos. Complementa a `CLAUDE.md` (que es el índice) y al código del repo.
 lee directamente. Aquí está lo que **no** se deduce del código: por qué se
 decidió cada cosa, qué se descartó, qué está roto a propósito y qué falta.
 
-Última actualización: 2026-10-13, tras cerrar la auditoría de requisitos
-(File Sync real, compartidos en álbum y streaming, mapa de servicios, respaldos
-GPG, análisis de vulnerabilidades, monitoreo y contrato de Photo Album).
+Última actualización: 2026-10-20, tras desplegar todo el sistema en las tres VPS
+de la universidad (incluido node-soap con OpenLDAP), montar el clúster real de
+4 VMs Debian 13 y ejecutar en él un trabajo MPI de punta a punta, apuntar los
+tres clientes a las VPS (sin modo demo) y rehacer los diagramas (componentes,
+despliegue, datos y tres de secuencia) con su guion de exposición.
+
+La actualización anterior (2026-10-13) cerró la auditoría de requisitos: File
+Sync real, compartidos en álbum y streaming, mapa de servicios, respaldos GPG,
+análisis de vulnerabilidades, monitoreo y contrato de Photo Album.
 
 ---
 
@@ -23,9 +29,10 @@ fotos y streaming) más un servicio de ejecución de trabajos MPI sobre un clús
 
 Asignatura: Sistemas Distribuidos. Equipo de 6 personas. Sergio coordina.
 
-**Despliegue:** VMs en el Centro de Computación Avanzada (CCA) + clúster HPC
-sobre máquinas del Laboratorio. En desarrollo, todo corre en el PC de Sergio
-(sección 3.6).
+**Despliegue (real, desde 2026-10):** tres VPS Ubuntu Server 24.04 del CCA
+(`pasd_nodo1..3`) con todos los servicios, más un clúster HPC de 4 máquinas
+virtuales Debian 13 sobre los PC del Laboratorio (sección 3.2). En desarrollo se
+puede seguir levantando todo en el PC de Sergio (sección 3.6).
 
 ---
 
@@ -102,6 +109,33 @@ Convención de ramas: `feature/<nombre-del-servicio>`. Los tres clientes viven e
 repositorios aparte: `FrontWebUPBCientifica`, `FrontUPBCientifica` (Android),
 `FrontDesktopUPBCientifica` (Python + CustomTkinter).
 
+### 2.9 Siete nodos lógicos en tres VPS
+El diseño v2 tenía una VM por servicio (node-web, node-soap, node-repository,
+node-media, node-sync, node-rmi, node-monitoreo), pero la universidad asignó
+**tres VPS**. Se agruparon por afinidad:
+- `pasd_nodo1`: entrada, identidad y monitoreo;
+- `pasd_nodo2`: datos;
+- `pasd_nodo3`: medios y cómputo.
+
+Los **nombres lógicos se conservan como alias** en `/etc/hosts` de cada VPS
+(node-soap → nodo1, node-repository → nodo2…). Por eso los servicios y
+`rutas-servicio.json` no cambiaron: mover un servicio de máquina es cambiar un
+alias.
+
+Sigue siendo SOA, no microservicios: varios servicios comparten máquina, sin
+contenedores, y cada uno conserva su proceso, su contrato y su base.
+
+### 2.10 Clúster en VMs dentro de la red de la universidad
+Se descartaron dos opciones: aislar los PC del laboratorio con un switch propio
+(tiene un solo puerto de red, se perdía internet) y usar el PC de Sergio como
+maestro. La opción elegida (la "opción 1" de la guía) es esta:
+- **4 VMs Debian 13 en VirtualBox**, una por PC del laboratorio;
+- **red en modo puente** con la IP que da la universidad, sin modificar ninguna
+  IP ni la red del laboratorio.
+
+Composición: `hpc-master` + 3 workers. El maestro **también ejecuta procesos**,
+así que hay 4 nodos de cómputo (ver 4.2).
+
 ---
 
 ## 3. Datos técnicos
@@ -119,56 +153,86 @@ repositorios aparte: `FrontWebUPBCientifica`, `FrontUPBCientifica` (Android),
 | node-web → node-media | HTTP **8083** | álbum / streaming |
 | node-media → node-shared-file | HTTP **8085** | qué está compartido con el usuario |
 | node-sync → node-repository | HTTP **8084** | **antes NFS 2049**; ver 2.6 |
-| Desktop / Android → node-sync | gRPC **9090** | TLS en producción (`-tls-cert`) |
-| Servicios → node-soap | SOAP **8081** | `validarToken`, `validarAccesoServicio` |
-| node-soap → OpenLDAP | LDAPS **636** | |
+| Desktop / Android → node-sync | gRPC/TLS **9090** | TLS activo en las VPS (CA interna) |
+| Servicios → node-soap | SOAP/HTTPS **8081** | `validarToken`, `validarAccesoServicio` |
+| node-soap → OpenLDAP | LDAPS **636** | misma máquina (nodo1) |
+| Servicios → PostgreSQL | TCP **5432** | solo local en nodo2 y nodo3 |
 | node-monitoreo → servicios | HTTP `/metrics` | 8080, 8083, 8084, 8085; gestor **9102** |
-| node-monitoreo → todas las VMs | HTTP **9100** | node_exporter |
-| node-monitoreo (Grafana) | HTTP **3000** | también en el portal: `/monitoreo/` |
-| hpc-master → hpc-worker | SSH **22** y MPI/TCP | |
-| hpc-master ↔ workers | NFSv4 **2049** | `/srv/home` |
+| node-monitoreo → todas las VMs | HTTP **9100** | node_exporter (las VMs del clúster aún no, ver 8) |
+| node-monitoreo (Prometheus) | HTTP **9095** | solo `127.0.0.1` en nodo1; blackbox en **9115** |
+| node-monitoreo (Grafana) | HTTP **3000** | solo `127.0.0.1` en nodo1; se publica en el portal: `/monitoreo/` |
+| gestor-cluster (nodo3) → job-runner (hpc-master) | RMI **2099** / **2100** | |
+| hpc-master → workers | SSH **22** y MPI/TCP (puertos dinámicos) | dentro de `10.152.164.0/24` |
+| hpc-master ↔ workers | NFSv4 **2049** | `/srv/home` servido por el maestro |
 
 Los desacuerdos del diagrama de antes (Registry 1099, job-api 8080, syncd 50051)
 **ya están resueltos** a 2099, 8082 y 9090. Queda que job-api va por HTTP.
 
-### 3.2 Nodos y artefactos (diagrama de despliegue v2)
+En las VPS, **ufw** abre solo estos puertos y solo a los orígenes que los usan.
 
-Fuente: `docs/arquitectura/fuentes/despliegue.puml` (publicado como
-`DeploymentDiagram1.jpg.jpeg`) y el documento `Arquitectura-UPB-CIENTIFICA` (.docx/.pdf).
+### 3.2 Nodos y artefactos (despliegue real)
 
-**VM node-web** — Nginx (TLS 443) + Node.js 20 (`servidor-web.js` 8080, SPA, `rutas-servicio.json`).
+Diagrama: `docs/arquitectura/despliegue-real.png` (ver 9).
 
-**VM node-soap** — OpenLDAP (`directorio.ldif`); Apache 2.4 + PHP 8 (`user.php`/`users.wsdl`,
-`sesion.php`, `mfa.php`/`mfa.wsdl`). Despliegue: `despliegue/node-soap/`.
+**VPS (Ubuntu Server 24.04).** Servicios como unidades systemd `upbc-*` con el
+usuario `upbc`, código en `/opt/upbc/<servicio>`, secretos en
+`/etc/upbc/secretos/` (nunca en el repo) y ufw en cada VPS.
 
-**VM node-repository** — Distributed Storage (8084) y `shared-file-svc` (8085) sobre
-PostgreSQL; `/srv/home` exportado por NFSv4 **solo al clúster**; `respaldo-gpg.sh` +
-`upbc-respaldo.pub`, con copia fuera del nodo.
+| VPS | IP | Alias lógicos | Qué corre |
+|---|---|---|---|
+| `pasd_nodo1` | 10.154.12.219 | node-web, node-soap, node-monitoreo | Nginx 443 → node-web 8080 (SPA en `/opt/upbc/node-web/public`); Apache 2.4 + PHP 8.3 con node-soap (HTTPS 8081); OpenLDAP (LDAPS 636); Prometheus, blackbox y Grafana (`/monitoreo/`) |
+| `pasd_nodo2` | 10.154.12.221 | node-repository, node-sync | Storage 8084, Shared File 8085, syncd 9090 (gRPC/TLS); PostgreSQL 16 (`metadatos_storage`, `comparticiones`); `/srv/home` |
+| `pasd_nodo3` | 10.154.12.222 | node-media, node-rmi | Album + Streaming 8083 con FFmpeg y PostgreSQL 16 (`catalogo_medios`); `gestor-cluster.jar` (RMI 2099/2100, métricas 9102) y `job-api.jar` (8082) en JVM 17; destino de la copia de los respaldos |
 
-**VM node-media** — album + streaming (8083), FFmpeg, PostgreSQL (`catalogo_medios`).
+**TLS.** Todos los certificados (Nginx, node-soap, LDAPS, syncd) los firma una
+CA propia, "UPB-CIENTIFICA CA interna". Los clientes la traen incluida:
+- Android: `res/raw/upbc_ca.crt`;
+- escritorio: `app/assets/upbc-ca.crt`;
+- navegador: hay que instalarla o aceptar el certificado.
 
-**VM node-sync** — `syncd` (gRPC/TLS 9090, `filesync.proto`).
+**Clúster HPC** (VMs Debian 13 en VirtualBox, modo puente, red `10.152.164.0/24`):
 
-**VM node-rmi** — `gestor-cluster.jar` (Registry 2099 embebido, objetos 2100, métricas 9102),
-`job-api.jar` (8082), `seguridad-rmi.policy`.
+| VM | IP | Rol |
+|---|---|---|
+| `hpc-master` | 10.152.164.50 | `job-runner.jar` (systemd, RMI 2099/2100) con OpenJDK 21; sirve `/srv/home` por NFSv4; ejecuta procesos MPI |
+| `worker1` | 10.152.164.42 (tiene también .44) | nodo de cómputo |
+| `worker2` | 10.152.164.49 | nodo de cómputo |
+| `worker3` (hostname `hpc-worker3`) | 10.152.164.40 | nodo de cómputo |
 
-**VM node-monitoreo** — Prometheus, Grafana (3000), blackbox_exporter.
+Todos usan OpenMPI 5 y el usuario `mpiuser` con el mismo UID en las 4 VMs.
 
-**Clúster HPC (malla Grid)** — `hpc-master` (`job-runner.jar`, `hostfile`) +
-4 `hpc-worker` + equipos externos registrados; todos montan `/srv/home`.
+Configuración del job-runner que fue necesaria para que MPI funcione:
+- `MPIRUN_OPCIONES=--bind-to none --prtemca oob_tcp_if_include 10.152.164.0/24 --mca btl_tcp_if_include 10.152.164.0/24`, para que OpenMPI no elija la otra IP de worker1 ni IPv6;
+- `-Djava.rmi.server.hostname=10.152.164.50`.
 
-### 3.3 Diagrama de componentes v2
+El gestor en nodo3 apunta al maestro con:
+- `EJECUTOR_HOST=10.152.164.50`, `EJECUTOR_PUERTO=2099`;
+- `HPC_NODOS=hpc-master:2,worker1:2,worker2:2,worker3:2`, `HPC_MAX_PROCESOS=8`.
 
-Organizado como la Figura 1 del enunciado (`docs/arquitectura/fuentes/componentes.puml`):
-- **Consumidores:** navegador (SPA), aplicación de escritorio (Windows/Linux), aplicación Android.
-- **Bus de servicios:** Streaming, Photo Album, Shared File (REST), File Sync (gRPC),
-  MPI Jobs (RMI con fachada REST), Usuarios/Autenticación (SOAP).
-- **Servidores de aplicación:** SOAP Server PHP Users, Web Server JavaScript,
-  RMI Server Java Cluster, gRPC Server Go Sync.
-- **Implementación de servicios:** Streaming y Photo Album (node-media), Shared File,
-  Repository, Authentication (OpenLDAP), respaldo GPG.
-- **Clúster HPC:** planificador, job-runner (mpicc + mpirun), nodos de cómputo + equipos externos.
-- **Monitoreo** transversal.
+El archivo de entorno anterior quedó como `.antes-cluster`. Montaje paso a paso:
+`docs/Guia_Cluster_HPC_UPB_CIENTIFICA.md`.
+
+### 3.3 Diagrama de componentes
+
+`docs/arquitectura/componentes.png` (UML 2.5, interfaces provistas y requeridas):
+- **Navegador web:** la SPA solo requiere `IPortal` (HTTPS); nunca habla con
+  otro servicio.
+- **Consumidores:** Portal web (node-web, pasarela sin lógica), App de
+  escritorio y App Android. Usan el bus de siete interfaces; el portal, todas
+  menos `ISincronización`.
+- **Servicios SOA:** Authentication (`IAutenticación`, SOAP/HTTPS), Storage
+  (`IAlmacenamiento`), Shared File (`ICompartidos`), Photo Album (`IÁlbum`),
+  Streaming (`IStreaming`), File Sync (`ISincronización`, gRPC/TLS) y Gestor del
+  clúster (`ITrabajosHPC`, REST sobre RMI).
+- **Dependencias entre servicios:**
+  - Shared File, Álbum, Streaming, Sync y el gestor requieren `IAlmacenamiento`;
+  - Álbum y Streaming requieren `ICompartidos`;
+  - todos validan el token en Authentication.
+- **Recursos de datos:** OpenLDAP (LDAPS), `/srv/home` y PostgreSQL con una
+  base por servicio.
+- **Clúster:** Ejecutor MPI (job-runner) y nodos de cómputo (hpc-master + 3
+  workers).
+- **Monitoreo** transversal: Prometheus y Grafana.
 
 ### 3.4 APIs
 
@@ -213,10 +277,25 @@ DELETE /streaming/{id}
 **File Sync (gRPC 9090)** — `IniciarSync`, `SubirArchivo`, `DescargarArchivo`,
 `EliminarArchivo`, `EstadoSync` (`node-sync/proto/filesync/filesync.proto`).
 
-**HPC (REST 8082 → RMI)** — `POST/GET /jobs`, `GET /jobs/{id}`,
-`GET /jobs/{id}/estado`, `DELETE /jobs/{id}`.
+**HPC (REST 8082 → RMI)**
+```
+POST   /jobs                    GET /jobs (solo los del token)
+GET    /jobs/{id}               GET /jobs/{id}/estado
+GET    /jobs/{id}/resultado     GET /jobs/{id}/logs
+DELETE /jobs/{id}               PUT /jobs/{id}/prioridad
+POST   /jobs/{id}/reintento
+GET    /cluster/estado          POST /cluster/nodos · DELETE /cluster/nodos/{host} (hpcadmin)
+```
+La web consulta `GET /api/jobs` cada 3 s (`listarTrabajosUsuario` en el gestor).
 
-### 3.5 Autenticación en desarrollo
+### 3.5 Autenticación
+
+**En las VPS** todos los servicios están en modo `soap` contra node-soap real
+(OpenLDAP en nodo1), con los usuarios de prueba de
+`despliegue/node-soap/directorio.ldif`. Los ficheros de CA LDAP de otra
+persona que había en nodo1 se respaldaron en `/root/respaldo-ldap-otro/`.
+
+**En desarrollo:**
 `herramientas/auth-local.js` (puerto 8081, ruta `/soap/user.php`) imita node-soap:
 login, validación, `obtenerUsuario` con `homeDirectory`, `validarAccesoServicio`
 con el mismo mapa que `despliegue/node-soap/directorio.ldif`.
@@ -245,6 +324,16 @@ Tokens: `mock-token-<uid>-<hex>`. Cada servicio elige modo con
 - `despliegue/cluster-virtualbox/7-iniciar-servicios-windows.ps1` arranca todo
   (`-HpcLocal`, `-ModoAuth soap`, `-Monitoreo`). Ver `docs/Guia_Cluster_VirtualBox_Local.md`.
 - Celular físico: IP Wi-Fi real del PC (no las `192.168.56.x`). Emulador: `10.0.2.2`.
+- **Los puertos de los servicios en el PC se cerraron** (2026-10) porque ya no
+  se expone nada en local; para volver a probar en el PC hay que reabrirlos o
+  usar solo `localhost`.
+- **Los clientes apuntan a las VPS por defecto:**
+  - Android: `Entorno.LABORATORIO` en `Configuracion.kt`;
+  - escritorio: migración v3 de `config.py`;
+  - web: servida desde nodo1.
+
+  El **modo demo o simulado se eliminó** de los tres clientes: si un servicio
+  no responde, el cliente muestra el error real.
 
 ---
 
@@ -261,6 +350,9 @@ Tokens: `mock-token-<uid>-<hex>`. Cada servicio elige modo con
 
 ### 4.2 Del profesor (comunicada en clase)
 - **Mínimo 4 nodos worker** en el clúster. Total: 5 máquinas (1 maestro + 4 workers).
+  **Hoy hay 1 maestro + 3 workers** (4 nodos de cómputo, porque el maestro
+  también ejecuta). Si se exige al pie de la letra, falta una quinta VM con
+  los mismos pasos de la guía y una línea más en `hostfile` y `HPC_NODOS`.
 
 ---
 
@@ -287,23 +379,23 @@ Cancelado Figueroa, Daniel Felipe Aguilar Latorre.
 
 | Servicio | Estado |
 |---|---|
-| `node-repository` (Storage) | ✅ cuotas, permisos Unix + accesos, versionado, `/metrics`, respaldo GPG |
-| `node-shared-file` | ✅ compartir archivos y carpetas, con caducidad; Home desde el directorio |
-| `node-media` (Album + Streaming) | ✅ propio + compartido, orden, miniaturas y duración (FFmpeg), refresco automático del índice |
-| `node-sync` | ✅ gRPC por Storage, conflictos (MANTENER_AMBOS), borrados en ambos sentidos. En desarrollo corre en VM |
-| `node-web` | ✅ pasarela, CSP, límite de intentos de login, `/monitoreo/` |
-| `RMIUPBCientifica` | ✅ Contrato_HPC: código fuente + dataset de Storage, cola con envejecimiento, asignación por carga, job-runner con `mpirun`, resultado al Home, registro de nodos externos, estado persistente, métricas. Probado con mpirun simulado en el PC; falta la prueba en el clúster de 5 nodos (paso 6) |
-| `node-soap` (Auth) | ⚠️ código listo (SOAP + LDAP + MFA + `homeDirectory`); se despliega en la VM del equipo con `despliegue/node-soap/` |
-| `node-monitoreo` | ✅ Prometheus + Grafana + alertas (probado en el PC); falta la VM |
-| Cliente web | ✅ todos los servicios reales |
-| Cliente Android | ✅ todos los servicios reales; File Sync por Wi-Fi del servidor y horario |
-| Cliente escritorio | ✅ todos los servicios reales; File Sync con horario (mientras la app está abierta) |
-| `job-runner.jar` | ✅ compila y lanza `mpirun`; ejemplos en `job-runner/ejemplos/` |
+| `node-repository` (Storage) | ✅ en nodo2. Cuotas, permisos Unix + accesos, versionado, `/metrics`, respaldo GPG (falta la llave, ver 8) |
+| `node-shared-file` | ✅ en nodo2. Compartir archivos y carpetas, con caducidad; Home desde el directorio |
+| `node-media` (Album + Streaming) | ✅ en nodo3. Propio + compartido, orden, miniaturas y duración (FFmpeg), refresco automático del índice. Las rutas de miniaturas se migraron al pasar a la VPS |
+| `node-sync` | ✅ en nodo2 con TLS. gRPC por Storage, conflictos (MANTENER_AMBOS), borrados en ambos sentidos |
+| `node-web` | ✅ en nodo1 detrás de Nginx 443. Pasarela, CSP, límite de intentos de login, `/monitoreo/` |
+| `RMIUPBCientifica` | ✅ gestor + job-api en nodo3, job-runner en hpc-master. **Probado en el clúster real:** un k-means MPI se ejecutó en los 4 nodos y el resultado llegó a "Resultados HPC/" del Home |
+| `node-soap` (Auth) | ✅ **desplegado** en nodo1 (Apache + PHP 8.3, OpenLDAP por LDAPS). Todos los servicios en modo `soap` |
+| `node-monitoreo` | ✅ en nodo1. Prometheus + blackbox + Grafana con datos de las 3 VPS; faltan los nodos del clúster |
+| Cliente web | ✅ contra las VPS. Corregido "agregar fotos a álbum" (el menú se abría detrás del diálogo) |
+| Cliente Android | ✅ contra las VPS, con la CA interna; File Sync por Wi-Fi del servidor y horario |
+| Cliente escritorio | ✅ contra las VPS, con la CA interna; File Sync por gRPC/TLS con horario (mientras la app está abierta) |
+| `job-runner.jar` | ✅ servicio systemd en hpc-master; compila con `mpicc` y lanza `mpirun` real (OpenMPI 5) |
 | `fsagent` (agente de escritorio aparte) | ❌ la sincronización la hace la app de escritorio |
 
 | Requisito | Estado |
 |---|---|
-| HPC: recibir código fuente y datasets y ejecutarlos con MPI | ✅ en código; ⚠️ validar en el clúster real (7.1) |
+| HPC: recibir código fuente y datasets y ejecutarlos con MPI | ✅ probado en el clúster real (k-means en 4 nodos) |
 | Malla Grid: integrar equipos internos y externos | ✅ `POST /cluster/nodos` (hpcadmin); ⚠️ probar con un equipo externo real |
 | Repositorio distribuido de archivos, fotos y videos | ✅ Storage |
 | File Sync (copia síncrona, horario, red interna por cable/Wi-Fi, Wi-Fi del móvil, versión en el servidor) | ✅ |
@@ -313,9 +405,9 @@ Cancelado Figueroa, Daniel Felipe Aguilar Latorre.
 | Compartir imágenes **externamente** / videos para presentaciones | ⚠️ solo interno (7.5) |
 | Streaming (ordenar, difundir, control de acceso y permisos) | ✅ |
 | API entre partes | ✅ contratos + adendas + Photo Album |
-| Perfiles en directorio (auth, autorización, mapa, árbol) | ⚠️ código listo; falta desplegar node-soap con OpenLDAP |
-| GPG en respaldos | ✅ `node-repository/respaldo/` |
-| Análisis de vulnerabilidades | ✅ `docs/seguridad/analisis-vulnerabilidades.md` (repetir en producción) |
+| Perfiles en directorio (auth, autorización, mapa, árbol) | ✅ node-soap + OpenLDAP desplegados en nodo1 |
+| GPG en respaldos | ⚠️ scripts listos en `node-repository/respaldo/` y copia a nodo3; falta generar la llave (8) |
+| Análisis de vulnerabilidades | ✅ `docs/seguridad/analisis-vulnerabilidades.md`; ⚠️ falta repetirlo sobre las VPS |
 | Token / MFA | ✅ token en todos; MFA en node-soap (`mfa.php`) |
 | Monitoreo | ✅ `node-monitoreo/` |
 | Clientes nativos Windows, Linux, Android + web | ✅ (iOS no es obligatorio: "Android o iOS") |
@@ -324,16 +416,21 @@ Cancelado Figueroa, Daniel Felipe Aguilar Latorre.
 
 ## 7. Pendientes críticos
 
-### 7.1 Validar el servicio HPC en el clúster real
-El pipeline de Contrato_HPC está implementado (2026-10-13): el gestor resuelve y
-descarga código y dataset de Storage con el token del usuario, los planifica
-(prioridad con envejecimiento), asigna nodos según su carga y los entrega a
-`job-runner` en hpc-master, que compila con `mpicc`/`mpicxx` y lanza `mpirun`;
-el resultado vuelve a "Resultados HPC/" del Home. Ya no hay `bash -c` (V-11).
-Probado de punta a punta en el PC con un mpirun simulado (14/14 por la pasarela,
-más las pruebas de cada cliente). **Falta** ejecutarlo con OpenMPI real:
-`despliegue/cluster-virtualbox/6-desplegar-gestor.sh` (clúster de 5 nodos) o
-`ejecutor-vm-ubuntu.sh` (una VM).
+### 7.1 Los scripts de despliegue de las VPS no están en el repo
+Las VPS se montaron con scripts propios (`nodo1-web.sh`, `soap-nodo1.sh`,
+`ldap-nodo1.sh`, `nodo2.sh`, `nodo3.sh`…) que quedaron **fuera del repositorio**,
+en la máquina de Sergio. Hasta subirlos (por ejemplo a `despliegue/vps/`, sin
+secretos), la configuración real solo está documentada aquí y en las propias
+VPS (`/etc/upbc/`, unidades `upbc-*`). Reinstalar una VPS desde cero hoy exige
+esos scripts.
+
+**Lo mismo pasa con los diagramas:** los PNG y SVG de `docs/arquitectura/` se
+generan con scripts Python que no están en el repo (ver 9).
+
+**HPC en el clúster real:** ya validado (k-means en 4 nodos, 2026-10). Lo que
+costó está en la guía del clúster: IP doble en worker1, OpenMPI eligiendo
+IPv6 o la interfaz equivocada, el firewall entre nodos, `mpiuser` con el mismo
+UID, `nofail` en el montaje NFS y el hostname de RMI.
 
 ### 7.2 Identidad de los trabajos en el clúster
 Los trabajos corren como `mpiuser` (sin privilegios, solo en el clúster). Para
@@ -345,11 +442,10 @@ Se persiste en un archivo (`ESTADO_HPC`, serialización Java): al reiniciar, lo
 encolado vuelve a la cola y lo que se ejecutaba queda FALLIDO (reintentable).
 Con muchos usuarios convendría PostgreSQL, como el resto de servicios.
 
-### 7.4 node-soap sin desplegar
-El código está; falta montarlo en la VM del equipo con
-`despliegue/node-soap/desplegar-node-soap.sh` y pasar los servicios a
-`MODO_AUTENTICACION=soap` contra ella. Sin esto, en producción no hay directorio
-activo real.
+### 7.4 Endurecer las VPS
+Durante el montaje se dejó `sudo` sin contraseña (NOPASSWD) para el usuario de
+despliegue en las tres VPS. **Hay que quitarlo** ahora que el despliegue
+terminó. (node-soap ya está desplegado: el antiguo 7.4 quedó resuelto.)
 
 ### 7.5 Requisitos del enunciado sin cubrir del todo
 Trazabilidad completa en la sección 10 del documento de arquitectura y en la
@@ -385,28 +481,58 @@ adenda J de los contratos.
 
 **Storage**
 - Escribe en un solo lugar: es el SPOF que el análisis de riesgos identificó.
-- Los respaldos cifrados quedan en la misma VM: copiarlos fuera (ver
-  `node-repository/respaldo/README.md`). Falta definir quién custodia la llave privada.
+- Respaldos GPG: el destino de la copia fuera del nodo es nodo3, pero **falta
+  generar la llave** (`node-repository/respaldo/generar-llaves-respaldo.sh`) y
+  decidir quién custodia la llave privada. Hasta entonces no hay respaldo cifrado
+  real.
+
+**Monitoreo**
+- Las VMs del clúster no están en Prometheus. En cada VM:
+  `ufw allow from 10.154.12.219 to any port 9100`, y luego añadir los objetivos
+  en la configuración de Prometheus de nodo1.
+
+**Clúster**
+- Los trabajos corren como `mpiuser` (7.2).
+- Las IP del clúster las da la universidad por DHCP: si cambian, hay que
+  actualizar `/etc/hosts` de las VMs, el `hostfile`, `MPIRUN_OPCIONES` y
+  `EJECUTOR_HOST` en nodo3 (guía, paso 2.3).
 
 **Transversal**
 - Tráfico interno sin cifrar (HTTP entre servicios, RMI, NFS): riesgo asumido V-14.
-- En el PC de desarrollo PostgreSQL y los servicios internos escuchan en la red
-  local (V-12, V-13); en producción, cortafuegos por VM.
+- Repetir el análisis de vulnerabilidades sobre las VPS (sección 5 del informe).
+- En el PC de desarrollo los puertos ya se cerraron. En las VPS PostgreSQL,
+  Prometheus y Grafana escuchan solo en local.
 
 ---
 
-## 9. Diagramas (corregidos el 2026-10-13)
+## 9. Diagramas (rehechos el 2026-10-17/20)
 
-Los dos diagramas se rehicieron en PlantUML (`docs/arquitectura/fuentes/`) y se
-publicaron sobre los JPEG anteriores. Quedan resueltos los puntos que había aquí:
-NFS hacia todos los nodos del clúster, conexiones de los clientes nativos,
-PostgreSQL en node-repository y node-media, 4 workers, el planificador, los
-typos, la agrupación según la Figura 1, node-sync y node-media por REST 8084,
-node-media → Shared File 8085, rutas de monitoreo (9100, `/metrics`, 9102,
-`/monitoreo/`), `user.php` + `sesion.php` + `mfa.php`, Nginx 443, destino de
-respaldo y equipos externos de la malla. `job-runner.jar` aparece como
-*pendiente*. El documento de arquitectura pasó a la versión 2
-(`Arquitectura-UPB-CIENTIFICA.docx` editable + `.pdf`).
+Los diagramas de `docs/arquitectura/` reflejan el **sistema desplegado** (3 VPS +
+clúster) y son coherentes entre sí: mismos nombres, puertos y máquinas.
+
+| Archivo | Contenido |
+|---|---|
+| `componentes.png/.svg` | UML 2.5: componentes, interfaces provistas/requeridas, dependencias |
+| `despliegue-real.png/.svg` | 3 VPS + clúster; cada ruta termina en el servicio que la atiende |
+| `datos.png/.svg` | Modelo de datos (diagrama de clases con perfil de datos), un paquete por almacén |
+| `secuencia-hpc.png/.svg` | Enviar un trabajo al clúster **desde el portal web** |
+| `secuencia-album.png/.svg` | Ver las fotos **desde el portal web** |
+| `secuencia-sync.png/.svg` | Sincronizar una carpeta desde las **apps nativas** |
+| `guion-exposicion-diagramas.md` | Guion para exponer los seis diagramas, con preguntas probables |
+
+Reglas que siguen las secuencias, y que deben respetar las nuevas:
+- el navegador **solo** habla con node-web;
+- node-web **reenvía sin validar**: valida el gestor o el servicio de destino;
+- las apps nativas van directo a node-soap y a cada servicio.
+
+Cambios respecto a lo anterior:
+- se borraron los JPEG antiguos (`ComponentDiagram1`, `DeploymentDiagram1`) y
+  la carpeta `fuentes/` con PlantUML;
+- los SVG se generan con scripts Python propios, que aún no están en el repo
+  (7.1).
+
+**Pendiente:** revisar que `Arquitectura-UPB-CIENTIFICA.docx/.pdf` (v2) y el
+informe usen estos diagramas. Se escribieron cuando había una VM por servicio.
 
 ---
 
@@ -427,21 +553,9 @@ respaldo y equipos externos de la malla. `job-runner.jar` aparece como
 - Sigue pendiente en el informe: la plantilla Springer LNCS (estilo de citas
   numeradas) y el cronograma ejecutado al cierre.
 
----
 
-## 11. Próximos pasos
 
-1. **Desplegar node-soap** en la VM del equipo (7.4) y pasar los servicios a `soap`.
-2. **Probar el servicio HPC con OpenMPI real** (7.1): clúster de 5 nodos con el
-   paso 6, o una VM con `ejecutor-vm-ubuntu.sh`.
-3. Montar las VMs de producción (node-sync, node-monitoreo…) y **repetir el
-   análisis de vulnerabilidades en producción** (sección 5 del informe).
-4. Implementar lo de 7.5 (Grid, compartir imágenes externamente, `chmod`) y pasar a PDF las adendas.
-5. Completar el informe con el cronograma ejecutado y llevarlo a la plantilla LNCS.
-
----
-
-## 12. Convenciones acordadas
+## 11. Convenciones acordadas
 
 - Español en nombres y comentarios.
 - Capas: `rutas/` (solo traduce protocolo ↔ dominio) → `dominio/` (reglas puras,
@@ -452,5 +566,7 @@ respaldo y equipos externos de la malla. `job-runner.jar` aparece como
 - En SOA no se comparte código, se comparte contrato: módulos como
   `ValidadorToken.js` o `metricas.js` son copias deliberadas en cada servicio.
 - Cambios en la VM de node-soap: dejar comentario **ANTES / AHORA** en el código.
-- Los repositorios de datos simulados usan un flag `usarDatosSimulados` para
-  alternar a backend real sin tocar UI ni ViewModels.
+- Los clientes **no tienen modo demo**: siempre hablan con los servicios reales
+  (antes había un flag `usarDatosSimulados`, ya eliminado).
+- Nunca poner contraseñas en comandos ni en el repo: van en `/etc/upbc/secretos/`
+  de cada VPS.
