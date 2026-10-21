@@ -531,8 +531,15 @@ Cambios respecto a lo anterior:
 - los SVG se generan con scripts Python propios, que aún no están en el repo
   (7.1).
 
-**Pendiente:** revisar que `Arquitectura-UPB-CIENTIFICA.docx/.pdf` (v2) y el
-informe usen estos diagramas. Se escribieron cuando había una VM por servicio.
+El documento de arquitectura pasó a la **versión 3** (2026-10-20,
+`Arquitectura-UPB-CIENTIFICA.docx` + `.pdf`). Contiene:
+- los seis diagramas;
+- la distribución en 3 VPS y el clúster real;
+- las decisiones D9 (tres VPS), D10 (clúster en VMs) y D11 (CA interna);
+- la trazabilidad actualizada.
+
+**Pendiente:** revisar que el informe (`docs/Informe.docx`) use los diagramas
+nuevos.
 
 ---
 
