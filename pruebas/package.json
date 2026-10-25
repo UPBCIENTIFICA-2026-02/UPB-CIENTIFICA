@@ -1,0 +1,20 @@
+{
+  "name": "upbc-pruebas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pruebas de punta a punta, de seguridad y de carga de UPB-CIENTIFICA contra los servicios reales.",
+  "scripts": {
+    "e2e": "node ejecutar.js",
+    "e2e:lista": "node ejecutar.js --lista",
+    "unitarias": "node unitarias.js",
+    "carga": "node carga/carga.js",
+    "todo": "node unitarias.js && node ejecutar.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.5",
+    "@grpc/proto-loader": "^0.7.13"
+  }
+}

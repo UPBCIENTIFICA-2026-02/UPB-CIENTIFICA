@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node servidor-web.js",
+    "test": "node --test",
     "dev": "node --watch servidor-web.js",
     "stubs": "node herramientas/nodos-falsos.js",
     "interfaz": "node herramientas/traer-interfaz.js"

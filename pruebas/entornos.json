@@ -1,0 +1,77 @@
+{
+  "_comentario": "Direcciones de cada entorno. 'api' es la base a la que se añaden las rutas del contrato (/storage/..., /jobs/...). 'raiz' es donde viven /health y /metrics; null si no se alcanza desde fuera (p. ej. a través de la pasarela). Las claves de los usuarios NO van aquí salvo en 'local' (son las de auth-local, ya públicas en herramientas/auth-local.js): en las VPS se pasan con UPBC_CLAVE_<uid>.",
+
+  "local": {
+    "descripcion": "PC de desarrollo: 7-iniciar-servicios-windows.ps1 -HpcLocal -ModoAuth soap",
+    "auth": {
+      "modo": "soap",
+      "url": "http://127.0.0.1:8081/soap/user.php",
+      "namespace": "http://192.168.1.195/soap"
+    },
+    "web":         { "api": "http://127.0.0.1:8080", "raiz": "http://127.0.0.1:8080" },
+    "storage":     { "api": "http://127.0.0.1:8084", "raiz": "http://127.0.0.1:8084" },
+    "compartidos": { "api": "http://127.0.0.1:8085", "raiz": "http://127.0.0.1:8085" },
+    "medios":      { "api": "http://127.0.0.1:8083", "raiz": "http://127.0.0.1:8083" },
+    "hpc":         { "api": "http://127.0.0.1:8082", "raiz": null, "metricas": "http://127.0.0.1:9102/metrics" },
+    "sync":        { "direccion": "127.0.0.1:9090", "tls": false },
+    "monitoreo":   { "prometheus": "http://127.0.0.1:9095", "grafana": "http://127.0.0.1:3000" },
+    "usuarios": {
+      "principal":   { "uid": "user1",        "clave": "1234" },
+      "otro":        { "uid": "investigador", "clave": "test" },
+      "restringido": { "uid": "estudiante",   "clave": "test" }
+    }
+  },
+
+  "vps": {
+    "descripcion": "Las tres VPS del CCA, llamando a cada servicio directo. Hay que estar en la red de la universidad y que ufw deje pasar al equipo que prueba (si no, usar vps-pasarela). Requiere --ca con la CA interna.",
+    "auth": {
+      "modo": "soap",
+      "url": "https://10.154.12.219:8081/soap/user.php",
+      "namespace": "http://192.168.1.195/soap"
+    },
+    "web":         { "api": "https://10.154.12.219", "raiz": "https://10.154.12.219" },
+    "storage":     { "api": "http://10.154.12.221:8084", "raiz": "http://10.154.12.221:8084" },
+    "compartidos": { "api": "http://10.154.12.221:8085", "raiz": "http://10.154.12.221:8085" },
+    "medios":      { "api": "http://10.154.12.222:8083", "raiz": "http://10.154.12.222:8083" },
+    "hpc":         { "api": "http://10.154.12.222:8082", "raiz": null, "metricas": null },
+    "sync":        { "direccion": "10.154.12.221:9090", "tls": true, "nombreTls": "node-sync" },
+    "monitoreo":   { "prometheus": null, "grafana": null,
+                     "_comentario": "Prometheus y Grafana solo escuchan en 127.0.0.1 de pasd_nodo1: la suite 13 abre un túnel SSH (solo lectura) con la llave de despliegue. Grafana también se publica en el portal (/monitoreo).",
+                     "ssh": "nodo1-admin@10.154.12.219", "prometheusRemoto": "127.0.0.1:9095",
+                     "grafanaPublico": "https://10.154.12.219/monitoreo" },
+    "ssh": {
+      "llave": "~/.ssh/upbc_vps",
+      "maquinas": {
+        "pasd_nodo1": "nodo1-admin@10.154.12.219",
+        "pasd_nodo2": "nodo2-admin@10.154.12.221",
+        "pasd_nodo3": "nodo3-admin@10.154.12.222"
+      }
+    },
+    "usuarios": {
+      "principal":   { "uid": "user1" },
+      "otro":        { "uid": "investigador" },
+      "restringido": { "uid": "estudiante" }
+    }
+  },
+
+  "vps-pasarela": {
+    "descripcion": "Las VPS vistas como las ve el navegador: todo REST pasa por node-web (Nginx 443, /api/*). Es lo único que ufw abre a cualquier equipo. Requiere --ca con la CA interna.",
+    "auth": {
+      "modo": "soap",
+      "url": "https://10.154.12.219:8081/soap/user.php",
+      "namespace": "http://192.168.1.195/soap"
+    },
+    "web":         { "api": "https://10.154.12.219", "raiz": "https://10.154.12.219" },
+    "storage":     { "api": "https://10.154.12.219/api", "raiz": null },
+    "compartidos": { "api": "https://10.154.12.219/api", "raiz": null },
+    "medios":      { "api": "https://10.154.12.219/api", "raiz": null },
+    "hpc":         { "api": "https://10.154.12.219/api", "raiz": null, "metricas": null },
+    "sync":        { "direccion": "10.154.12.221:9090", "tls": true, "nombreTls": "node-sync" },
+    "monitoreo":   { "prometheus": null, "grafana": null },
+    "usuarios": {
+      "principal":   { "uid": "user1" },
+      "otro":        { "uid": "investigador" },
+      "restringido": { "uid": "estudiante" }
+    }
+  }
+}

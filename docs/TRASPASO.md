@@ -545,6 +545,19 @@ nuevos.
 
 ## 10. Informe y requerimientos (corregidos el 2026-10-13)
 
+**Actualización 2026-10-24 del informe** (`docs/Informe.docx` + `.pdf`, 16 páginas):
+- resumen y conclusiones nuevos;
+- §3.11 SOA y objetivo específico 10 (validación E2E);
+- nueva §6 Arquitectura y tecnologías: reglas, despliegue en 3 VPS + clúster,
+  tabla de justificación y flujo HPC, con las figuras de componentes,
+  despliegue y secuencia HPC;
+- §7 con el estado desplegado y los resultados de la validación del
+  2026-10-22 (`pruebas/validar-objetivo.ps1`);
+- desviaciones del cronograma.
+
+Se conservan intactos el estado del arte, el marco conceptual y las
+referencias.
+
 - `docs/Informe.docx` (editable) + `Informe.pdf`: protocolos bien atribuidos
   (SOAP → usuarios, RMI → clúster, gRPC → File Sync), periodo 2026-20,
   objetivo específico del núcleo HPC/Grid, "carta descriptiva" en vez de
