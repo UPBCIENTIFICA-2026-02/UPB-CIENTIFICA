@@ -443,9 +443,13 @@ encolado vuelve a la cola y lo que se ejecutaba queda FALLIDO (reintentable).
 Con muchos usuarios convendría PostgreSQL, como el resto de servicios.
 
 ### 7.4 Endurecer las VPS
-Durante el montaje se dejó `sudo` sin contraseña (NOPASSWD) para el usuario de
-despliegue en las tres VPS. **Hay que quitarlo** ahora que el despliegue
-terminó. (node-soap ya está desplegado: el antiguo 7.4 quedó resuelto.)
+**Resuelto el 2026-10-28.** Durante el montaje se dejó `sudo` sin contraseña
+(`/etc/sudoers.d/upbc-despliegue`, NOPASSWD) y una llave SSH de despliegue
+(`upbc_vps`) en las tres VPS. Se borraron ambas: los usuarios `nodoN-admin`
+siguen en el grupo `sudo`, pero ahora con contraseña. Consecuencia: las suites
+13 y 14 de `pruebas/` ya no pueden consultar las VPS por SSH (fallarán esas
+comprobaciones) hasta que se autorice otra llave. (node-soap ya está
+desplegado: el antiguo 7.4 quedó resuelto.)
 
 ### 7.5 Requisitos del enunciado sin cubrir del todo
 Trazabilidad completa en la sección 10 del documento de arquitectura y en la
@@ -554,6 +558,16 @@ nuevos.
 - §7 con el estado desplegado y los resultados de la validación del
   2026-10-22 (`pruebas/validar-objetivo.ps1`);
 - desviaciones del cronograma.
+
+**Actualización 2026-11-04** (20 páginas): §5 con el ciclo de cada iteración;
+§6.2 nueva con la tabla de interfaces (Tabla 1; el resto de tablas se
+renumeró); fila nmap/VirtualBox en tecnologías; verificación de systemd en
+§7.1; evidencia cuantitativa de la validación y párrafo de fallas reescrito en
+§7.2; §7.3 «Trabajo pendiente» sustituida por el rendimiento de k-means:
+estrategia de `RMIUPBCientifica/job-runner/ejemplos/kmeans.c`, Listado 1 (solo
+el núcleo iterativo; el código completo queda en el repo), Tabla 6, Fig. 4,
+Karp-Flatt, origen de la sobrecarga y optimizaciones (referencias nuevas:
+Arthur y Vassilvitskii 2007, Bahmani et al. 2012, Karp y Flatt 1990).
 
 Se conservan intactos el estado del arte, el marco conceptual y las
 referencias.
