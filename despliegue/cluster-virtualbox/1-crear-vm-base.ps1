@@ -22,6 +22,10 @@
 .PARAMETER Iso
   Ruta a debian-12.x.x-amd64-netinst.iso.
 
+.PARAMETER Clave
+  Clave del usuario y del administrador de la VM. Si no se pasa, se toma de
+  UPBC_CLAVE_VM en el .env de esta carpeta (antes estaba escrita aqui).
+
 .PARAMETER Manual
   Crea la VM con la ISO puesta pero NO instala: instalas tu desde la ventana
   de VirtualBox. Usalo si la instalacion automatica falla.
@@ -33,7 +37,7 @@ param(
     [Parameter(Mandatory = $true)] [string] $Iso,
     [string] $Nombre    = 'hpc-base',
     [string] $Usuario   = 'upbc',
-    [string] $Clave     = 'upbc2026',
+    [string] $Clave     = '',
     [int]    $MemoriaMB = 2048,
     [int]    $Cpus      = 2,
     [int]    $DiscoMB   = 12288,
@@ -41,6 +45,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+if (-not $Clave) {
+    . (Join-Path $PSScriptRoot 'cargar-env.ps1')
+    $Clave = $env:UPBC_CLAVE_VM
+    if (-not $Clave) { throw 'Falta la clave de la VM: define UPBC_CLAVE_VM en .env (ver .env.example) o pasa -Clave.' }
+}
 
 $dirVBox   = 'C:\Program Files\Oracle\VirtualBox'
 $vbm       = Join-Path $dirVBox 'VBoxManage.exe'

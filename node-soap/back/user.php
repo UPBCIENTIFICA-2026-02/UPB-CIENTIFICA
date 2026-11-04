@@ -6,8 +6,8 @@
  *  >>> CAMBIOS QUE AFECTAN A LA CONFIGURACIÓN DE LA VM node-soap <<<
  * ============================================================================
  *
- *  Son tres, y los tres tienen respaldo (fallback) para que el servicio siga
- *  funcionando EXACTAMENTE como hoy si no se configura nada en la VM.
+ *  Son tres. La dirección LDAP tiene respaldo (fallback); la contraseña del
+ *  bind ya no: sin configurarla el servicio no autentica (ver 2).
  *
  *  1) ARCHIVO NUEVO QUE HAY QUE DESPLEGAR
  *     ANTES: solo user.php, users.wsdl, mfa.php y mfa.wsdl en
@@ -22,9 +22,9 @@
  *     AHORA: sale de la constante LDAP_SERVICE_BIND_PW, que hay que añadir a
  *            /etc/apache2/soap-config.php (junto a LDAP_SERVICE_BIND_DN):
  *              define("LDAP_SERVICE_BIND_PW", "<clave>");
- *            Si NO se define, se sigue usando "soap" y se registra un aviso en
- *            el log de Apache. Es decir: funciona sin tocar nada, pero conviene
- *            definirla y rotar la clave (la vieja ya está en el historial Git).
+ *            Si NO se define, el bind administrativo falla y se registra el
+ *            error en el log de Apache (antes se seguía usando "soap"). Hay
+ *            que rotar la clave: la vieja ya está en el historial Git.
  *
  *  3) DIRECCIÓN DEL SERVIDOR LDAP
  *     ANTES: "ldaps://192.168.1.195" escrita en el código.
@@ -118,13 +118,17 @@ function claveServicioLDAP()
         return LDAP_SERVICE_BIND_PW;
     }
 
+    /*
+     * ANTES: sin la constante se usaba la clave heredada "soap", que está en
+     *        el código y en el historial de Git.
+     * AHORA: sin la constante no hay bind administrativo (falla cerrada).
+     */
     error_log(
-        "[upbc-auth] AVISO: LDAP_SERVICE_BIND_PW no está definido en " .
-        "soap-config.php; se usa la clave heredada del código. Defínela y " .
-        "rota la clave en el directorio."
+        "[upbc-auth] ERROR: LDAP_SERVICE_BIND_PW no está definido en " .
+        "soap-config.php; no se hace el bind administrativo."
     );
 
-    return "soap";
+    throw new RuntimeException("Servicio de autenticación sin configurar");
 }
 
 

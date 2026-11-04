@@ -99,8 +99,10 @@ estadoInvitacion, fechaCompartido, fechaExpiracion`.
 ## Arrancar
 
 ```bash
+# claves de las BD en despliegue/cluster-virtualbox/.env (ver su .env.example)
+. ../despliegue/cluster-virtualbox/cargar-env.ps1                          # PowerShell
 psql -U postgres -f ../despliegue/cluster-virtualbox/0-crear-bases.sql   # crea BD comparticiones y usuario shared_svc
-cp .env.example .env
+cp .env.example .env    # y pon en DATABASE_URL la misma clave (UPBC_BD_CLAVE_SHARED)
 npm install
 npm start
 ```

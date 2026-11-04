@@ -82,11 +82,14 @@ S1 = "Escritorio · configuración y sesión"
 @prueba(S1, "la app apunta a las VPS (entorno LABORATORIO) con TLS en Auth y File Sync")
 def _():
     c = api.conf
-    assert c.url_auth.startswith("https://10.154.12.219:8081"), c.url_auth
-    assert "10.154.12.221:8084" in c.url_storage, c.url_storage
-    assert "10.154.12.222:8083" in c.url_media, c.url_media
-    assert "10.154.12.222:8082" in c.url_trabajos, c.url_trabajos
-    assert c.direccion_sync == "10.154.12.221:9090", c.direccion_sync
+    # Las direcciones esperadas salen de pruebas/.env (fuera de Git).
+    n1, n2, n3 = (os.environ.get(f"UPBC_VPS_NODO{i}") for i in (1, 2, 3))
+    assert n1 and n2 and n3, "faltan UPBC_VPS_NODO1..3 en pruebas/.env"
+    assert c.url_auth.startswith(f"https://{n1}:8081"), c.url_auth
+    assert f"{n2}:8084" in c.url_storage, c.url_storage
+    assert f"{n3}:8083" in c.url_media, c.url_media
+    assert f"{n3}:8082" in c.url_trabajos, c.url_trabajos
+    assert c.direccion_sync == f"{n2}:9090", c.direccion_sync
     assert c.ca_sync and Path(c.ca_sync).exists(), "falta la CA interna en app/assets"
 
 

@@ -21,10 +21,13 @@
  *         targetNamespace del WSDL. Las cinco operaciones que ya existían
  *         siguen recibiendo y devolviendo exactamente lo mismo.
  *
- *  CONFIGURACIÓN OPCIONAL (recomendada, ver upbcSecretoToken abajo):
+ *  CONFIGURACIÓN OBLIGATORIA (ver upbcSecretoToken abajo):
  *         definir AUTH_TOKEN_SECRET en /etc/apache2/soap-config.php.
- *         Si no se define, el servicio SIGUE FUNCIONANDO con un secreto de
- *         desarrollo y deja un aviso en el log de Apache.
+ *         ANTES: si no se definía, el servicio seguía funcionando con un
+ *                secreto de desarrollo escrito en este archivo, de modo que
+ *                cualquiera que leyera el repositorio podía falsificar tokens.
+ *         AHORA: si no se define, no se emite ni se valida ningún token (falla
+ *                cerrada) y queda el error en el log de Apache.
  * ============================================================================
  *
  * Diseño: el token es AUTOCONTENIDO y va firmado con HMAC-SHA256. Se eligió así
@@ -51,9 +54,9 @@ const UPBC_VIGENCIA_TOKEN = 28800;
  *
  *     define("AUTH_TOKEN_SECRET", "<cadena-larga-aleatoria>");
  *
- * Mientras no se defina se usa un secreto de desarrollo para no dejar el
- * servicio caído, pero se registra el aviso: con ese secreto los tokens son
- * falsificables por cualquiera que lea este archivo.
+ * ANTES: si no se definía, se usaba un secreto de desarrollo escrito aquí.
+ * AHORA: sin secreto no hay tokens. Es preferible un servicio que rechaza el
+ *        inicio de sesión a uno que firma con una clave pública.
  */
 function upbcSecretoToken()
 {
@@ -62,12 +65,11 @@ function upbcSecretoToken()
     }
 
     error_log(
-        "[upbc-auth] AVISO: AUTH_TOKEN_SECRET no está definido en " .
-        "soap-config.php; se usa el secreto de desarrollo. Los tokens " .
-        "emitidos NO son seguros."
+        "[upbc-auth] ERROR: AUTH_TOKEN_SECRET no está definido en " .
+        "soap-config.php; no se emiten ni se validan tokens."
     );
 
-    return "upbc-cientifica-secreto-de-desarrollo-cambiar-en-produccion";
+    throw new RuntimeException("Servicio de autenticación sin configurar");
 }
 
 /** Codificación base64 apta para URL y sin relleno. */

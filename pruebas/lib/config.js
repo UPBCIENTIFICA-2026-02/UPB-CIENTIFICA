@@ -15,7 +15,9 @@
  *   --detalle                          imprime cuerpos de respuesta en los fallos
  *
  * Variables: UPBC_CLAVE_<uid> (clave de cada usuario de prueba),
- * UPBC_<SERVICIO>_API (p. ej. UPBC_STORAGE_API=http://10.0.0.5:8084).
+ * UPBC_<SERVICIO>_API (p. ej. UPBC_STORAGE_API=http://10.0.0.5:8084), y las
+ * ${UPBC_VPS_*} / ${UPBC_SSH_*} que usa entornos.json. Se leen también de
+ * pruebas/.env, que no se versiona.
  */
 const fs = require("fs");
 const path = require("path");
@@ -59,15 +61,50 @@ function relanzarConCaSiHaceFalta(args) {
     process.exit(r.status ?? 1);
 }
 
+/**
+ * pruebas/.env (fuera de Git, plantilla en .env.example): direcciones de las
+ * VPS, usuarios SSH y claves de prueba. No pisa variables ya definidas, así que
+ * lo que se exporte en la terminal manda.
+ */
+function cargarDotEnv() {
+    const archivo = path.join(RAIZ_PRUEBAS, ".env");
+    if (!fs.existsSync(archivo)) return;
+    for (const linea of fs.readFileSync(archivo, "utf8").split(/\r?\n/)) {
+        const m = linea.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+        if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2");
+    }
+}
+
+/** Sustituye ${VARIABLE} en entornos.json; avisa si el entorno elegido usa una que falta. */
+function sustituirVariables(valor, faltan) {
+    if (typeof valor === "string") {
+        return valor.replace(/\$\{([A-Z0-9_]+)\}/g, (_, v) => {
+            if (process.env[v] === undefined) { faltan.add(v); return ""; }
+            return process.env[v];
+        });
+    }
+    if (Array.isArray(valor)) return valor.map((x) => sustituirVariables(x, faltan));
+    if (valor && typeof valor === "object") {
+        return Object.fromEntries(Object.entries(valor).map(([k, x]) => [k, sustituirVariables(x, faltan)]));
+    }
+    return valor;
+}
+
 function cargarConfig(args = leerArgumentos()) {
+    cargarDotEnv();
     relanzarConCaSiHaceFalta(args);
 
     const entornos = JSON.parse(fs.readFileSync(path.join(RAIZ_PRUEBAS, "entornos.json"), "utf8"));
     const nombre = args.entorno || process.env.UPBC_ENTORNO || "local";
-    const base = entornos[nombre];
-    if (!base || nombre.startsWith("_")) {
+    if (!entornos[nombre] || nombre.startsWith("_")) {
         const validos = Object.keys(entornos).filter((k) => !k.startsWith("_")).join(", ");
         console.error(`Entorno desconocido "${nombre}". Válidos: ${validos}`);
+        process.exit(2);
+    }
+    const faltan = new Set();
+    const base = sustituirVariables(entornos[nombre], faltan);
+    if (faltan.size) {
+        console.error(`El entorno "${nombre}" necesita ${[...faltan].join(", ")}: defínelas en pruebas/.env (ver .env.example).`);
         process.exit(2);
     }
     const cfg = structuredClone(base);

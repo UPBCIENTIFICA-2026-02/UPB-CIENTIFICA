@@ -56,8 +56,10 @@ cd pruebas
 .\validar-objetivo.ps1 -Bloques mpi          # solo uno (p. ej. al encender el clúster)
 ```
 
-Requisitos: red de la universidad, la llave `~/.ssh/upbc_vps` (las suites 13 y
-14 consultan las VPS por SSH en solo lectura), Edge o Chrome (cliente web),
+Requisitos: red de la universidad, `pruebas/.env` con las direcciones de las
+VPS, los usuarios SSH y la llave (copiar de `.env.example`; no se versiona), una
+llave autorizada en las VPS (las suites 13 y 14 las consultan por SSH en solo
+lectura), Edge o Chrome (cliente web),
 Python con `grpcio` (cliente de escritorio) y el repositorio hermano de cada
 cliente. Para el bloque MPI, las 4 VMs del clúster encendidas.
 
@@ -71,8 +73,11 @@ cliente. Para el bloque MPI, las 4 VMs del clúster encendidas.
 | `vps` | las tres VPS, cada servicio directo. Solo si ufw deja pasar a tu equipo |
 | `vps-pasarela` | las VPS como las ve el navegador: todo por Nginx 443 `/api/*` |
 
-En las VPS hay que pasar la CA interna y las claves de los usuarios de prueba
-(nunca van en el repositorio):
+Los entornos `vps` y `vps-pasarela` no guardan direcciones ni usuarios en
+`entornos.json`: usan `${UPBC_VPS_NODO1}`, `${UPBC_SSH_USUARIO_NODO1}`… que se
+leen de `pruebas/.env` (plantilla en `.env.example`). En las VPS hay que pasar
+además la CA interna y las claves de los usuarios de prueba (nunca van en el
+repositorio):
 
 ```powershell
 $env:UPBC_CLAVE_user1 = '...'; $env:UPBC_CLAVE_investigador = '...'; $env:UPBC_CLAVE_estudiante = '...'
